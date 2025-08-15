@@ -29,6 +29,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@org.springframework.context.annotation.Profile("!dev")
 public class SecurityConfig {
 
     @Value("${auth0.audience}")

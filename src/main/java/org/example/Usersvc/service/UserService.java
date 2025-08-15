@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.event.model.UserCreatedEvent;
 import org.example.Usersvc.event.model.UserDeletedEvent;
-import org.example.Usersvc.event.publisher.EventPublisher;
+import org.example.Usersvc.event.publisher.EventPublisherService;
 import org.example.Usersvc.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +40,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final EventPublisher eventPublisher;
+    private final EventPublisherService eventPublisher;
 
     /**
      * 새로운 사용자 생성

@@ -4,28 +4,25 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
-/**
- * 사용자 엔티티 클래스
- * 
- * 시스템의 핵심 사용자 정보를 저장하는 엔티티입니다.
- * Auth0와 연동하여 외부 인증 시스템의 사용자 정보를 
- * 내부 시스템에서 관리할 수 있도록 설계되었습니다.
- * 
- * 주요 특징:
- * - UUID 기반의 사용자 식별자 사용
- * - Auth0 ID와의 매핑을 통한 외부 인증 연동
- * - 이메일 기반의 사용자 식별 지원
- * - 생성 시간 자동 관리
- * 
- * 데이터베이스 스키마:
- * - user_id: VARCHAR(36) - UUID 기반 기본키
- * - auth0_id: VARCHAR(255) - Auth0 사용자 식별자 (유니크)
- * - user_email: VARCHAR(255) - 사용자 이메일 (유니크)
- * - created_at: DATETIME - 생성 시간 (자동 설정)
- */
+// 사용자 엔티티 클래스
+// 시스템의 핵심 사용자 정보를 저장하는 엔티티입니다.
+// Auth0와 연동하여 외부 인증 시스템의 사용자 정보를 내부 시스템에서 관리할 수 있도록 설계되었습니다.
+// 
+// 주요 특징:
+// - UUID 기반의 사용자 식별자 사용
+// - Auth0 ID와의 매핑을 통한 외부 인증 연동
+// - 이메일 기반의 사용자 식별 지원
+// - 생성 시간 자동 관리
+// 
+// 데이터베이스 스키마:
+// - user_id: VARCHAR(36) - UUID 기반 기본키
+// - auth0_id: VARCHAR(255) - Auth0 사용자 식별자 (유니크)
+// - user_email: VARCHAR(255) - 사용자 이메일 (유니크)
+// - created_at: DATETIME - 생성 시간 (자동 설정)
 @Entity
-@Table(name = "user", 
+@Table(name = "users", 
        uniqueConstraints = {
            @UniqueConstraint(name = "uk_auth0_id", columnNames = "auth0_id"),
            @UniqueConstraint(name = "uk_user_email", columnNames = "user_email")
@@ -35,7 +32,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @ToString(exclude = {})
-public class User extends BaseEntity {
+public class User {
     
     /**
      * 사용자 고유 식별자
@@ -93,7 +90,8 @@ public class User extends BaseEntity {
      * - 사용자 가입 시점 추적
      * - 감사(Audit) 정보로 활용
      */
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false, 
+            columnDefinition = "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
     
     /**
@@ -170,5 +168,20 @@ public class User extends BaseEntity {
             return false;
         }
         return createdAt.isAfter(LocalDateTime.now().minusDays(days));
+    }
+    
+    // equals와 hashCode 메서드 구현
+    // JPA에서 엔티티의 동일성을 올바르게 비교하기 위해 기본키를 기준으로 구현합니다.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(userId, user.userId);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(userId);
     }
 }

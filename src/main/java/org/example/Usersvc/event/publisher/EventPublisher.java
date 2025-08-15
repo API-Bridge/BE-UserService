@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class EventPublisher {
+@org.springframework.context.annotation.Profile("!dev")
+public class EventPublisher implements EventPublisherService {
 
     /** Kafka 메시지 전송을 위한 KafkaTemplate */
     private final KafkaTemplate<String, Object> kafkaTemplate;

@@ -2,6 +2,7 @@ package org.example.Usersvc.service;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -19,93 +20,61 @@ import java.time.LocalDateTime;
  * - 암호화 및 보안 관련 설정
  */
 @Getter
-@Builder
+@Setter
 public class SecretMetadata {
+    // 시크릿의 ARN (Amazon Resource Name)
+    // AWS에서 시크릿을 고유하게 식별하는 리소스 이름
+    private String arn;
+
+     // 시크릿 이름
+     // 사용자가 지정한 시크릿의 이름
+    private String name;
     
-    /**
-     * 시크릿의 ARN (Amazon Resource Name)
-     * 
-     * AWS에서 시크릿을 고유하게 식별하는 리소스 이름입니다.
-     */
-    private final String arn;
-    
-    /**
-     * 시크릿 이름
-     * 
-     * 사용자가 지정한 시크릿의 이름입니다.
-     */
-    private final String name;
-    
-    /**
-     * 시크릿 설명
-     * 
-     * 시크릿에 대한 설명 정보입니다.
-     */
-    private final String description;
-    
-    /**
-     * 시크릿 생성 시간
-     * 
-     * 시크릿이 AWS Secrets Manager에 처음 생성된 시간입니다.
-     */
-    private final LocalDateTime createdDate;
-    
-    /**
-     * 시크릿 마지막 수정 시간
-     * 
-     * 시크릿이 마지막으로 수정된 시간입니다.
-     */
-    private final LocalDateTime lastChangedDate;
-    
-    /**
-     * 시크릿 마지막 접근 시간
-     * 
-     * 시크릿이 마지막으로 조회된 시간입니다.
-     */
-    private final LocalDateTime lastAccessedDate;
-    
-    /**
-     * KMS 키 ID
-     * 
-     * 시크릿 암호화에 사용된 AWS KMS 키의 식별자입니다.
-     */
-    private final String kmsKeyId;
-    
-    /**
-     * 시크릿 버전 ID
-     * 
-     * 현재 활성화된 시크릿 버전의 식별자입니다.
-     */
-    private final String versionId;
-    
-    /**
-     * 삭제 예정 여부
-     * 
-     * 시크릿이 삭제 예정 상태인지 나타냅니다.
-     */
-    private final boolean deletionDate;
-    
-    /**
-     * 자동 로테이션 활성화 여부
-     * 
-     * 시크릿의 자동 로테이션 기능이 활성화되어 있는지 나타냅니다.
-     */
-    private final boolean rotationEnabled;
-    
-    /**
-     * 로테이션 주기 (일)
-     * 
-     * 자동 로테이션이 활성화된 경우의 로테이션 주기입니다.
-     */
-    private final Integer rotationIntervalDays;
-    
-    /**
-     * AWS 리전
-     * 
-     * 시크릿이 저장된 AWS 리전입니다.
-     */
-    private final String region;
-    
+
+    //시크릿 설명
+    //시크릿에 대한 설명 정보
+    private String description;
+
+    // 시크릿 생성 시간
+    // 시크릿이 AWS Secrets Manager에 처음 생성된 시간
+    private LocalDateTime createdDate;
+
+    // 시크릿 마지막 수정 시간
+    // 시크릿의 내용이나 설정이 마지막으로 변경된 시간
+    private LocalDateTime lastChangedDate;
+
+    // 시크릿 마지막 접근 시간
+    // 시크릿이 마지막으로 조회되거나 사용된 시간
+    private LocalDateTime lastAccessedDate;
+
+    // KMS 키 ID는 시크릿의 보안을 유지하기 위해 사용됨
+    private String kmsKeyId;
+
+    // 시크릿 버전 ID
+    // 현재 활성화된 시크릿 버전의 식별자
+    private String versionId;
+
+     // 삭제 예정 여부
+     // 시크릿이 삭제 예정 상태인지 나타냅니다.
+    // 시크릿이 삭제 예정 상태인 경우 true
+    private boolean deletionDate;
+
+    // true인 경우 자동 로테이션이 활성화
+    // 시크릿의 자동 로테이션 기능이 활성화되어 있는지 나타냅니다.
+    private boolean rotationEnabled;
+
+    // 로테이션 주기 (일 단위)
+    // 자동 로테이션이 활성화된 경우의 로테이션 주기를 나타냅니다.
+    private Integer rotationIntervalDays;
+
+    // AWS 리전 정보
+    // 시크릿이 저장된 AWS 리전 (예: us-west-2)
+    private String region;
+
+    public SecretMetadata() {
+
+    }
+
     /**
      * 시크릿이 최근에 생성되었는지 확인
      * 

@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
  * - JPA Auditing을 통한 생성/수정 일시 자동 관리
  * - Soft Delete 패턴 지원 (삭제 플래그 관리)
  * - 엔티티 기본 라이프사이클 관리
+ * 
+ * 주의: 현재 스키마에서는 UUID 기반 엔티티를 사용하므로 이 클래스는 사용되지 않습니다.
+ * 향후 확장을 위해 보관하되, 현재는 각 엔티티가 독립적으로 정의됩니다.
  */
 @Getter
 @Setter

@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * Custom API Service 애플리케이션 기본 테스트 클래스
+ * User Service 애플리케이션 기본 테스트 클래스
  * Spring Boot 애플리케이션 컴텍스트 로딩 및 기본 기능 테스트
  * 
  * 주요 기능:
@@ -12,8 +12,12 @@ import org.springframework.boot.test.context.SpringBootTest;
  * - 기본 빈 구성 및 의존성 주입 확인
  * - 애플리케이션 시작 가능 여부 검증
  */
-@SpringBootTest
-class AISvcApplicationTests {
+@SpringBootTest(properties = {
+    "spring.profiles.active=test",
+    "spring.kafka.consumer.bootstrap-servers=${spring.embedded.kafka.brokers}",
+    "spring.kafka.producer.bootstrap-servers=${spring.embedded.kafka.brokers}"
+})
+class UserSvcApplicationTests {
 
     /**
      * Spring Boot 애플리케이션 컴텍스트 로딩 테스트

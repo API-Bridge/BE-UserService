@@ -27,6 +27,7 @@ import java.time.Duration;
  */
 @Configuration
 @EnableCaching
+@org.springframework.context.annotation.Profile("!dev")
 public class RedisConfig {
 
     @Value("${spring.redis.host}")

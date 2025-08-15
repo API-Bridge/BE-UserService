@@ -39,7 +39,7 @@ CREATE TABLE subscription (
                               is_active BOOLEAN NOT NULL DEFAULT FALSE,
                               PRIMARY KEY (subscription_id),
                               INDEX idx_user_id (user_id),
-                              INDEX idx_plan_id (plan_id),
+                              INDEX idx_plan_id (plan_id)
     -- MSA 환경에서는 외래키 제약조건 제거
     -- 데이터 일관성은 애플리케이션 레벨과 이벤트를 통해 관리
     -- CONSTRAINT fk_subscriptions_to_users FOREIGN KEY (user_id) REFERENCES user (user_id),

@@ -85,4 +85,20 @@ public class BaseResponse<T> {
                 .timestamp(LocalDateTime.now())
                 .build();
     }
+
+    /**
+     * 오류 코드와 메시지를 포함한 오류 응답을 생성하는 정적 팩토리 메소드
+     * 
+     * @param errorCode 오류 코드
+     * @param message 오류 메시지
+     * @param <T> 데이터 타입
+     * @return 오류 응답 객체
+     */
+    public static <T> BaseResponse<T> error(String errorCode, String message) {
+        return BaseResponse.<T>builder()
+                .success(false)
+                .message(errorCode + ": " + message)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
 }

@@ -3,8 +3,14 @@
     "allow": [
       "Bash(.gradlew compileJava)",
       "Bash(gradlew.bat compileJava:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(./gradlew:*)",
+      "Bash(mv:*)",
+      "Bash(timeout:*)"
     ],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\c\\workspace"
+    ]
   }
 }

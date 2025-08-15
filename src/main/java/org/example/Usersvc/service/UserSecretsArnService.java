@@ -3,7 +3,7 @@ package org.example.Usersvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.UserSecretsArn;
-import org.example.Usersvc.event.publisher.EventPublisher;
+import org.example.Usersvc.event.publisher.EventPublisherService;
 import org.example.Usersvc.exception.AWSSecretsManagerException;
 import org.example.Usersvc.repository.UserSecretsArnRepository;
 import org.springframework.stereotype.Service;
@@ -42,7 +42,7 @@ public class UserSecretsArnService {
 
     private final UserSecretsArnRepository userSecretsArnRepository;
     private final AWSSecretsManagerService awsSecretsManagerService;
-    private final EventPublisher eventPublisher;
+    private final EventPublisherService eventPublisher;
 
     /**
      * 사용자 암호화 키를 AWS Secrets Manager에 저장하고 ARN 정보를 관리

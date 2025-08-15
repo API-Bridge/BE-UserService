@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 사용자 암호화 키 ARN 정보 엔티티 클래스
@@ -43,7 +44,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @ToString(exclude = {})
-public class UserSecretsArn extends BaseEntity {
+public class UserSecretsArn {
     
     /**
      * ARN 정보 고유 식별자
@@ -125,7 +126,8 @@ public class UserSecretsArn extends BaseEntity {
      * - 감사(Audit) 정보로 활용
      * - 키 생성 시간 기반 정책 적용 가능
      */
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false,
+            columnDefinition = "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
     
     /**
@@ -270,5 +272,20 @@ public class UserSecretsArn extends BaseEntity {
         }
         
         return "unknown";
+    }
+    
+    // equals와 hashCode 메서드 구현
+    // JPA에서 엔티티의 동일성을 올바르게 비교하기 위해 기본키를 기준으로 구현합니다.
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserSecretsArn that = (UserSecretsArn) o;
+        return Objects.equals(arnId, that.arnId);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(arnId);
     }
 }

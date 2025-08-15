@@ -28,6 +28,7 @@ import java.util.Map;
  */
 @Configuration
 @EnableKafka
+@org.springframework.context.annotation.Profile("!dev")
 public class KafkaConfig {
 
     /** Kafka 브로커 서버 주소 */

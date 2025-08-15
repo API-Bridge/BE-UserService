@@ -7,7 +7,7 @@ spring:
   # JPA 설정 (Amazon Corretto 17 최적화)
   jpa:
     hibernate:
-      ddl-auto: ${DDL_AUTO:validate}
+      ddl-auto: ${DDL_AUTO:create-drop}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
@@ -18,41 +18,43 @@ spring:
         order_inserts: true
         order_updates: true
         jdbc.batch_versioned_data: true
+        globally_quoted_identifiers: false
+        globally_quoted_identifiers_skip_column_definitions: true
     show-sql: false
     open-in-view: false
 
-  # Kafka 설정
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    consumer:
-      group-id: ${SERVICE_NAME:user-svc}-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
-        max.poll.records: 500
-        enable.auto.commit: false
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        acks: all
-        retries: 3
+  # Kafka 설정 (개발 환경에서는 비활성화)
+  # kafka:
+  #   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  #   consumer:
+  #     group-id: ${SERVICE_NAME:user-svc}-group
+  #     auto-offset-reset: earliest
+  #     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  #     value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+  #     properties:
+  #       spring.json.trusted.packages: "*"
+  #       max.poll.records: 500
+  #       enable.auto.commit: false
+  #   producer:
+  #     key-serializer: org.apache.kafka.common.serialization.StringSerializer
+  #     value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  #     properties:
+  #       acks: all
+  #       retries: 3
 
-  # Redis 설정  
-  redis:
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
+  # Redis 설정 (개발 환경에서는 비활성화)
+  # redis:
+  #   lettuce:
+  #     pool:
+  #       max-active: 8
+  #       max-idle: 8
+  #       min-idle: 0
 
   # 데이터베이스 설정
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/usersvc?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_service_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
+    password: ${DB_PASSWORD:1111}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -60,24 +62,31 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      timeout: 2000ms
+  # data:
+  #   redis:
+  #     host: ${REDIS_HOST:localhost}
+  #     port: ${REDIS_PORT:6379}
+  #     timeout: 2000ms
 
-# Auth0 설정
-auth0:
-  issuerUri: ${AUTH0_ISSUER_URI:https://dev-your-domain.auth0.com/}
-  audience: ${AUTH0_AUDIENCE:https://api.dev.yourservice.com}
+# Auth0 설정 (개발 환경에서는 비활성화)
+# auth0:
+#   issuerUri: ${AUTH0_ISSUER_URI:https://dev-your-domain.auth0.com/}
+#   audience: ${AUTH0_AUDIENCE:https://api.dev.yourservice.com}
 
-# AWS 설정
-aws:
-  region: ${AWS_REGION:ap-northeast-2}
-  s3:
-    bucket: ${S3_BUCKET_NAME:your-bucket-name}
-  secretsmanager:
-    region: ${AWS_REGION:ap-northeast-2}
+# 개발 환경용 기본 보안 설정
+  security:
+    user:
+      name: admin
+      password: admin
+      roles: USER,ADMIN
+
+# AWS 설정 (개발 환경에서는 비활성화)
+# aws:
+#   region: ${AWS_REGION:ap-northeast-2}
+#   s3:
+#     bucket: ${S3_BUCKET_NAME:your-bucket-name}
+#   secretsmanager:
+#     region: ${AWS_REGION:ap-northeast-2}
 
 # Circuit Breaker 설정 (Resilience4j)
 resilience4j:
@@ -171,14 +180,34 @@ spring:
   config:
     activate:
       on-profile: dev
+  
+  # 개발 환경에서는 H2 인메모리 DB 사용
+  datasource:
+    url: jdbc:h2:mem:devdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
   jpa:
+    hibernate:
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
-  kafka:
-    consumer:
-      group-id: user-svc-dev-group
+        
+  sql:
+    init:
+      mode: never
+  # kafka:
+  #   consumer:
+  #     group-id: user-svc-dev-group
 
 logging:
   level:
