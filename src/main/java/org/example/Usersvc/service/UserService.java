@@ -147,6 +147,22 @@ public class UserService {
     }
     
     /**
+     * 사용자 ID로 사용자 조회 (Long 타입 지원)
+     */
+    @Transactional(readOnly = true)
+    public User findByUserId(Long userId) {
+        log.debug("사용자 조회 시작 - userId: {}", userId);
+        
+        Optional<User> user = userRepository.findById(userId.toString());
+        if (user.isEmpty()) {
+            throw new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId);
+        }
+        
+        log.debug("사용자 조회 완료 - userId: {}", userId);
+        return user.get();
+    }
+    
+    /**
      * 모든 사용자 조회
      * 
      * @return 전체 사용자 목록

@@ -1,6 +1,6 @@
 package org.example.Usersvc.controller;
 
-import org.example.Usersvc.dto.common.BaseResponse;
+import org.example.Usersvc.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,11 +39,11 @@ public class HealthController {
      * 서비스 상태 확인 엔드포인트
      * 마이크로서비스의 현재 상태와 시스템 정보를 반환
      * 
-     * @return BaseResponse<Map<String, Object>> 서비스 상태 정보
+     * @return ApiResponse<Map<String, Object>> 서비스 상태 정보
      */
     @Operation(summary = "서비스 상태 확인", description = "서비스의 현재 상태를 확인합니다.")
     @GetMapping
-    public BaseResponse<Map<String, Object>> health() {
+    public ApiResponse<Map<String, Object>> health() {
         Map<String, Object> status = new HashMap<>();
         
         // 서비스 기본 정보
@@ -56,6 +56,6 @@ public class HealthController {
         status.put("javaVersion", System.getProperty("java.version"));
         status.put("javaVendor", System.getProperty("java.vendor"));
         
-        return BaseResponse.success(status, "Service is healthy");
+        return ApiResponse.success(status, "Service is healthy");
     }
 }

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.example.Usersvc.service.UserSubscriptionServiceTest" tests="7" skipped="0" failures="2" errors="0" timestamp="2025-08-15T15:04:49.118Z" hostname="SEOKYEEUN" time="0.265">
+  <properties/>
+  <testcase name="활성 구독이 있으면 해당 구독을 반환해야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.19"/>
+  <testcase name="존재하지 않는 플랜으로 구독 생성 시 예외가 발생해야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.027"/>
+  <testcase name="활성 구독이 없으면 기본 무료 구독을 생성해야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.005"/>
+  <testcase name="구독 갱신이 정상적으로 동작해야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.014"/>
+  <testcase name="플랜 변경이 정상적으로 동작해야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.015">
+    <failure message="org.mockito.exceptions.verification.TooFewActualInvocations: &#10;userSubscriptionRepository.save(&#10;    &lt;any org.example.Usersvc.domain.UserSubscription&gt;&#10;);&#10;Wanted 2 times:&#10;-&gt; at org.example.Usersvc.service.UserSubscriptionServiceTest.shouldChangePlanCorrectly(UserSubscriptionServiceTest.java:232)&#10;But was 1 time:&#10;-&gt; at org.example.Usersvc.service.UserSubscriptionService.createSubscription(UserSubscriptionService.java:56)&#10;" type="org.mockito.exceptions.verification.TooFewActualInvocations">org.mockito.exceptions.verification.TooFewActualInvocations: 
+userSubscriptionRepository.save(
+    &lt;any org.example.Usersvc.domain.UserSubscription&gt;
+);
+Wanted 2 times:
+-&gt; at org.example.Usersvc.service.UserSubscriptionServiceTest.shouldChangePlanCorrectly(UserSubscriptionServiceTest.java:232)
+But was 1 time:
+-&gt; at org.example.Usersvc.service.UserSubscriptionService.createSubscription(UserSubscriptionService.java:56)
+
+	at app//org.example.Usersvc.service.UserSubscriptionServiceTest.shouldChangePlanCorrectly(UserSubscriptionServiceTest.java:232)
+	at java.base@17.0.13/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base@17.0.13/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.13/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="새 구독 생성 시 기존 활성 구독을 취소해야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.007">
+    <failure message="org.mockito.exceptions.verification.TooFewActualInvocations: &#10;userSubscriptionRepository.save(&#10;    &lt;any org.example.Usersvc.domain.UserSubscription&gt;&#10;);&#10;Wanted 2 times:&#10;-&gt; at org.example.Usersvc.service.UserSubscriptionServiceTest.shouldCancelExistingSubscriptionWhenCreatingNew(UserSubscriptionServiceTest.java:139)&#10;But was 1 time:&#10;-&gt; at org.example.Usersvc.service.UserSubscriptionService.createSubscription(UserSubscriptionService.java:56)&#10;" type="org.mockito.exceptions.verification.TooFewActualInvocations">org.mockito.exceptions.verification.TooFewActualInvocations: 
+userSubscriptionRepository.save(
+    &lt;any org.example.Usersvc.domain.UserSubscription&gt;
+);
+Wanted 2 times:
+-&gt; at org.example.Usersvc.service.UserSubscriptionServiceTest.shouldCancelExistingSubscriptionWhenCreatingNew(UserSubscriptionServiceTest.java:139)
+But was 1 time:
+-&gt; at org.example.Usersvc.service.UserSubscriptionService.createSubscription(UserSubscriptionService.java:56)
+
+	at app//org.example.Usersvc.service.UserSubscriptionServiceTest.shouldCancelExistingSubscriptionWhenCreatingNew(UserSubscriptionServiceTest.java:139)
+	at java.base@17.0.13/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base@17.0.13/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.13/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="구독 취소 후 무료 플랜으로 변경되어야 한다" classname="org.example.Usersvc.service.UserSubscriptionServiceTest" time="0.004"/>
+  <system-out><![CDATA[2025-08-16 00:04:49.342 [Test worker] INFO  [,] o.e.U.s.UserSubscriptionService - Created default free subscription for user: 1
+2025-08-16 00:04:49.383 [Test worker] INFO  [,] o.e.U.s.UserSubscriptionService - Created default free subscription for user: 1
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -140,6 +140,13 @@ public class User {
     }
     
     /**
+     * userId setter 메서드 (테스트용)
+     */
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+    
+    /**
      * 사용자 정보 유효성 검증 메서드
      * 
      * 사용자 엔티티의 필수 정보가 모두 올바르게 설정되어 있는지 검증합니다.

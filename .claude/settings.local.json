@@ -6,7 +6,10 @@
       "Bash(powershell:*)",
       "Bash(./gradlew:*)",
       "Bash(mv:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(touch:*)",
+      "Bash(rm:*)",
+      "Bash(curl:*)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [
