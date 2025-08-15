@@ -44,4 +44,26 @@ public class EventPublisher {
                     }
                 });
     }
+    
+    /**
+     * 간단한 이벤트 발행 메서드 (이벤트 타입과 데이터 직접 전달)
+     * 
+     * @param eventType 이벤트 타입
+     * @param data 이벤트 데이터
+     */
+    public void publishEvent(String eventType, Object data) {
+        log.info("Publishing simple event: eventType: {}, data: {}",
+                eventType, data.getClass().getSimpleName());
+
+        String eventId = java.util.UUID.randomUUID().toString();
+        
+        kafkaTemplate.send("user-service-events", eventId, data)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed to publish event: eventType: {}, eventId: {}", eventType, eventId, ex);
+                    } else {
+                        log.debug("Event published successfully: eventType: {}, eventId: {}", eventType, eventId);
+                    }
+                });
+    }
 }
