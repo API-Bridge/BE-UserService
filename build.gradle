@@ -57,6 +57,9 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.20.56')
     implementation 'software.amazon.awssdk:secretsmanager'
     
+    // Stripe Payment Integration
+    implementation 'com.stripe:stripe-java:24.16.0'
+    
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testImplementation 'org.springframework.security:spring-security-test'

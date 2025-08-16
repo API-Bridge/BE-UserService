@@ -55,13 +55,16 @@ springdoc:
   #       acks: all
   #       retries: 3
 
-  # Redis 설정 (개발 환경에서는 비활성화)
-  # redis:
-  #   lettuce:
-  #     pool:
-  #       max-active: 8
-  #       max-idle: 8
-  #       min-idle: 0
+  # Redis 설정
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
 
   # 데이터베이스 설정
   datasource:
@@ -75,11 +78,11 @@ springdoc:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
-  # data:
-  #   redis:
-  #     host: ${REDIS_HOST:localhost}
-  #     port: ${REDIS_PORT:6379}
-  #     timeout: 2000ms
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
 
 # Auth0 설정 (개발 환경에서는 비활성화)
 # auth0:
@@ -100,6 +103,23 @@ springdoc:
 #     bucket: ${S3_BUCKET_NAME:your-bucket-name}
 #   secretsmanager:
 #     region: ${AWS_REGION:ap-northeast-2}
+
+# Stripe 설정
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_your_test_key_here}
+  public-key: ${STRIPE_PUBLIC_KEY:pk_test_your_test_key_here}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_your_webhook_secret_here}
+  # Stripe에 등록된 Product IDs
+  products:
+    free: ${STRIPE_FREE_PRODUCT_ID:prod_Ss3CAEwmeB1QuU}
+    pro: ${STRIPE_PRO_PRODUCT_ID:prod_Ss3ChLEOuz3Km9}
+    enterprise: ${STRIPE_ENTERPRISE_PRODUCT_ID:prod_enterprise_plan}
+  # Stripe에 등록된 Price IDs
+  prices:
+    pro-monthly: ${STRIPE_PRO_MONTHLY_PRICE_ID:price_pro_monthly}
+    pro-yearly: ${STRIPE_PRO_YEARLY_PRICE_ID:price_pro_yearly}
+    enterprise-monthly: ${STRIPE_ENTERPRISE_MONTHLY_PRICE_ID:price_enterprise_monthly}
+    enterprise-yearly: ${STRIPE_ENTERPRISE_YEARLY_PRICE_ID:price_enterprise_yearly}
 
 # Circuit Breaker 설정 (Resilience4j)
 resilience4j:
@@ -169,7 +189,7 @@ management:
 
 # 서버 설정
 server:
-  port: ${SERVER_PORT:8083}
+  port: ${SERVER_PORT:8081}
   servlet:
     # context-path: /api/v1  # 컨텍스트 패스 제거
   tomcat:

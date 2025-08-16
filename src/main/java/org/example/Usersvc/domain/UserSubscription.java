@@ -81,4 +81,34 @@ public class UserSubscription {
         this.expiresAt = newExpiresAt;
         this.isActive = true;
     }
+
+    /**
+     * 구독 활성화
+     */
+    public void activate() {
+        this.isActive = true;
+    }
+
+    /**
+     * 결제 연체 상태로 표시
+     */
+    public void markOverdue() {
+        // 현재는 상태만 비활성화, 향후 별도 상태 필드 추가 가능
+        this.isActive = false;
+    }
+
+    /**
+     * 결제 실패 상태로 표시
+     */
+    public void markPaymentFailed() {
+        // 현재는 상태만 비활성화, 향후 별도 상태 필드 추가 가능
+        this.isActive = false;
+    }
+
+    /**
+     * 만료일 업데이트
+     */
+    public void updateExpirationDate(LocalDateTime newExpiresAt) {
+        this.expiresAt = newExpiresAt;
+    }
 }

@@ -80,6 +80,20 @@ public class User {
     private String userEmail;
     
     /**
+     * Stripe 고객 ID
+     * 
+     * Stripe 결제 시스템에서 사용되는 고객 식별자입니다.
+     * 사용자가 유료 구독을 시작할 때 생성됩니다.
+     * 
+     * 특징:
+     * - Stripe Customer 객체와 연결
+     * - 결제 및 구독 관리에 사용
+     * - null 허용 (무료 사용자는 Stripe 고객 ID가 없음)
+     */
+    @Column(name = "stripe_customer_id", length = 255)
+    private String stripeCustomerId;
+    
+    /**
      * 사용자 생성 시간
      * 
      * 사용자 계정이 시스템에 처음 생성된 시간을 기록합니다.
@@ -175,6 +189,15 @@ public class User {
             return false;
         }
         return createdAt.isAfter(LocalDateTime.now().minusDays(days));
+    }
+    
+    /**
+     * Stripe 고객 ID 설정
+     * 
+     * @param stripeCustomerId Stripe 고객 ID
+     */
+    public void setStripeCustomerId(String stripeCustomerId) {
+        this.stripeCustomerId = stripeCustomerId;
     }
     
     // equals와 hashCode 메서드 구현

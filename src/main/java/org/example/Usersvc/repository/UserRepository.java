@@ -186,4 +186,20 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt BETWEEN :startDate AND :endDate")
     long countByCreatedAtBetween(@Param("startDate") LocalDateTime startDate, 
                                 @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * Stripe 고객 ID로 사용자 조회
+     * 
+     * Stripe에서 제공하는 고객 식별자를 사용하여 
+     * 시스템 내 사용자 정보를 조회합니다.
+     * 
+     * 사용 사례:
+     * - Stripe 웹훅 처리 시 사용자 식별
+     * - 결제 관련 이벤트 처리
+     * - 구독 상태 업데이트
+     * 
+     * @param stripeCustomerId Stripe에서 제공하는 고객 식별자 (예: "cus_123456789")
+     * @return 해당 Stripe 고객 ID를 가진 사용자 정보, 없으면 Optional.empty()
+     */
+    Optional<User> findByStripeCustomerId(String stripeCustomerId);
 }

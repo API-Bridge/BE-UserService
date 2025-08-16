@@ -30,4 +30,14 @@ public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPl
      */
     @Query("SELECT sp FROM SubscriptionPlan sp WHERE sp.planName = 'FREE' AND sp.isActive = true")
     Optional<SubscriptionPlan> findFreePlan();
+
+    /**
+     * 활성화된 플랜을 가격순으로 조회
+     */
+    List<SubscriptionPlan> findByIsActiveTrueOrderByMonthlyPrice();
+
+    /**
+     * 플랜명과 활성화 상태로 조회
+     */
+    Optional<SubscriptionPlan> findByPlanNameAndIsActiveTrue(String planName);
 }

@@ -1,0 +1,99 @@
+# Gradle files
+.gradle/
+build/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Java compiled files
+*.class
+out/
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Spring Boot
+target/
+
+# =================================================================
+#                       환경변수 및 보안 파일
+# =================================================================
+
+# 환경변수 파일 (민감한 정보 포함)
+.env
+.env.local
+.env.production
+.env.staging
+
+# 설정 파일 백업
+application.yml.bak
+application.properties.bak
+
+# AWS 자격 증명
+.aws/
+aws-credentials.json
+
+# 인증서 및 키 파일
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# =================================================================
+#                       데이터베이스 파일
+# =================================================================
+
+# H2 Database files
+*.db
+*.trace.db
+*.lock.db
+
+# SQLite files
+*.sqlite
+*.sqlite3
+
+# =================================================================
+#                       테스트 및 개발 파일
+# =================================================================
+
+# Test reports
+test-results/
+reports/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Node modules (if using frontend tools)
+node_modules/
+
+# Maven wrapper
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Gradle wrapper
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties

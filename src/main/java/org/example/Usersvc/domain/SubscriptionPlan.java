@@ -38,18 +38,22 @@ public class SubscriptionPlan {
     @Column(name = "monthly_price")
     private Integer monthlyPrice; // 월 구독료 (원)
     
+    @Column(name = "yearly_price")
+    private Integer yearlyPrice; // 연 구독료 (원)
+    
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
     
     @Builder
     public SubscriptionPlan(String planName, Integer maxApiCount, Integer rateLimitPerMinute, 
-                           Integer rateLimitPerHour, Integer rateLimitPerDay, Integer monthlyPrice) {
+                           Integer rateLimitPerHour, Integer rateLimitPerDay, Integer monthlyPrice, Integer yearlyPrice) {
         this.planName = planName;
         this.maxApiCount = maxApiCount;
         this.rateLimitPerMinute = rateLimitPerMinute;
         this.rateLimitPerHour = rateLimitPerHour;
         this.rateLimitPerDay = rateLimitPerDay;
         this.monthlyPrice = monthlyPrice;
+        this.yearlyPrice = yearlyPrice;
         this.isActive = true;
     }
     

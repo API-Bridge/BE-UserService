@@ -1,5 +1,9 @@
 package org.example.Usersvc.controller;
 
+import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,11 +22,13 @@ import org.example.Usersvc.service.RateLimitService;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.UserSubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +51,21 @@ public class SubscriptionController {
     
     @Autowired(required = false) 
     private DevRateLimitService devRateLimitService;
+    
+    @Value("${stripe.secret-key:sk_test_dummy_key}")
+    private String stripeSecretKey;
+    
+    @Value("${stripe.products.free:prod_Ss3CAEwmeB1QuU}")
+    private String freeProductId;
+    
+    @Value("${stripe.products.pro:prod_Ss3ChLEOuz3Km9}")
+    private String proProductId;
+    
+    @PostConstruct
+    public void init() {
+        Stripe.apiKey = stripeSecretKey;
+        log.info("Stripe API 초기화 완료");
+    }
     
     @Operation(
             summary = "사용자 구독 정보 조회",
@@ -173,5 +194,109 @@ public class SubscriptionController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("사용량 조회에 실패했습니다.", "USAGE_ERROR"));
         }
+    }
+    
+    /**
+     * Stripe Checkout 세션 생성 엔드포인트
+     */
+    @Operation(
+            summary = "Stripe 결제 세션 생성",
+            description = "Stripe Checkout 세션을 생성하여 결제 페이지 URL을 반환합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @PostMapping("/subscription/checkout")
+    public ResponseEntity<ApiResponse<Map<String, String>>> createCheckoutSession(
+            @RequestBody CreateCheckoutRequest request) {
+        
+        try {
+            log.info("Stripe Checkout 세션 생성 요청 - priceId: {}", request.getPriceId());
+            
+            String priceId = request.getPriceId();
+            if (priceId == null || priceId.isEmpty()) {
+                log.warn("Price ID가 제공되지 않았습니다. 요청 본문에 priceId를 포함해주세요.");
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Price ID가 필요합니다.", "MISSING_PRICE_ID"));
+            }
+            
+            // Stripe Checkout Session 생성
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+                    .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                    .setSuccessUrl(request.getSuccessUrl() != null ? request.getSuccessUrl() : 
+                            "http://localhost:8080/integrated-test.html?payment=success")
+                    .setCancelUrl(request.getCancelUrl() != null ? request.getCancelUrl() : 
+                            "http://localhost:8080/integrated-test.html?payment=cancel")
+                    .addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setQuantity(1L)
+                                    .setPrice(priceId)
+                                    .build()
+                    )
+                    .build();
+            
+            Session session = Session.create(params);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("checkoutUrl", session.getUrl());
+            response.put("sessionId", session.getId());
+            response.put("priceId", priceId);
+            
+            log.info("Stripe Checkout 세션 생성 완료 - sessionId: {}, url: {}", 
+                    session.getId(), session.getUrl());
+            
+            return ResponseEntity.ok(ApiResponse.success(response));
+            
+        } catch (StripeException e) {
+            log.error("Stripe API 오류 - code: {}, message: {}", e.getCode(), e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("결제 세션 생성 실패: " + e.getMessage(), "STRIPE_ERROR"));
+            
+        } catch (Exception e) {
+            log.error("Checkout 세션 생성 중 예상치 못한 오류 발생", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("결제 처리 중 오류가 발생했습니다.", "CHECKOUT_ERROR"));
+        }
+    }
+    
+    /**
+     * Stripe 설정 정보 조회 엔드포인트
+     */
+    @Operation(
+            summary = "Stripe 프로덕트 정보 조회",
+            description = "결제에 사용할 Stripe 프로덕트 ID를 조회합니다."
+    )
+    @GetMapping("/subscription/products")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getStripeProducts() {
+        try {
+            Map<String, String> products = new HashMap<>();
+            products.put("FREE", freeProductId);
+            products.put("PRO", proProductId);
+            
+            return ResponseEntity.ok(ApiResponse.success(products));
+            
+        } catch (Exception e) {
+            log.error("Stripe 프로덕트 정보 조회 중 오류 발생", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("프로덕트 정보 조회에 실패했습니다.", "PRODUCT_INFO_ERROR"));
+        }
+    }
+    
+    /**
+     * Stripe Checkout 요청 DTO
+     */
+    public static class CreateCheckoutRequest {
+        private String priceId;
+        private String successUrl;
+        private String cancelUrl;
+        
+        // Getters and Setters
+        public String getPriceId() { return priceId; }
+        public void setPriceId(String priceId) { this.priceId = priceId; }
+        
+        public String getSuccessUrl() { return successUrl; }
+        public void setSuccessUrl(String successUrl) { this.successUrl = successUrl; }
+        
+        public String getCancelUrl() { return cancelUrl; }
+        public void setCancelUrl(String cancelUrl) { this.cancelUrl = cancelUrl; }
     }
 }
