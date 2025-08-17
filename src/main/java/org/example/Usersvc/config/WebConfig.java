@@ -30,6 +30,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/auth/**",
                         "/api/user/register",
                         "/api/subscription/**",
+                        "/api/shared-apis",
+                        "/api/shared-apis/search",
                         "/api/webhook/**",
                         "/h2-console/**"
                 )
@@ -41,6 +43,9 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/api/health",
                         "/api/actuator/**",
+                        "/api/subscription/**",
+                        "/api/shared-apis",
+                        "/api/shared-apis/search",
                         "/h2-console/**"
                 )
                 .order(1);
@@ -51,6 +56,9 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/api/health",
                         "/api/actuator/**",
+                        "/api/subscription/**",
+                        "/api/shared-apis",
+                        "/api/shared-apis/search",
                         "/h2-console/**"
                 )
                 .order(2);

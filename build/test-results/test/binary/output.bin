@@ -1,5 +1,0 @@
-�04:54:52.486 [Test worker] WARN org.example.Usersvc.interceptor.SubscriptionInterceptor -- 사용자 ID가 없는 요청 - URL: null
-�04:54:52.728 [Test worker] WARN org.example.Usersvc.interceptor.SubscriptionInterceptor -- API 사용량 제한 초과 - userId: user-12345, action: API_CALL, plan: FREE
-�04:54:52.735 [Test worker] WARN org.example.Usersvc.interceptor.SubscriptionInterceptor -- 존재하지 않는 사용자 ID - userId: user-12345
-�04:54:52.741 [Test worker] WARN org.example.Usersvc.interceptor.SubscriptionInterceptor -- Rate Limit 초과 - userId: user-12345, plan: FREE
-�04:54:52.755 [Test worker] WARN org.example.Usersvc.interceptor.SubscriptionInterceptor -- 만료된 구독 - userId: user-12345, expiresAt: 2025-08-15T04:54:52.754942500

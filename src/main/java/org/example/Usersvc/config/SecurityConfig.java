@@ -29,7 +29,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@org.springframework.context.annotation.Profile("!dev")
+@org.springframework.context.annotation.Profile("prod")
 public class SecurityConfig {
 
     @Value("${auth0.audience}")
@@ -46,7 +46,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/api/v1/health").permitAll()
+                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/subscription/products").permitAll()
+                .requestMatchers("/api/shared-apis").permitAll()
+                .requestMatchers("/api/shared-apis/search").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

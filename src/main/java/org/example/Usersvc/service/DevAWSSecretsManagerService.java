@@ -2,6 +2,7 @@ package org.example.Usersvc.service;
 
 import org.example.Usersvc.exception.AWSSecretsManagerException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +21,8 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@Profile("dev")
+@Primary
+@Profile({"dev", "default"})
 public class DevAWSSecretsManagerService implements AWSSecretsManagerService {
 
     // 개발 환경용 메모리 저장소

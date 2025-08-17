@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/shared-apis")
+@RequestMapping("/api/shared-apis")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "SharedApi", description = "공유 API 관리")

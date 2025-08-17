@@ -1,21 +1,12 @@
+# =============================================================================
+# User Service Configuration File
+# =============================================================================
+
 spring:
   application:
-    name: user-svc
+    name: USER-SERVICE
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-
-# Swagger/OpenAPI 설정
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
-    display-request-duration: true
-    doc-expansion: none
-  cache:
-    disabled: true
+    active: ${SPRING_PROFILES_ACTIVE:default}
 
   # JPA 설정 (Amazon Corretto 17 최적화)
   jpa:
@@ -36,25 +27,6 @@ springdoc:
     show-sql: false
     open-in-view: false
 
-  # Kafka 설정 (개발 환경에서는 비활성화)
-  # kafka:
-  #   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-  #   consumer:
-  #     group-id: ${SERVICE_NAME:user-svc}-group
-  #     auto-offset-reset: earliest
-  #     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-  #     value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-  #     properties:
-  #       spring.json.trusted.packages: "*"
-  #       max.poll.records: 500
-  #       enable.auto.commit: false
-  #   producer:
-  #     key-serializer: org.apache.kafka.common.serialization.StringSerializer
-  #     value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-  #     properties:
-  #       acks: all
-  #       retries: 3
-
   # Redis 설정
   redis:
     host: ${REDIS_HOST:localhost}
@@ -66,43 +38,77 @@ springdoc:
         max-idle: 8
         min-idle: 0
 
-  # 데이터베이스 설정
+  # 데이터베이스 설정 (default 프로필: H2 인메모리 DB)
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/user_service_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:1111}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:h2:mem:defaultdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
 
-# Auth0 설정 (개발 환경에서는 비활성화)
-# auth0:
-#   issuerUri: ${AUTH0_ISSUER_URI:https://dev-your-domain.auth0.com/}
-#   audience: ${AUTH0_AUDIENCE:https://api.dev.yourservice.com}
-
-# 개발 환경용 기본 보안 설정
+  # 개발 환경용 기본 보안 설정
   security:
     user:
       name: admin
       password: admin
       roles: USER,ADMIN
 
-# AWS 설정 (개발 환경에서는 비활성화)
-# aws:
-#   region: ${AWS_REGION:ap-northeast-2}
-#   s3:
-#     bucket: ${S3_BUCKET_NAME:your-bucket-name}
-#   secretsmanager:
-#     region: ${AWS_REGION:ap-northeast-2}
+  # H2 콘솔 설정 (default 프로필용)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  sql:
+    init:
+      mode: never
+
+  # Kafka 설정
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${SERVICE_NAME:user-svc}-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        max.poll.records: 500
+        enable.auto.commit: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        acks: all
+        retries: 3
+
+# 서버 설정
+server:
+  port: 8081
+
+# Swagger/OpenAPI 설정
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none
+  cache:
+    disabled: true
 
 # Stripe 설정
 stripe:
@@ -157,6 +163,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
 
+# 모니터링 및 관리 설정
 management:
   # 웹 엔드포인트 노출 설정
   endpoints:
@@ -168,7 +175,7 @@ management:
   # 개별 엔드포인트 상세 설정
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: when-authorized
 
   # 프로메테우스 익스포터 설정
   prometheus:
@@ -176,7 +183,7 @@ management:
       export:
         enabled: true
 
-  # 모든 메트릭에 적용될 공통 태그 설정 (여기 위치가 올바릅니다)
+  # 모든 메트릭에 적용될 공통 태그 설정
   metrics:
     tags:
       service: user-svc
@@ -187,19 +194,23 @@ management:
     sampling:
       probability: 1.0
 
-# 서버 설정
-server:
-  port: ${SERVER_PORT:8081}
-  servlet:
-    # context-path: /api/v1  # 컨텍스트 패스 제거
-  tomcat:
-    threads:
-      max: 200
-      min-spare: 10
-    accept-count: 100
-    max-connections: 8192
+# Auth0 설정 (API Gateway와 동일한 설정)
+auth0:
+  issuerUri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
+  audience: ${AUTH0_AUDIENCE:http://localhost:8080/}
+  client-id: ${AUTH0_CLIENT_ID}
+  logout-redirect-uri: ${AUTH0_LOGOUT_REDIRECT_URI:http://localhost:8080/auth/logout-success}
 
-# OpenAPI 설정은 위에서 통합 설정됨
+# Eureka 클라이언트 설정
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
 
 ---
 # 개발 환경 설정
@@ -215,11 +226,6 @@ spring:
     username: sa
     password: 
     
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -228,14 +234,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
-        
-  sql:
-    init:
-      mode: never
-  # kafka:
-  #   consumer:
-  #     group-id: user-svc-dev-group
 
+# 개발 환경 로깅 설정 (기본 설정을 덮어씀)
 logging:
   level:
     org.example.usersvc: DEBUG
@@ -247,12 +247,26 @@ spring:
   config:
     activate:
       on-profile: prod
+
+  # 프로덕션 환경에서는 MySQL 사용
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_service_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1111}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     show-sql: false
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false
 
+  h2:
+    console:
+      enabled: false
+
+# 프로덕션 환경 로깅 설정
 logging:
   level:
     org.example.usersvc: INFO
@@ -260,6 +274,7 @@ logging:
   file:
     name: logs/user-svc.log
 
+# 프로덕션 환경 관리 설정
 management:
   endpoint:
     health:

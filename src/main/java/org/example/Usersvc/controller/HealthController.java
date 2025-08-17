@@ -24,7 +24,7 @@ import java.util.Map;
  */
 @Tag(name = "Health Check", description = "서비스 상태 확인 API")
 @RestController
-@RequestMapping("/health")
+@RequestMapping("/api/health")
 public class HealthController {
 
     /** 애플리케이션 서비스명 */

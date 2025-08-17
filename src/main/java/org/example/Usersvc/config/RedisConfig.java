@@ -53,16 +53,8 @@ public class RedisConfig {
         return template;
     }
 
-    @Bean
-    public RedisTemplate<String, String> stringRedisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, String> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new StringRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(new StringRedisSerializer());
-        return template;
-    }
+    // Spring Boot가 자동으로 stringRedisTemplate을 생성하므로 수동 정의 제거
+    // 필요시 @Autowired로 주입받아 사용
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
