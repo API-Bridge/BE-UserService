@@ -9,22 +9,17 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * API 사용량 기록 엔티티
+ * API 사용량 기록 엔티티 - 새 스키마에 맞게 수정
  */
 @Entity
-@Table(name = "api_usage_records", 
-       indexes = {
-           @Index(name = "idx_user_date", columnList = "user_id, record_date"),
-           @Index(name = "idx_user_api_date", columnList = "user_id, api_endpoint, record_date")
-       })
+@Table(name = "api_usage_record")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ApiUsageRecord {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "record_id")
-    private Long recordId;
+    @Column(name = "record_id", length = 36)
+    private String recordId; // UUID String으로 변경
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -33,42 +28,42 @@ public class ApiUsageRecord {
     @Column(name = "api_endpoint", nullable = false)
     private String apiEndpoint; // 호출된 API 엔드포인트
     
-    @Column(name = "request_method", nullable = false)
-    private String requestMethod; // HTTP 메소드 (GET, POST 등)
-    
-    @Column(name = "response_status", nullable = false)
-    private Integer responseStatus; // HTTP 응답 상태 코드
-    
-    @Column(name = "response_time_ms")
-    private Long responseTimeMs; // 응답 시간 (밀리초)
-    
-    @Column(name = "request_ip")
-    private String requestIp; // 요청자 IP 주소
-    
-    @Column(name = "user_agent")
-    private String userAgent; // 사용자 에이전트
+    @Column(name = "request_count", nullable = false)
+    private Integer requestCount; // 요청 횟수 (새 스키마에 맞게 변경)
     
     @Column(name = "record_date", nullable = false)
-    private LocalDateTime recordDate; // 기록 날짜
+    private java.time.LocalDate recordDate; // 기록 날짜 (LocalDate로 변경)
+    
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt; // 생성 시간
     
     @Builder
-    public ApiUsageRecord(User user, String apiEndpoint, String requestMethod, 
-                         Integer responseStatus, Long responseTimeMs, 
-                         String requestIp, String userAgent) {
+    public ApiUsageRecord(String recordId, User user, String apiEndpoint, Integer requestCount, java.time.LocalDate recordDate) {
+        this.recordId = recordId != null ? recordId : java.util.UUID.randomUUID().toString();
         this.user = user;
         this.apiEndpoint = apiEndpoint;
-        this.requestMethod = requestMethod;
-        this.responseStatus = responseStatus;
-        this.responseTimeMs = responseTimeMs;
-        this.requestIp = requestIp;
-        this.userAgent = userAgent;
-        this.recordDate = LocalDateTime.now();
+        this.requestCount = requestCount != null ? requestCount : 1;
+        this.recordDate = recordDate != null ? recordDate : java.time.LocalDate.now();
+        this.createdAt = LocalDateTime.now();
+    }
+    
+    @PrePersist
+    protected void onCreate() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.recordDate == null) {
+            this.recordDate = java.time.LocalDate.now();
+        }
+        if (this.recordId == null) {
+            this.recordId = java.util.UUID.randomUUID().toString();
+        }
     }
     
     /**
-     * 성공적인 API 호출인지 확인
+     * 요청 횟수 증가
      */
-    public boolean isSuccessful() {
-        return responseStatus >= 200 && responseStatus < 300;
+    public void incrementRequestCount(int count) {
+        this.requestCount += count;
     }
 }

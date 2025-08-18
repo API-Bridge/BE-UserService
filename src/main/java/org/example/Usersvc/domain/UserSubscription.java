@@ -9,18 +9,17 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 사용자 구독 정보 엔티티
+ * 사용자 구독 정보 엔티티 - 제공된 스키마에 맞게 수정
  */
 @Entity
-@Table(name = "user_subscriptions")
+@Table(name = "subscription")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserSubscription {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "subscription_id")
-    private Long subscriptionId;
+    @Column(name = "subscription_id", length = 36)
+    private String subscriptionId; // UUID String으로 변경
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -30,41 +29,35 @@ public class UserSubscription {
     @JoinColumn(name = "plan_id", nullable = false)
     private SubscriptionPlan plan;
     
-    @Column(name = "started_at", nullable = false)
-    private LocalDateTime startedAt;
+    @Column(name = "plan_payment_date", nullable = false)
+    private LocalDateTime planPaymentDate; // started_at -> plan_payment_date
     
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
+    @Column(name = "plan_update_date", nullable = false)
+    private LocalDateTime planUpdateDate; // updated_at -> plan_update_date
     
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
-    
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-    
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private Boolean isActive = false; // 기본값이 FALSE
     
     @Builder
-    public UserSubscription(User user, SubscriptionPlan plan, LocalDateTime startedAt, LocalDateTime expiresAt) {
+    public UserSubscription(String subscriptionId, User user, SubscriptionPlan plan, LocalDateTime planPaymentDate) {
+        this.subscriptionId = subscriptionId != null ? subscriptionId : java.util.UUID.randomUUID().toString();
         this.user = user;
         this.plan = plan;
-        this.startedAt = startedAt;
-        this.expiresAt = expiresAt;
-        this.isActive = true;
-        this.createdAt = LocalDateTime.now();
+        this.planPaymentDate = planPaymentDate != null ? planPaymentDate : LocalDateTime.now();
+        this.planUpdateDate = LocalDateTime.now();
+        this.isActive = false; // 기본값은 false
     }
     
     @PreUpdate
     public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.planUpdateDate = LocalDateTime.now();
     }
     
     /**
-     * 구독 만료 확인
+     * 구독 만료 확인 - 새 스키마에서는 단순히 is_active 체크
      */
     public boolean isExpired() {
-        return expiresAt != null && LocalDateTime.now().isAfter(expiresAt);
+        return !isActive;
     }
     
     /**
@@ -77,8 +70,9 @@ public class UserSubscription {
     /**
      * 구독 갱신
      */
-    public void renew(LocalDateTime newExpiresAt) {
-        this.expiresAt = newExpiresAt;
+    public void renew() {
+        this.planPaymentDate = LocalDateTime.now();
+        this.planUpdateDate = LocalDateTime.now();
         this.isActive = true;
     }
 
@@ -87,28 +81,30 @@ public class UserSubscription {
      */
     public void activate() {
         this.isActive = true;
+        this.planUpdateDate = LocalDateTime.now();
     }
 
     /**
      * 결제 연체 상태로 표시
      */
     public void markOverdue() {
-        // 현재는 상태만 비활성화, 향후 별도 상태 필드 추가 가능
         this.isActive = false;
+        this.planUpdateDate = LocalDateTime.now();
     }
 
     /**
      * 결제 실패 상태로 표시
      */
     public void markPaymentFailed() {
-        // 현재는 상태만 비활성화, 향후 별도 상태 필드 추가 가능
         this.isActive = false;
+        this.planUpdateDate = LocalDateTime.now();
     }
 
     /**
-     * 만료일 업데이트
+     * 결제일 업데이트
      */
-    public void updateExpirationDate(LocalDateTime newExpiresAt) {
-        this.expiresAt = newExpiresAt;
+    public void updatePaymentDate(LocalDateTime newPaymentDate) {
+        this.planPaymentDate = newPaymentDate;
+        this.planUpdateDate = LocalDateTime.now();
     }
 }

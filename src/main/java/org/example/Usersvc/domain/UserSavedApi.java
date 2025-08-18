@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "user_saved_apis")
+@Table(name = "user_saved_api")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -40,7 +40,7 @@ public class UserSavedApi {
 
     @Column(name = "is_deleted", nullable = false)
     @Builder.Default
-    private Boolean deleted = false;
+    private Boolean isDeleted = false;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -60,7 +60,7 @@ public class UserSavedApi {
     }
 
     public void markAsDeleted() {
-        this.deleted = true;
+        this.isDeleted = true;
     }
 
     public boolean isValid() {
@@ -81,7 +81,7 @@ public class UserSavedApi {
     }
 
     public boolean isDeleted() {
-        return deleted != null && deleted;
+        return isDeleted != null && isDeleted;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

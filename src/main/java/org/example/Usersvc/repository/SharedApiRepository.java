@@ -12,15 +12,15 @@ import java.util.Optional;
 @Repository
 public interface SharedApiRepository extends JpaRepository<SharedApi, String> {
 
-    List<SharedApi> findByActiveTrueOrderByCreatedAtDesc();
+    List<SharedApi> findByIsActiveTrueOrderByCreatedAtDesc();
 
-    Page<SharedApi> findByActiveTrueOrderByCreatedAtDesc(Pageable pageable);
+    Page<SharedApi> findByIsActiveTrueOrderByCreatedAtDesc(Pageable pageable);
 
-    List<SharedApi> findByCreatorIdAndActiveTrueOrderByCreatedAtDesc(String creatorId);
+    List<SharedApi> findByCreatorIdAndIsActiveTrueOrderByCreatedAtDesc(String creatorId);
 
-    Optional<SharedApi> findByOriginalApiIdAndActiveTrue(String originalApiId);
+    Optional<SharedApi> findByOriginalApiIdAndIsActiveTrue(String originalApiId);
 
-    List<SharedApi> findByApiNameContainingIgnoreCaseAndActiveTrueOrderByCreatedAtDesc(String keyword);
+    List<SharedApi> findByApiNameContainingIgnoreCaseAndIsActiveTrueOrderByCreatedAtDesc(String keyword);
 
-    List<SharedApi> findByDataCountLessThanEqualAndActiveTrueOrderByCreatedAtDesc(Integer dataCount);
+    List<SharedApi> findByDataCountLessThanEqualAndIsActiveTrueOrderByCreatedAtDesc(Integer dataCount);
 }

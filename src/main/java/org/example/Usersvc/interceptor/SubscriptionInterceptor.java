@@ -8,6 +8,7 @@ import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.service.SubscriptionPlanManagementService;
 import org.example.Usersvc.service.UserService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -22,9 +23,18 @@ public class SubscriptionInterceptor implements HandlerInterceptor {
 
     private final UserService userService;
     private final SubscriptionPlanManagementService planManagementService;
+    
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 개발 환경 및 신뢰 기반 모드에서는 구독 체크 비활성화
+        if ("default".equals(activeProfile) || "dev".equals(activeProfile) || "trusted-gateway".equals(activeProfile)) {
+            log.debug("개발/신뢰 기반 환경에서 구독 체크를 건너뜁니다 - Profile: {}", activeProfile);
+            return true;
+        }
+        
         // HandlerMethod가 아닌 경우 (정적 리소스 등) 통과
         if (!(handler instanceof HandlerMethod)) {
             return true;
@@ -50,7 +60,7 @@ public class SubscriptionInterceptor implements HandlerInterceptor {
         
         // 구독 만료 확인
         if (subscription.isExpired()) {
-            log.warn("만료된 구독 - userId: {}, expiresAt: {}", userId, subscription.getExpiresAt());
+            log.warn("만료된 구독 - userId: {}, isActive: {}", userId, subscription.getIsActive());
             sendErrorResponse(response, HttpServletResponse.SC_PAYMENT_REQUIRED, "구독이 만료되었습니다. 구독을 갱신해주세요.");
             return false;
         }
@@ -82,18 +92,33 @@ public class SubscriptionInterceptor implements HandlerInterceptor {
     }
 
     private String extractUserId(HttpServletRequest request) {
-        // HTTP 헤더에서 사용자 ID 추출
+        // HTTP 헤더에서 사용자 ID 추출 (기존 방식 - 하위 호환성)
         String userId = request.getHeader("User-ID");
         if (userId != null) {
             return userId;
         }
 
-        // Authorization 헤더에서 JWT 토큰 파싱 (향후 구현)
+        // API Gateway에서 전송하는 X-User-Subject 헤더 확인
+        String userSubject = request.getHeader("X-User-Subject");
+        if (userSubject != null) {
+            return userSubject;
+        }
+
+        // Authorization 헤더에서 JWT 토큰 파싱
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            // JWT 토큰에서 사용자 ID 추출 로직
-            // 현재는 간단히 헤더에서만 추출
-            return null;
+            try {
+                // Spring Security Context에서 JWT 토큰 정보 추출
+                org.springframework.security.core.Authentication authentication = 
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (authentication instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken) {
+                    org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtToken = 
+                        (org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken) authentication;
+                    return jwtToken.getToken().getSubject();
+                }
+            } catch (Exception e) {
+                log.debug("JWT 토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
+            }
         }
 
         return null;

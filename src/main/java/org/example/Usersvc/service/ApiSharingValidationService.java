@@ -24,9 +24,10 @@ public class ApiSharingValidationService {
     }
 
     public boolean validateApiForSharing(CustomApi api, String planType) {
-        if (api == null || api.isDeleted()) {
+        if (api == null) {
             return false;
         }
-        return api.canShareForPlan(planType);
+        // 새 스키마에서는 모든 유효한 API를 공유할 수 있음
+        return api.isValid();
     }
 }

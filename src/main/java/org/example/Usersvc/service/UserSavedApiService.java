@@ -36,7 +36,7 @@ public class UserSavedApiService {
         }
 
         Optional<UserSavedApi> existingSavedApi = userSavedApiRepository
-                .findByUserIdAndSharedApiIdAndDeletedFalse(userId, sharedApiId);
+                .findByUserIdAndSharedApiIdAndIsDeletedFalse(userId, sharedApiId);
         if (existingSavedApi.isPresent()) {
             throw new IllegalArgumentException("이미 저장된 API입니다.");
         }
@@ -60,7 +60,7 @@ public class UserSavedApiService {
     public void deleteSavedApi(String userId, String userApiId) {
         log.debug("저장된 API 삭제 시작 - userId: {}, userApiId: {}", userId, userApiId);
 
-        UserSavedApi savedApi = userSavedApiRepository.findByUserApiIdAndDeletedFalse(userApiId)
+        UserSavedApi savedApi = userSavedApiRepository.findByUserApiIdAndIsDeletedFalse(userApiId)
                 .orElseThrow(() -> new IllegalArgumentException("저장된 API를 찾을 수 없습니다."));
 
         if (!savedApi.isOwnedBy(userId)) {
@@ -74,18 +74,18 @@ public class UserSavedApiService {
     }
 
     public List<UserSavedApi> getUserSavedApis(String userId) {
-        return userSavedApiRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId);
+        return userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId);
     }
 
     public Page<UserSavedApi> getUserSavedApis(String userId, Pageable pageable) {
-        return userSavedApiRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId, pageable);
+        return userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId, pageable);
     }
 
     public Optional<UserSavedApi> getSavedApiById(String userApiId) {
-        return userSavedApiRepository.findByUserApiIdAndDeletedFalse(userApiId);
+        return userSavedApiRepository.findByUserApiIdAndIsDeletedFalse(userApiId);
     }
 
     public List<UserSavedApi> getSavedApisBySharedApiId(String sharedApiId) {
-        return userSavedApiRepository.findBySharedApiIdAndDeletedFalse(sharedApiId);
+        return userSavedApiRepository.findBySharedApiIdAndIsDeletedFalse(sharedApiId);
     }
 }

@@ -22,7 +22,7 @@ import java.util.Objects;
 // - user_email: VARCHAR(255) - 사용자 이메일 (유니크)
 // - created_at: DATETIME - 생성 시간 (자동 설정)
 @Entity
-@Table(name = "users", 
+@Table(name = "`user`", 
        uniqueConstraints = {
            @UniqueConstraint(name = "uk_auth0_id", columnNames = "auth0_id"),
            @UniqueConstraint(name = "uk_user_email", columnNames = "user_email")
@@ -79,19 +79,7 @@ public class User {
     @Column(name = "user_email", length = 255, nullable = false, unique = true)
     private String userEmail;
     
-    /**
-     * Stripe 고객 ID
-     * 
-     * Stripe 결제 시스템에서 사용되는 고객 식별자입니다.
-     * 사용자가 유료 구독을 시작할 때 생성됩니다.
-     * 
-     * 특징:
-     * - Stripe Customer 객체와 연결
-     * - 결제 및 구독 관리에 사용
-     * - null 허용 (무료 사용자는 Stripe 고객 ID가 없음)
-     */
-    @Column(name = "stripe_customer_id", length = 255)
-    private String stripeCustomerId;
+
     
     /**
      * 사용자 생성 시간
@@ -191,14 +179,7 @@ public class User {
         return createdAt.isAfter(LocalDateTime.now().minusDays(days));
     }
     
-    /**
-     * Stripe 고객 ID 설정
-     * 
-     * @param stripeCustomerId Stripe 고객 ID
-     */
-    public void setStripeCustomerId(String stripeCustomerId) {
-        this.stripeCustomerId = stripeCustomerId;
-    }
+
     
     // equals와 hashCode 메서드 구현
     // JPA에서 엔티티의 동일성을 올바르게 비교하기 위해 기본키를 기준으로 구현합니다.

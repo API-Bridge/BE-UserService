@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.ApiUsageService;
 import org.example.Usersvc.service.UserService;
@@ -39,8 +40,13 @@ public class ApiUsageTrackingInterceptor implements HandlerInterceptor {
                 return; // 인증되지 않은 요청은 기록하지 않음
             }
             
-            Long userId = Long.parseLong(userIdHeader);
-            User user = userService.findByUserId(userId);
+            String userId = userIdHeader;
+            Optional<User> userOptional = userService.getUserById(userId);
+            if (userOptional.isEmpty()) {
+                log.debug("User not found - userId: {}", userId);
+                return; // 사용자가 없으면 추적하지 않음
+            }
+            User user = userOptional.get();
             
             // 응답 시간 계산
             Long startTime = (Long) request.getAttribute(START_TIME_ATTRIBUTE);
@@ -50,11 +56,7 @@ public class ApiUsageTrackingInterceptor implements HandlerInterceptor {
             apiUsageService.recordApiUsage(
                     user,
                     request.getRequestURI(),
-                    request.getMethod(),
-                    response.getStatus(),
-                    responseTime,
-                    getClientIpAddress(request),
-                    request.getHeader("User-Agent")
+                    1 // 요청 1회
             );
             
         } catch (Exception e) {

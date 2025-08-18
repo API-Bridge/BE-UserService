@@ -9,7 +9,9 @@
       "Bash(timeout:*)",
       "Bash(touch:*)",
       "Bash(rm:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(git checkout:*)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

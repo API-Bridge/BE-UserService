@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
 import org.example.Usersvc.common.error.ErrorCode;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.domain.User;
@@ -53,8 +54,13 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 return true; // 인증되지 않은 요청은 통과 (다른 보안 필터에서 처리)
             }
             
-            Long userId = Long.parseLong(userIdHeader);
-            User user = userService.findByUserId(userId);
+            String userId = userIdHeader;
+            Optional<User> userOptional = userService.getUserById(userId);
+            if (userOptional.isEmpty()) {
+                log.debug("User not found - userId: {}", userId);
+                return true; // 사용자가 없으면 통과
+            }
+            User user = userOptional.get();
             
             // Rate Limit 검사
             boolean allowed = checkRateLimit(user);

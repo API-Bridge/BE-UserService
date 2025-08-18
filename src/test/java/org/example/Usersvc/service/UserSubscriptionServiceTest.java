@@ -52,20 +52,16 @@ class UserSubscriptionServiceTest {
         
         freePlan = SubscriptionPlan.builder()
                 .planName("FREE")
-                .maxApiCount(5)
-                .rateLimitPerMinute(60)
-                .rateLimitPerHour(1000)
-                .rateLimitPerDay(10000)
-                .monthlyPrice(0)
+                .price(java.math.BigDecimal.ZERO)
+                .description("무료 기본 플랜")
+                .features("{\"maxApiCount\": 5, \"rateLimitPerMinute\": 60, \"rateLimitPerHour\": 1000, \"rateLimitPerDay\": 10000}")
                 .build();
         
         proPlan = SubscriptionPlan.builder()
                 .planName("PRO")
-                .maxApiCount(100)
-                .rateLimitPerMinute(600)
-                .rateLimitPerHour(10000)
-                .rateLimitPerDay(100000)
-                .monthlyPrice(29000)
+                .price(java.math.BigDecimal.valueOf(29000))
+                .description("프로 플랜")
+                .features("{\"maxApiCount\": 100, \"rateLimitPerMinute\": 600, \"rateLimitPerHour\": 10000, \"rateLimitPerDay\": 100000}")
                 .build();
     }
     
@@ -74,11 +70,12 @@ class UserSubscriptionServiceTest {
     void shouldReturnActiveSubscriptionWhenExists() {
         // Given
         UserSubscription activeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-1")
                 .user(testUser)
                 .plan(proPlan)
-                .startedAt(LocalDateTime.now().minusDays(1))
-                .expiresAt(LocalDateTime.now().plusDays(30))
+                .planPaymentDate(LocalDateTime.now().minusDays(1))
                 .build();
+        activeSubscription.activate();
         
         when(userSubscriptionRepository.findActiveSubscriptionByUser(testUser))
                 .thenReturn(Optional.of(activeSubscription));
@@ -116,11 +113,12 @@ class UserSubscriptionServiceTest {
     void shouldCancelExistingSubscriptionWhenCreatingNew() {
         // Given
         UserSubscription existingSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-2")
                 .user(testUser)
                 .plan(freePlan)
-                .startedAt(LocalDateTime.now().minusDays(10))
-                .expiresAt(null)
+                .planPaymentDate(LocalDateTime.now().minusDays(10))
                 .build();
+        existingSubscription.activate();
         
         when(subscriptionPlanRepository.findByPlanName("PRO"))
                 .thenReturn(Optional.of(proPlan));
@@ -135,7 +133,7 @@ class UserSubscriptionServiceTest {
         
         // Then
         assertThat(result.getPlan().getPlanName()).isEqualTo("PRO");
-        assertThat(existingSubscription.getIsActive()).isFalse();
+        assertThat(existingSubscription.isExpired()).isTrue();
         verify(userSubscriptionRepository, times(2)).save(any(UserSubscription.class));
     }
     
@@ -158,11 +156,12 @@ class UserSubscriptionServiceTest {
     void shouldRenewSubscriptionCorrectly() {
         // Given
         UserSubscription activeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-3")
                 .user(testUser)
                 .plan(proPlan)
-                .startedAt(LocalDateTime.now().minusDays(20))
-                .expiresAt(LocalDateTime.now().plusDays(10))
+                .planPaymentDate(LocalDateTime.now().minusDays(20))
                 .build();
+        activeSubscription.activate();
         
         when(userSubscriptionRepository.findActiveSubscriptionByUser(testUser))
                 .thenReturn(Optional.of(activeSubscription));
@@ -170,12 +169,10 @@ class UserSubscriptionServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         
         // When
-        LocalDateTime newExpiresAt = LocalDateTime.now().plusMonths(1);
-        UserSubscription result = userSubscriptionService.renewSubscription(testUser, newExpiresAt);
+        UserSubscription result = userSubscriptionService.renewSubscription(testUser);
         
         // Then
-        assertThat(result.getExpiresAt()).isEqualTo(newExpiresAt);
-        assertThat(result.getIsActive()).isTrue();
+        assertThat(result.isExpired()).isFalse();
         verify(userSubscriptionRepository).save(activeSubscription);
     }
     
@@ -184,11 +181,12 @@ class UserSubscriptionServiceTest {
     void shouldCreateFreeSubscriptionAfterCancellation() {
         // Given
         UserSubscription activeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-4")
                 .user(testUser)
                 .plan(proPlan)
-                .startedAt(LocalDateTime.now().minusDays(10))
-                .expiresAt(LocalDateTime.now().plusDays(20))
+                .planPaymentDate(LocalDateTime.now().minusDays(10))
                 .build();
+        activeSubscription.activate();
         
         when(userSubscriptionRepository.findActiveSubscriptionByUser(testUser))
                 .thenReturn(Optional.of(activeSubscription));
@@ -201,7 +199,7 @@ class UserSubscriptionServiceTest {
         userSubscriptionService.cancelSubscription(testUser);
         
         // Then
-        assertThat(activeSubscription.getIsActive()).isFalse();
+        assertThat(activeSubscription.isExpired()).isTrue();
         verify(userSubscriptionRepository, times(2)).save(any(UserSubscription.class));
     }
     
@@ -210,11 +208,12 @@ class UserSubscriptionServiceTest {
     void shouldChangePlanCorrectly() {
         // Given
         UserSubscription freeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-5")
                 .user(testUser)
                 .plan(freePlan)
-                .startedAt(LocalDateTime.now().minusDays(5))
-                .expiresAt(null)
+                .planPaymentDate(LocalDateTime.now().minusDays(5))
                 .build();
+        freeSubscription.activate();
         
         when(subscriptionPlanRepository.findByPlanName("PRO"))
                 .thenReturn(Optional.of(proPlan));
@@ -228,7 +227,7 @@ class UserSubscriptionServiceTest {
         
         // Then
         assertThat(result.getPlan().getPlanName()).isEqualTo("PRO");
-        assertThat(freeSubscription.getIsActive()).isFalse();
+        assertThat(freeSubscription.isExpired()).isTrue();
         verify(userSubscriptionRepository, times(2)).save(any(UserSubscription.class));
     }
 }

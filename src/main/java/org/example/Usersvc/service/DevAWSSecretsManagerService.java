@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -22,12 +23,39 @@ import java.util.UUID;
 @Slf4j
 @Service
 @Primary
-@Profile({"dev", "default"})
+@Profile({"dev", "default", "trusted-gateway"})
 public class DevAWSSecretsManagerService implements AWSSecretsManagerService {
 
     // 개발 환경용 메모리 저장소
     private final Map<String, String> secretStore = new HashMap<>();
     private final Map<String, String> arnToSecretMap = new HashMap<>();
+
+    /**
+     * 개발 환경용 테스트 데이터 초기화
+     * data.sql에서 사용하는 ARN들에 대한 mock secret 값들을 미리 저장
+     */
+    @PostConstruct
+    public void initTestData() {
+        log.info("[DEV] Initializing test secrets for development environment");
+        
+        // data.sql에서 사용하는 테스트 ARN들에 대한 mock 데이터
+        secretStore.put("arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-1-AbCdEf", 
+                       "sk-test-openai-api-key-1234567890abcdef");
+        arnToSecretMap.put("arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-1-AbCdEf", 
+                          "user-api-key-1");
+        
+        secretStore.put("arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-2-GhIjKl", 
+                       "claude-api-key-abcdef1234567890");
+        arnToSecretMap.put("arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-2-GhIjKl", 
+                          "user-api-key-2");
+        
+        secretStore.put("arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-3-MnOpQr", 
+                       "gemini-api-key-xyz789def456");
+        arnToSecretMap.put("arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-3-MnOpQr", 
+                          "user-api-key-3");
+        
+        log.info("[DEV] Initialized {} test secrets", secretStore.size());
+    }
 
     @Override
     public String storeSecret(String secretName, String secretValue, String description) throws AWSSecretsManagerException {

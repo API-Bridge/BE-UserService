@@ -79,7 +79,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
         userSavedApiRepository.save(api2);
         userSavedApiRepository.save(otherUserApi);
 
-        List<UserSavedApi> userApis = userSavedApiRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId);
+        List<UserSavedApi> userApis = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId);
 
         assertThat(userApis).hasSize(2);
         assertThat(userApis).extracting(UserSavedApi::getUserApiId).containsExactlyInAnyOrder("user-api-1", "user-api-2");
@@ -110,7 +110,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
         userSavedApiRepository.save(activeApi);
         userSavedApiRepository.save(deletedApi);
 
-        List<UserSavedApi> activeApis = userSavedApiRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc("user-12345");
+        List<UserSavedApi> activeApis = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc("user-12345");
 
         assertThat(activeApis).hasSize(1);
         assertThat(activeApis.get(0).getUserApiId()).isEqualTo("user-api-active");
@@ -118,7 +118,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
 
     @Test
     @DisplayName("사용자 API ID로 조회 테스트")
-    void findByUserApiIdAndDeletedFalse() {
+    void findByUserApiIdAndIsDeletedFalse() {
         UserSavedApi userSavedApi = UserSavedApi.builder()
                 .userApiId("user-api-12345")
                 .userId("user-12345")
@@ -130,7 +130,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
 
         userSavedApiRepository.save(userSavedApi);
 
-        Optional<UserSavedApi> foundApi = userSavedApiRepository.findByUserApiIdAndDeletedFalse("user-api-12345");
+        Optional<UserSavedApi> foundApi = userSavedApiRepository.findByUserApiIdAndIsDeletedFalse("user-api-12345");
 
         assertThat(foundApi).isPresent();
         assertThat(foundApi.get().getUserApiId()).isEqualTo("user-api-12345");
@@ -172,7 +172,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
         userSavedApiRepository.save(savedApi2);
         userSavedApiRepository.save(otherSharedApi);
 
-        List<UserSavedApi> basedOnSharedApis = userSavedApiRepository.findBySharedApiIdAndDeletedFalse(sharedApiId);
+        List<UserSavedApi> basedOnSharedApis = userSavedApiRepository.findBySharedApiIdAndIsDeletedFalse(sharedApiId);
 
         assertThat(basedOnSharedApis).hasSize(2);
         assertThat(basedOnSharedApis).extracting(UserSavedApi::getUserApiId).containsExactlyInAnyOrder("user-api-1", "user-api-2");
@@ -193,7 +193,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
 
         userSavedApiRepository.save(userSavedApi);
 
-        Optional<UserSavedApi> foundApi = userSavedApiRepository.findByUserApiIdAndDeletedFalse("user-api-12345");
+        Optional<UserSavedApi> foundApi = userSavedApiRepository.findByUserApiIdAndIsDeletedFalse("user-api-12345");
 
         assertThat(foundApi).isEmpty();
     }
@@ -215,7 +215,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
 
         userSavedApiRepository.save(existingApi);
 
-        Optional<UserSavedApi> duplicate = userSavedApiRepository.findByUserIdAndSharedApiIdAndDeletedFalse(userId, sharedApiId);
+        Optional<UserSavedApi> duplicate = userSavedApiRepository.findByUserIdAndSharedApiIdAndIsDeletedFalse(userId, sharedApiId);
 
         assertThat(duplicate).isPresent();
         assertThat(duplicate.get().getUserId()).isEqualTo(userId);
@@ -240,7 +240,7 @@ class UserSavedApiRepositoryTest extends BaseRepositoryTest {
         }
 
         Pageable pageable = PageRequest.of(0, 5);
-        Page<UserSavedApi> page = userSavedApiRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId, pageable);
+        Page<UserSavedApi> page = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId, pageable);
 
         assertThat(page.getContent()).hasSize(5);
         assertThat(page.getTotalElements()).isEqualTo(7);

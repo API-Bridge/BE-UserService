@@ -32,10 +32,10 @@ public class SharedApiController {
     @Operation(summary = "API 공유 게시", description = "커스텀 API를 공유 게시판에 게시합니다.")
     public ResponseEntity<ApiResponse<SharedApi>> shareApi(
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
-            @Parameter(description = "API ID", required = true) @RequestParam String apiId,
+            @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId,
             @Parameter(description = "플랜 타입", required = true) @RequestParam String planType) {
         
-        SharedApi sharedApi = sharedApiService.shareApi(userId, apiId, planType);
+        SharedApi sharedApi = sharedApiService.shareApi(userId, customApiId, planType);
         return ResponseEntity.ok(ApiResponse.success(sharedApi));
     }
 
@@ -43,9 +43,9 @@ public class SharedApiController {
     @Operation(summary = "API 공유 취소", description = "공유된 API를 취소합니다.")
     public ResponseEntity<ApiResponse<Void>> unshareApi(
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
-            @Parameter(description = "API ID", required = true) @RequestParam String apiId) {
+            @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId) {
         
-        sharedApiService.unshareApi(userId, apiId);
+        sharedApiService.unshareApi(userId, customApiId);
         return ResponseEntity.ok(ApiResponse.success());
     }
 

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "custom_apis")
+@Table(name = "custom_api")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -20,24 +20,19 @@ import java.util.Objects;
 public class CustomApi {
 
     @Id
-    @Column(name = "api_id", length = 36, nullable = false)
-    private String apiId;
+    @Column(name = "custom_api_id", length = 36, nullable = false)
+    private String customApiId;
 
     @Column(name = "user_id", length = 36, nullable = false)
     private String userId;
 
-    @Column(name = "api_name", length = 255, nullable = false)
-    private String apiName;
+    @Column(name = "name", length = 255, nullable = false)
+    private String name;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "data_count", nullable = false)
-    private Integer dataCount;
-
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
-    private Boolean deleted = false;
+    // data_count와 is_deleted 필드는 새 스키마에서 제거됨
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -47,48 +42,25 @@ public class CustomApi {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public void updateApiInfo(String apiName, String description) {
-        if (apiName != null && !apiName.trim().isEmpty()) {
-            this.apiName = apiName.trim();
+    public void updateApiInfo(String name, String description) {
+        if (name != null && !name.trim().isEmpty()) {
+            this.name = name.trim();
         }
         if (description != null) {
             this.description = description.trim();
         }
     }
 
-    public void updateDataCount(int dataCount) {
-        if (dataCount < 0) {
-            throw new IllegalArgumentException("데이터 수는 0 이상이어야 합니다.");
-        }
-        this.dataCount = dataCount;
-    }
-
-    public void markAsDeleted() {
-        this.deleted = true;
-    }
+    // updateDataCount와 markAsDeleted 메서드는 새 스키마에서 제거됨
 
     public boolean isValid() {
-        return apiId != null && !apiId.trim().isEmpty() &&
+        return customApiId != null && !customApiId.trim().isEmpty() &&
                userId != null && !userId.trim().isEmpty() &&
-               apiName != null && !apiName.trim().isEmpty() &&
-               dataCount != null && dataCount >= 0 &&
+               name != null && !name.trim().isEmpty() &&
                createdAt != null;
     }
 
-    public boolean canShareForPlan(String planType) {
-        if ("FREE".equals(planType)) {
-            return dataCount <= 3;
-        } else if ("PRO".equals(planType)) {
-            return dataCount <= 20;
-        } else if ("ENTERPRISE".equals(planType)) {
-            return true;
-        }
-        return false;
-    }
-
-    public boolean isDeleted() {
-        return deleted != null && deleted;
-    }
+    // canShareForPlan과 isDeleted 메서드는 새 스키마에서 제거됨
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
@@ -106,11 +78,11 @@ public class CustomApi {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         CustomApi customApi = (CustomApi) o;
-        return Objects.equals(apiId, customApi.apiId);
+        return Objects.equals(customApiId, customApi.customApiId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(apiId);
+        return Objects.hash(customApiId);
     }
 }

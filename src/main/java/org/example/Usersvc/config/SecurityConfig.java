@@ -29,7 +29,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@org.springframework.context.annotation.Profile("prod")
+@org.springframework.context.annotation.Profile({"prod", "legacy-jwt"})
 public class SecurityConfig {
 
     @Value("${auth0.audience}")
@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/subscription/products").permitAll()
                 .requestMatchers("/api/shared-apis").permitAll()
                 .requestMatchers("/api/shared-apis/search").permitAll()
+                .requestMatchers("/*.html", "/css/**", "/js/**", "/images/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

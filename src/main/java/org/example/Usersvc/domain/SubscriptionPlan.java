@@ -7,10 +7,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 구독 플랜 엔티티
+ * 구독 플랜 엔티티 - 제공된 스키마에 맞게 수정
  */
 @Entity
-@Table(name = "subscription_plans")
+@Table(name = "plan")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SubscriptionPlan {
@@ -18,49 +18,89 @@ public class SubscriptionPlan {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "plan_id")
-    private Long planId;
+    private Integer planId; // Long -> Integer로 변경
     
     @Column(name = "plan_name", nullable = false, unique = true)
     private String planName;
     
-    @Column(name = "max_api_count", nullable = false)
-    private Integer maxApiCount; // 생성 가능한 최대 API 개수
+    @Column(name = "price", nullable = false, precision = 10, scale = 2)
+    private java.math.BigDecimal price; // DECIMAL(10,2)에 맞게 BigDecimal 사용
     
-    @Column(name = "rate_limit_per_minute", nullable = false) 
-    private Integer rateLimitPerMinute; // 분당 호출 가능 횟수
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
     
-    @Column(name = "rate_limit_per_hour", nullable = false)
-    private Integer rateLimitPerHour; // 시간당 호출 가능 횟수
-    
-    @Column(name = "rate_limit_per_day", nullable = false)
-    private Integer rateLimitPerDay; // 일일 호출 가능 횟수
-    
-    @Column(name = "monthly_price")
-    private Integer monthlyPrice; // 월 구독료 (원)
-    
-    @Column(name = "yearly_price")
-    private Integer yearlyPrice; // 연 구독료 (원)
-    
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
+    @Column(name = "features", columnDefinition = "JSON")
+    private String features; // JSON 필드는 String으로 저장
     
     @Builder
-    public SubscriptionPlan(String planName, Integer maxApiCount, Integer rateLimitPerMinute, 
-                           Integer rateLimitPerHour, Integer rateLimitPerDay, Integer monthlyPrice, Integer yearlyPrice) {
+    public SubscriptionPlan(String planName, java.math.BigDecimal price, String description, String features) {
         this.planName = planName;
-        this.maxApiCount = maxApiCount;
-        this.rateLimitPerMinute = rateLimitPerMinute;
-        this.rateLimitPerHour = rateLimitPerHour;
-        this.rateLimitPerDay = rateLimitPerDay;
-        this.monthlyPrice = monthlyPrice;
-        this.yearlyPrice = yearlyPrice;
-        this.isActive = true;
+        this.price = price;
+        this.description = description;
+        this.features = features;
     }
     
     /**
-     * 플랜 활성화/비활성화
+     * 플랜 정보 업데이트
      */
-    public void updateStatus(boolean isActive) {
-        this.isActive = isActive;
+    public void updatePlan(String planName, java.math.BigDecimal price, String description, String features) {
+        this.planName = planName;
+        this.price = price;
+        this.description = description;
+        this.features = features;
+    }
+    
+    /**
+     * JSON features에서 값을 파싱하는 헬퍼 메서드들
+     */
+    public int getMaxApiCount() {
+        return getIntFromFeatures("maxApiCount", 5);
+    }
+    
+    public int getRateLimitPerMinute() {
+        return getIntFromFeatures("rateLimitPerMinute", 10);
+    }
+    
+    public int getRateLimitPerHour() {
+        return getIntFromFeatures("rateLimitPerHour", 100);
+    }
+    
+    public int getRateLimitPerDay() {
+        return getIntFromFeatures("rateLimitPerDay", 1000);
+    }
+    
+    public java.math.BigDecimal getMonthlyPrice() {
+        return this.price;
+    }
+    
+    public java.math.BigDecimal getYearlyPrice() {
+        return this.price.multiply(java.math.BigDecimal.valueOf(12));
+    }
+    
+    private int getIntFromFeatures(String key, int defaultValue) {
+        if (features == null || features.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            // 간단한 JSON 파싱 (실제로는 Jackson 사용 권장)
+            String searchKey = "\"" + key + "\"";
+            int keyIndex = features.indexOf(searchKey);
+            if (keyIndex == -1) return defaultValue;
+            
+            int colonIndex = features.indexOf(":", keyIndex);
+            if (colonIndex == -1) return defaultValue;
+            
+            int valueStart = colonIndex + 1;
+            int valueEnd = features.indexOf(",", valueStart);
+            if (valueEnd == -1) {
+                valueEnd = features.indexOf("}", valueStart);
+            }
+            if (valueEnd == -1) return defaultValue;
+            
+            String valueStr = features.substring(valueStart, valueEnd).trim();
+            return Integer.parseInt(valueStr);
+        } catch (Exception e) {
+            return defaultValue;
+        }
     }
 }

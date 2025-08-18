@@ -61,19 +61,18 @@ class SubscriptionInterceptorTest {
 
         SubscriptionPlan freePlan = SubscriptionPlan.builder()
                 .planName("FREE")
-                .maxApiCount(5)
-                .rateLimitPerMinute(10)
-                .rateLimitPerHour(100)
-                .rateLimitPerDay(1000)
-                .monthlyPrice(0)
+                .price(java.math.BigDecimal.ZERO)
+                .description("무료 기본 플랜")
+                .features("{\"maxApiCount\": 5, \"rateLimitPerMinute\": 10, \"rateLimitPerHour\": 100, \"rateLimitPerDay\": 1000}")
                 .build();
 
         UserSubscription freeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-1")
                 .user(user)
                 .plan(freePlan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(null)
+                .planPaymentDate(LocalDateTime.now())
                 .build();
+        freeSubscription.activate();
 
         when(request.getHeader("User-ID")).thenReturn(userId);
         when(request.getMethod()).thenReturn("POST");
@@ -106,19 +105,18 @@ class SubscriptionInterceptorTest {
 
         SubscriptionPlan freePlan = SubscriptionPlan.builder()
                 .planName("FREE")
-                .maxApiCount(5)
-                .rateLimitPerMinute(10)
-                .rateLimitPerHour(100)
-                .rateLimitPerDay(1000)
-                .monthlyPrice(0)
+                .price(java.math.BigDecimal.ZERO)
+                .description("무료 기본 플랜")
+                .features("{\"maxApiCount\": 5, \"rateLimitPerMinute\": 10, \"rateLimitPerHour\": 100, \"rateLimitPerDay\": 1000}")
                 .build();
 
         UserSubscription freeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-2")
                 .user(user)
                 .plan(freePlan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(null)
+                .planPaymentDate(LocalDateTime.now())
                 .build();
+        freeSubscription.activate();
 
         when(request.getHeader("User-ID")).thenReturn(userId);
         when(request.getMethod()).thenReturn("POST");
@@ -136,7 +134,7 @@ class SubscriptionInterceptorTest {
     }
 
     @Test
-    @DisplayName("만료된 구독을 가진 사용자의 요청을 거부해야 한다")
+    @DisplayName("비활성 구독을 가진 사용자의 요청을 거부해야 한다")
     void preHandle_ExpiredSubscription() throws Exception {
         // Response writer 설정 (에러 응답을 위해 필요)
         StringWriter stringWriter = new StringWriter();
@@ -152,19 +150,18 @@ class SubscriptionInterceptorTest {
 
         SubscriptionPlan proPlan = SubscriptionPlan.builder()
                 .planName("PRO")
-                .maxApiCount(50)
-                .rateLimitPerMinute(100)
-                .rateLimitPerHour(1000)
-                .rateLimitPerDay(10000)
-                .monthlyPrice(2999)
+                .price(java.math.BigDecimal.valueOf(2999))
+                .description("프로 플랜")
+                .features("{\"maxApiCount\": 50, \"rateLimitPerMinute\": 100, \"rateLimitPerHour\": 1000, \"rateLimitPerDay\": 10000}")
                 .build();
 
         UserSubscription expiredSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-3")
                 .user(user)
                 .plan(proPlan)
-                .startedAt(LocalDateTime.now().minusMonths(2))
-                .expiresAt(LocalDateTime.now().minusDays(1))
+                .planPaymentDate(LocalDateTime.now().minusMonths(2))
                 .build();
+        // 비활성 상태로 만들기 (기본값이 false이므로 별도 설정 불필요)
 
         when(request.getHeader("User-ID")).thenReturn(userId);
         when(userService.getUserById(userId)).thenReturn(Optional.of(user));
@@ -229,19 +226,18 @@ class SubscriptionInterceptorTest {
 
         SubscriptionPlan freePlan = SubscriptionPlan.builder()
                 .planName("FREE")
-                .maxApiCount(5)
-                .rateLimitPerMinute(10)
-                .rateLimitPerHour(100)
-                .rateLimitPerDay(1000)
-                .monthlyPrice(0)
+                .price(java.math.BigDecimal.ZERO)
+                .description("무료 기본 플랜")
+                .features("{\"maxApiCount\": 5, \"rateLimitPerMinute\": 10, \"rateLimitPerHour\": 100, \"rateLimitPerDay\": 1000}")
                 .build();
 
         UserSubscription freeSubscription = UserSubscription.builder()
+                .subscriptionId("test-sub-4")
                 .user(user)
                 .plan(freePlan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(null)
+                .planPaymentDate(LocalDateTime.now())
                 .build();
+        freeSubscription.activate();
 
         when(request.getHeader("User-ID")).thenReturn(userId);
         when(userService.getUserById(userId)).thenReturn(Optional.of(user));

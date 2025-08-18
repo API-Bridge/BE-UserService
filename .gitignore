@@ -90,6 +90,7 @@ coverage/
 # Node modules (if using frontend tools)
 node_modules/
 
+
 # Maven wrapper
 !**/src/main/**/target/
 !**/src/test/**/target/

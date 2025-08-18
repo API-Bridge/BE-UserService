@@ -47,11 +47,14 @@ public class UserSubscriptionService {
                 .ifPresent(UserSubscription::cancel);
         
         UserSubscription subscription = UserSubscription.builder()
+                .subscriptionId(java.util.UUID.randomUUID().toString())
                 .user(user)
                 .plan(plan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(expiresAt)
+                .planPaymentDate(LocalDateTime.now())
                 .build();
+        
+        // 구독을 활성화
+        subscription.activate();
         
         return userSubscriptionRepository.save(subscription);
     }
@@ -60,9 +63,9 @@ public class UserSubscriptionService {
      * 구독 갱신
      */
     @Transactional
-    public UserSubscription renewSubscription(User user, LocalDateTime newExpiresAt) {
+    public UserSubscription renewSubscription(User user) {
         UserSubscription subscription = getActiveSubscription(user);
-        subscription.renew(newExpiresAt);
+        subscription.renew();
         return userSubscriptionRepository.save(subscription);
     }
     
@@ -88,11 +91,14 @@ public class UserSubscriptionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_SUBSCRIPTION_PLAN, "무료 플랜을 찾을 수 없습니다."));
         
         UserSubscription subscription = UserSubscription.builder()
+                .subscriptionId(java.util.UUID.randomUUID().toString())
                 .user(user)
                 .plan(freePlan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(null) // 무료 플랜은 만료일 없음
+                .planPaymentDate(LocalDateTime.now())
                 .build();
+        
+        // 구독을 활성화
+        subscription.activate();
         
         log.info("Created default free subscription for user: {}", user.getUserId());
         return userSubscriptionRepository.save(subscription);
@@ -122,7 +128,7 @@ public class UserSubscriptionService {
      */
     @Transactional
     public void processExpiredSubscriptions() {
-        var expiredSubscriptions = userSubscriptionRepository.findExpiredSubscriptions(LocalDateTime.now());
+        var expiredSubscriptions = userSubscriptionRepository.findInactiveSubscriptions();
         
         for (UserSubscription subscription : expiredSubscriptions) {
             log.info("Processing expired subscription for user: {}", subscription.getUser().getUserId());

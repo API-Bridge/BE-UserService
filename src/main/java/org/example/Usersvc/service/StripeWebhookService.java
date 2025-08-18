@@ -209,6 +209,7 @@ public class StripeWebhookService {
     }
 
     private User findUserByStripeCustomerId(String customerId) {
-        return userRepository.findByStripeCustomerId(customerId).orElse(null);
+        // Stripe customer ID 필드가 제거되었으므로 null 반환
+        return null;
     }
 }

@@ -78,7 +78,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
         sharedApiRepository.save(activeApi2);
         sharedApiRepository.save(inactiveApi);
 
-        List<SharedApi> activeApis = sharedApiRepository.findByActiveTrueOrderByCreatedAtDesc();
+        List<SharedApi> activeApis = sharedApiRepository.findByIsActiveTrueOrderByCreatedAtDesc();
 
         assertThat(activeApis).hasSize(2);
         assertThat(activeApis).extracting(SharedApi::getSharedApiId).containsExactlyInAnyOrder("shared-1", "shared-2");
@@ -120,7 +120,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
         sharedApiRepository.save(api2);
         sharedApiRepository.save(otherUserApi);
 
-        List<SharedApi> creatorApis = sharedApiRepository.findByCreatorIdAndActiveTrueOrderByCreatedAtDesc(creatorId);
+        List<SharedApi> creatorApis = sharedApiRepository.findByCreatorIdAndIsActiveTrueOrderByCreatedAtDesc(creatorId);
 
         assertThat(creatorApis).hasSize(2);
         assertThat(creatorApis).extracting(SharedApi::getSharedApiId).containsExactlyInAnyOrder("shared-1", "shared-2");
@@ -142,7 +142,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
 
         sharedApiRepository.save(sharedApi);
 
-        Optional<SharedApi> foundApi = sharedApiRepository.findByOriginalApiIdAndActiveTrue(originalApiId);
+        Optional<SharedApi> foundApi = sharedApiRepository.findByOriginalApiIdAndIsActiveTrue(originalApiId);
 
         assertThat(foundApi).isPresent();
         assertThat(foundApi.get().getOriginalApiId()).isEqualTo(originalApiId);
@@ -163,7 +163,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
 
         sharedApiRepository.save(sharedApi);
 
-        Optional<SharedApi> foundApi = sharedApiRepository.findByOriginalApiIdAndActiveTrue("api-12345");
+        Optional<SharedApi> foundApi = sharedApiRepository.findByOriginalApiIdAndIsActiveTrue("api-12345");
 
         assertThat(foundApi).isEmpty();
     }
@@ -202,7 +202,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
         sharedApiRepository.save(api2);
         sharedApiRepository.save(api3);
 
-        List<SharedApi> weatherApis = sharedApiRepository.findByApiNameContainingIgnoreCaseAndActiveTrueOrderByCreatedAtDesc("weather");
+        List<SharedApi> weatherApis = sharedApiRepository.findByApiNameContainingIgnoreCaseAndIsActiveTrueOrderByCreatedAtDesc("weather");
 
         assertThat(weatherApis).hasSize(2);
         assertThat(weatherApis).extracting(SharedApi::getSharedApiId).containsExactlyInAnyOrder("shared-1", "shared-3");
@@ -224,7 +224,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
         }
 
         Pageable pageable = PageRequest.of(0, 5);
-        Page<SharedApi> page = sharedApiRepository.findByActiveTrueOrderByCreatedAtDesc(pageable);
+        Page<SharedApi> page = sharedApiRepository.findByIsActiveTrueOrderByCreatedAtDesc(pageable);
 
         assertThat(page.getContent()).hasSize(5);
         assertThat(page.getTotalElements()).isEqualTo(7);
@@ -257,7 +257,7 @@ class SharedApiRepositoryTest extends BaseRepositoryTest {
         sharedApiRepository.save(smallApi);
         sharedApiRepository.save(largeApi);
 
-        List<SharedApi> smallApis = sharedApiRepository.findByDataCountLessThanEqualAndActiveTrueOrderByCreatedAtDesc(5);
+        List<SharedApi> smallApis = sharedApiRepository.findByDataCountLessThanEqualAndIsActiveTrueOrderByCreatedAtDesc(5);
 
         assertThat(smallApis).hasSize(1);
         assertThat(smallApis.get(0).getSharedApiId()).isEqualTo("shared-small");

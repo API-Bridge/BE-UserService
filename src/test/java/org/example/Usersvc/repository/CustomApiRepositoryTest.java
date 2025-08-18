@@ -23,165 +23,133 @@ class CustomApiRepositoryTest extends BaseRepositoryTest {
     @DisplayName("커스텀 API 저장 및 조회 테스트")
     void saveAndFindCustomApi() {
         CustomApi customApi = CustomApi.builder()
-                .apiId("api-12345")
+                .customApiId("api-12345")
                 .userId("user-12345")
-                .apiName("Test API")
+                .name("Test API")
                 .description("테스트용 API")
-                .dataCount(3)
                 .build();
 
         CustomApi savedApi = customApiRepository.save(customApi);
 
-        assertThat(savedApi.getApiId()).isEqualTo("api-12345");
+        assertThat(savedApi.getCustomApiId()).isEqualTo("api-12345");
         assertThat(savedApi.getUserId()).isEqualTo("user-12345");
-        assertThat(savedApi.getApiName()).isEqualTo("Test API");
+        assertThat(savedApi.getName()).isEqualTo("Test API");
         assertThat(savedApi.getDescription()).isEqualTo("테스트용 API");
-        assertThat(savedApi.getDataCount()).isEqualTo(3);
-        assertThat(savedApi.isDeleted()).isFalse();
         assertThat(savedApi.getCreatedAt()).isNotNull();
     }
 
     @Test
     @DisplayName("사용자별 커스텀 API 조회 테스트")
-    void findByUserIdAndDeletedFalse() {
+    void findByUserId() {
         String userId = "user-12345";
 
         CustomApi api1 = CustomApi.builder()
-                .apiId("api-1")
+                .customApiId("api-1")
                 .userId(userId)
-                .apiName("API 1")
+                .name("API 1")
                 .description("첫 번째 API")
-                .dataCount(2)
                 .build();
 
         CustomApi api2 = CustomApi.builder()
-                .apiId("api-2")
+                .customApiId("api-2")
                 .userId(userId)
-                .apiName("API 2")
+                .name("API 2")
                 .description("두 번째 API")
-                .dataCount(5)
                 .build();
 
         CustomApi api3 = CustomApi.builder()
-                .apiId("api-3")
+                .customApiId("api-3")
                 .userId("user-67890")
-                .apiName("API 3")
+                .name("API 3")
                 .description("다른 사용자 API")
-                .dataCount(1)
                 .build();
 
         customApiRepository.save(api1);
         customApiRepository.save(api2);
         customApiRepository.save(api3);
 
-        List<CustomApi> userApis = customApiRepository.findByUserIdAndDeletedFalse(userId);
+        List<CustomApi> userApis = customApiRepository.findByUserId(userId);
 
         assertThat(userApis).hasSize(2);
-        assertThat(userApis).extracting(CustomApi::getApiId).containsExactlyInAnyOrder("api-1", "api-2");
+        assertThat(userApis).extracting(CustomApi::getCustomApiId).containsExactlyInAnyOrder("api-1", "api-2");
     }
 
     @Test
-    @DisplayName("삭제되지 않은 커스텀 API 조회 테스트")
+    @DisplayName("커스텀 API 조회 테스트")
     void findActiveCustomApis() {
         CustomApi activeApi = CustomApi.builder()
-                .apiId("api-active")
+                .customApiId("api-active")
                 .userId("user-12345")
-                .apiName("Active API")
+                .name("Active API")
                 .description("활성 API")
-                .dataCount(3)
                 .build();
-
-        CustomApi deletedApi = CustomApi.builder()
-                .apiId("api-deleted")
-                .userId("user-12345")
-                .apiName("Deleted API")
-                .description("삭제된 API")
-                .dataCount(2)
-                .build();
-        deletedApi.markAsDeleted();
 
         customApiRepository.save(activeApi);
-        customApiRepository.save(deletedApi);
 
-        List<CustomApi> activeApis = customApiRepository.findByUserIdAndDeletedFalse("user-12345");
+        List<CustomApi> userApis = customApiRepository.findByUserId("user-12345");
 
-        assertThat(activeApis).hasSize(1);
-        assertThat(activeApis.get(0).getApiId()).isEqualTo("api-active");
+        assertThat(userApis).hasSize(1);
+        assertThat(userApis.get(0).getCustomApiId()).isEqualTo("api-active");
     }
 
     @Test
     @DisplayName("커스텀 API ID로 조회 테스트")
-    void findByApiIdAndDeletedFalse() {
+    void findByCustomApiId() {
         CustomApi customApi = CustomApi.builder()
-                .apiId("api-12345")
+                .customApiId("api-12345")
                 .userId("user-12345")
-                .apiName("Test API")
+                .name("Test API")
                 .description("테스트용 API")
-                .dataCount(3)
                 .build();
 
         customApiRepository.save(customApi);
 
-        Optional<CustomApi> foundApi = customApiRepository.findByApiIdAndDeletedFalse("api-12345");
+        Optional<CustomApi> foundApi = customApiRepository.findByCustomApiId("api-12345");
 
         assertThat(foundApi).isPresent();
-        assertThat(foundApi.get().getApiId()).isEqualTo("api-12345");
+        assertThat(foundApi.get().getCustomApiId()).isEqualTo("api-12345");
     }
 
     @Test
-    @DisplayName("삭제된 커스텀 API는 조회되지 않는 테스트")
-    void deletedApiNotFound() {
-        CustomApi customApi = CustomApi.builder()
-                .apiId("api-12345")
-                .userId("user-12345")
-                .apiName("Test API")
-                .description("테스트용 API")
-                .dataCount(3)
-                .build();
-        customApi.markAsDeleted();
-
-        customApiRepository.save(customApi);
-
-        Optional<CustomApi> foundApi = customApiRepository.findByApiIdAndDeletedFalse("api-12345");
+    @DisplayName("빈 커스텀 API ID로 조회 테스트")
+    void notFoundApiById() {
+        Optional<CustomApi> foundApi = customApiRepository.findByCustomApiId("non-existent-api");
 
         assertThat(foundApi).isEmpty();
     }
 
     @Test
-    @DisplayName("데이터 수로 필터링된 커스텀 API 조회 테스트")
-    void findByDataCountLessThanEqual() {
+    @DisplayName("이름으로 커스텀 API 검색 테스트")
+    void findByNameContainingIgnoreCase() {
         CustomApi api1 = CustomApi.builder()
-                .apiId("api-1")
+                .customApiId("api-1")
                 .userId("user-12345")
-                .apiName("Small API")
-                .description("작은 API")
-                .dataCount(2)
+                .name("Weather API")
+                .description("날씨 API")
                 .build();
 
         CustomApi api2 = CustomApi.builder()
-                .apiId("api-2")
+                .customApiId("api-2")
                 .userId("user-12345")
-                .apiName("Medium API")
-                .description("중간 API")
-                .dataCount(5)
+                .name("News API")
+                .description("뉴스 API")
                 .build();
 
         CustomApi api3 = CustomApi.builder()
-                .apiId("api-3")
+                .customApiId("api-3")
                 .userId("user-12345")
-                .apiName("Large API")
-                .description("큰 API")
-                .dataCount(10)
+                .name("Weather Forecast")
+                .description("날씨 예보 API")
                 .build();
 
         customApiRepository.save(api1);
         customApiRepository.save(api2);
         customApiRepository.save(api3);
 
-        List<CustomApi> smallApis = customApiRepository.findByUserIdAndDataCountLessThanEqualAndDeletedFalse("user-12345", 3);
+        List<CustomApi> weatherApis = customApiRepository.findByNameContainingIgnoreCaseOrderByCreatedAtDesc("weather");
 
-        assertThat(smallApis).hasSize(1);
-        assertThat(smallApis.get(0).getApiId()).isEqualTo("api-1");
+        assertThat(weatherApis).hasSize(2);
+        assertThat(weatherApis).extracting(CustomApi::getCustomApiId).containsExactlyInAnyOrder("api-1", "api-3");
     }
 
     @Test
@@ -191,17 +159,16 @@ class CustomApiRepositoryTest extends BaseRepositoryTest {
 
         for (int i = 1; i <= 5; i++) {
             CustomApi api = CustomApi.builder()
-                    .apiId("api-" + i)
+                    .customApiId("api-" + i)
                     .userId(userId)
-                    .apiName("API " + i)
+                    .name("API " + i)
                     .description("API " + i + " 설명")
-                    .dataCount(i)
                     .build();
             customApiRepository.save(api);
         }
 
         Pageable pageable = PageRequest.of(0, 3);
-        Page<CustomApi> page = customApiRepository.findByUserIdAndDeletedFalse(userId, pageable);
+        Page<CustomApi> page = customApiRepository.findByUserId(userId, pageable);
 
         assertThat(page.getContent()).hasSize(3);
         assertThat(page.getTotalElements()).isEqualTo(5);

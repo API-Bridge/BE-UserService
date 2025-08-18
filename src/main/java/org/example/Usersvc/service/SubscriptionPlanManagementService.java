@@ -28,16 +28,16 @@ public class SubscriptionPlanManagementService {
     private final RedisTemplate<String, String> redisTemplate;
 
     public List<SubscriptionPlan> getAllActivePlans() {
-        return subscriptionPlanRepository.findByIsActiveTrueOrderByMonthlyPrice();
+        return subscriptionPlanRepository.findAllByOrderByPrice();
     }
 
     public Optional<SubscriptionPlan> getPlanByName(String planName) {
-        return subscriptionPlanRepository.findByPlanNameAndIsActiveTrue(planName);
+        return subscriptionPlanRepository.findByPlanName(planName);
     }
 
     public SubscriptionPlan getFreePlan() {
-        return subscriptionPlanRepository.findByPlanNameAndIsActiveTrue("FREE")
-                .orElseThrow(() -> new IllegalStateException("FREE 플랜을 찾을 수 없습니다."));
+        return subscriptionPlanRepository.findFreePlan()
+                .orElseThrow(() -> new IllegalStateException("Free 플랜을 찾을 수 없습니다."));
     }
 
     public boolean isApiCreationLimitExceeded(SubscriptionPlan plan, int currentApiCount) {
@@ -53,7 +53,7 @@ public class SubscriptionPlanManagementService {
     }
 
     public boolean isUpgrade(SubscriptionPlan currentPlan, SubscriptionPlan targetPlan) {
-        return targetPlan.getMonthlyPrice() > currentPlan.getMonthlyPrice();
+        return targetPlan.getMonthlyPrice().compareTo(currentPlan.getMonthlyPrice()) > 0;
     }
 
     public PlanFeatures getPlanFeatures(SubscriptionPlan plan) {
@@ -90,8 +90,7 @@ public class SubscriptionPlanManagementService {
                     UserSubscription freeSubscription = UserSubscription.builder()
                             .user(user)
                             .plan(freePlan)
-                            .startedAt(LocalDateTime.now())
-                            .expiresAt(null)
+                            .planPaymentDate(LocalDateTime.now())
                             .build();
                     return userSubscriptionRepository.save(freeSubscription);
                 });

@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -60,7 +61,7 @@ class RateLimitInterceptorTest {
         testUser.setUserId("1");
         
         responseWriter = new StringWriter();
-        when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
+        lenient().when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
     }
     
     @Test
@@ -98,7 +99,7 @@ class RateLimitInterceptorTest {
         // Given
         when(request.getMethod()).thenReturn("GET");
         when(request.getHeader("X-User-ID")).thenReturn("1");
-        when(userService.findByUserId(1L)).thenReturn(testUser);
+        when(userService.getUserById("1")).thenReturn(Optional.of(testUser));
         when(devRateLimitService.isAllowedPerMinute(testUser)).thenReturn(true);
         when(devRateLimitService.isAllowedPerHour(testUser)).thenReturn(true);
         when(devRateLimitService.isAllowedPerDay(testUser)).thenReturn(true);
@@ -119,7 +120,7 @@ class RateLimitInterceptorTest {
         // Given
         when(request.getMethod()).thenReturn("GET");
         when(request.getHeader("X-User-ID")).thenReturn("1");
-        when(userService.findByUserId(1L)).thenReturn(testUser);
+        when(userService.getUserById("1")).thenReturn(Optional.of(testUser));
         when(devRateLimitService.isAllowedPerMinute(testUser)).thenReturn(false);
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"success\":false,\"message\":\"요청 빈도 제한을 초과했습니다.\",\"errorCode\":\"API002\"}");
         
@@ -141,7 +142,7 @@ class RateLimitInterceptorTest {
         // Given
         when(request.getMethod()).thenReturn("GET");
         when(request.getHeader("X-User-ID")).thenReturn("1");
-        when(userService.findByUserId(1L)).thenReturn(testUser);
+        when(userService.getUserById("1")).thenReturn(Optional.of(testUser));
         when(devRateLimitService.isAllowedPerMinute(testUser)).thenReturn(true);
         when(devRateLimitService.isAllowedPerHour(testUser)).thenReturn(false);
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"success\":false,\"message\":\"요청 빈도 제한을 초과했습니다.\",\"errorCode\":\"API002\"}");
@@ -163,7 +164,7 @@ class RateLimitInterceptorTest {
         // Given
         when(request.getMethod()).thenReturn("GET");
         when(request.getHeader("X-User-ID")).thenReturn("1");
-        when(userService.findByUserId(1L)).thenReturn(testUser);
+        when(userService.getUserById("1")).thenReturn(Optional.of(testUser));
         when(devRateLimitService.isAllowedPerMinute(testUser)).thenReturn(true);
         when(devRateLimitService.isAllowedPerHour(testUser)).thenReturn(true);
         when(devRateLimitService.isAllowedPerDay(testUser)).thenReturn(false);

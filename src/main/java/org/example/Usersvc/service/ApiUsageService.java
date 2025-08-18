@@ -26,18 +26,13 @@ public class ApiUsageService {
      */
     @Async
     @Transactional
-    public void recordApiUsage(User user, String apiEndpoint, String requestMethod, 
-                              Integer responseStatus, Long responseTimeMs, 
-                              String requestIp, String userAgent) {
+    public void recordApiUsage(User user, String apiEndpoint, int requestCount) {
         try {
             ApiUsageRecord record = ApiUsageRecord.builder()
                     .user(user)
                     .apiEndpoint(apiEndpoint)
-                    .requestMethod(requestMethod)
-                    .responseStatus(responseStatus)
-                    .responseTimeMs(responseTimeMs)
-                    .requestIp(requestIp)
-                    .userAgent(userAgent)
+                    .requestCount(requestCount)
+                    .recordDate(java.time.LocalDate.now())
                     .build();
             
             apiUsageRecordRepository.save(record);

@@ -12,13 +12,13 @@ import java.util.Optional;
 @Repository
 public interface UserSavedApiRepository extends JpaRepository<UserSavedApi, String> {
 
-    List<UserSavedApi> findByUserIdAndDeletedFalseOrderByCreatedAtDesc(String userId);
+    List<UserSavedApi> findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(String userId);
 
-    Page<UserSavedApi> findByUserIdAndDeletedFalseOrderByCreatedAtDesc(String userId, Pageable pageable);
+    Page<UserSavedApi> findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(String userId, Pageable pageable);
 
-    Optional<UserSavedApi> findByUserApiIdAndDeletedFalse(String userApiId);
+    Optional<UserSavedApi> findByUserApiIdAndIsDeletedFalse(String userApiId);
 
-    List<UserSavedApi> findBySharedApiIdAndDeletedFalse(String sharedApiId);
+    List<UserSavedApi> findBySharedApiIdAndIsDeletedFalse(String sharedApiId);
 
-    Optional<UserSavedApi> findByUserIdAndSharedApiIdAndDeletedFalse(String userId, String sharedApiId);
+    Optional<UserSavedApi> findByUserIdAndSharedApiIdAndIsDeletedFalse(String userId, String sharedApiId);
 }

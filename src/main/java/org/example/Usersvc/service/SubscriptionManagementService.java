@@ -81,8 +81,7 @@ public class SubscriptionManagementService {
             UserSubscription newSubscription = UserSubscription.builder()
                     .user(user)
                     .plan(newPlan)
-                    .startedAt(LocalDateTime.now())
-                    .expiresAt(calculateExpirationDate(billingPeriod))
+                    .planPaymentDate(LocalDateTime.now())
                     .build();
 
             return userSubscriptionRepository.save(newSubscription);
@@ -135,8 +134,7 @@ public class SubscriptionManagementService {
         return UserSubscription.builder()
                 .user(user)
                 .plan(plan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(null) // 무료 플랜은 만료일 없음
+                .planPaymentDate(LocalDateTime.now())
                 .build();
     }
 
@@ -155,8 +153,7 @@ public class SubscriptionManagementService {
         return UserSubscription.builder()
                 .user(user)
                 .plan(plan)
-                .startedAt(LocalDateTime.now())
-                .expiresAt(calculateExpirationDate(billingPeriod))
+                .planPaymentDate(LocalDateTime.now())
                 .build();
     }
 
@@ -232,7 +229,7 @@ public class SubscriptionManagementService {
             String billingPeriod = determineBillingPeriod(amountPaid, userSubscription.getPlan());
             LocalDateTime newExpiresAt = calculateExpirationDate(billingPeriod);
             
-            userSubscription.updateExpirationDate(newExpiresAt);
+            userSubscription.updatePaymentDate(LocalDateTime.now());
             userSubscriptionRepository.save(userSubscription);
         }
     }

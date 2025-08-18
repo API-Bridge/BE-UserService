@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "shared_apis")
+@Table(name = "shared_api")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -40,7 +40,7 @@ public class SharedApi {
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private Boolean active = true;
+    private Boolean isActive = true;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -51,11 +51,11 @@ public class SharedApi {
     private LocalDateTime updatedAt;
 
     public void deactivate() {
-        this.active = false;
+        this.isActive = false;
     }
 
     public void reactivate() {
-        this.active = true;
+        this.isActive = true;
     }
 
     public void updateInfo(String apiName, String description) {
@@ -81,7 +81,7 @@ public class SharedApi {
     }
 
     public boolean isActive() {
-        return active != null && active;
+        return isActive != null && isActive;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

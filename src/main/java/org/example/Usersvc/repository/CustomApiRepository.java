@@ -12,11 +12,13 @@ import java.util.Optional;
 @Repository
 public interface CustomApiRepository extends JpaRepository<CustomApi, String> {
 
-    List<CustomApi> findByUserIdAndDeletedFalse(String userId);
+    List<CustomApi> findByUserId(String userId);
 
-    Page<CustomApi> findByUserIdAndDeletedFalse(String userId, Pageable pageable);
+    Page<CustomApi> findByUserId(String userId, Pageable pageable);
 
-    Optional<CustomApi> findByApiIdAndDeletedFalse(String apiId);
+    Optional<CustomApi> findByCustomApiId(String customApiId);
 
-    List<CustomApi> findByUserIdAndDataCountLessThanEqualAndDeletedFalse(String userId, Integer dataCount);
+    List<CustomApi> findByUserIdOrderByCreatedAtDesc(String userId);
+
+    List<CustomApi> findByNameContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
 }

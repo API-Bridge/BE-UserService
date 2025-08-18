@@ -100,7 +100,10 @@ class UserSecretsArnServiceTest {
         when(awsSecretsManagerService.storeSecret(anyString(), anyString(), anyString()))
                 .thenReturn(testArn);
         when(userSecretsArnRepository.save(any(UserSecretsArn.class)))
-                .thenReturn(testUserSecretsArn);
+                .thenAnswer(invocation -> {
+                    UserSecretsArn savedArn = invocation.getArgument(0);
+                    return savedArn;
+                });
         
         // when: 사용자 키 저장 요청
         String secretName = "user-" + testUserId + "-key";

@@ -14,7 +14,7 @@ spring:
       ddl-auto: ${DDL_AUTO:create-drop}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
         use_sql_comments: true
         jdbc:
@@ -57,12 +57,19 @@ spring:
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
 
-  # 개발 환경용 기본 보안 설정
+  # 개발 환경용 기본 보안 설정 및 OAuth2 Resource Server 설정
   security:
     user:
       name: admin
       password: admin
       roles: USER,ADMIN
+    oauth2:
+      resourceserver:
+        jwt:
+          # Auth0 Issuer URI (JWT 발급자)
+          issuer-uri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
+          # JWKS URI (공개키 엔드포인트) - 자동 설정됨
+          # jwk-set-uri: ${AUTH0_ISSUER_URI}/.well-known/jwks.json
 
   # H2 콘솔 설정 (default 프로필용)
   h2:
@@ -92,6 +99,8 @@ spring:
       properties:
         acks: all
         retries: 3
+
+
 
 # 서버 설정
 server:
@@ -197,20 +206,48 @@ management:
 # Auth0 설정 (API Gateway와 동일한 설정)
 auth0:
   issuerUri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
-  audience: ${AUTH0_AUDIENCE:http://localhost:8080/}
+  audience: ${AUTH0_AUDIENCE:https://api.api-bridge.com}  # JWT 토큰의 실제 audience와 일치
   client-id: ${AUTH0_CLIENT_ID}
   logout-redirect-uri: ${AUTH0_LOGOUT_REDIRECT_URI:http://localhost:8080/auth/logout-success}
 
 # Eureka 클라이언트 설정
 eureka:
   client:
+    enabled: true
     service-url:
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
     fetch-registry: true
     register-with-eureka: true
+    # 서비스 레지스트리 갱신 주기
+    registry-fetch-interval-seconds: 10
+    # 초기 레지스트리 로딩 대기 시간
+    initial-instance-info-replication-interval-seconds: 5
+    # Eureka 서버 연결 설정
+    eureka-server-connect-timeout-seconds: 5
+    eureka-server-read-timeout-seconds: 8
   instance:
+    # IP 주소 우선 사용 (Docker/K8s 환경 대응)
     prefer-ip-address: true
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    # 고유한 인스턴스 ID 생성
+    instance-id: ${spring.application.name}:${spring.cloud.client.hostname}:${server.port}
+    # 하트비트 간격
+    lease-renewal-interval-in-seconds: 10
+    # 인스턴스 만료 시간
+    lease-expiration-duration-in-seconds: 30
+    # 헬스체크 URL 설정
+    health-check-url-path: /actuator/health
+    status-page-url-path: /actuator/info
+    # 메타데이터 설정
+    metadata-map:
+      version: ${BUILD_VERSION:1.0.0}
+      environment: ${SPRING_PROFILES_ACTIVE:default}
+      management.port: ${server.port}
+      # Auth0 관련 메타데이터
+      auth.issuer: ${auth0.issuerUri}
+      auth.audience: ${auth0.audience}
+      # 서비스 특성 메타데이터
+      service.type: user-management
+      service.capabilities: user-crud,profile-management,authentication
 
 ---
 # 개발 환경 설정
