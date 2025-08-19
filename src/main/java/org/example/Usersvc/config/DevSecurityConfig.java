@@ -74,10 +74,14 @@ public class DevSecurityConfig {
                 // API 엔드포인트 허용
                 .requestMatchers("/api/subscription/checkout").permitAll()
                 .requestMatchers("/api/subscription/products").permitAll()
+                .requestMatchers("/api/users/*/subscription").permitAll()
                 .requestMatchers("/api/webhooks/**").permitAll()
+                .requestMatchers("/webhook").permitAll()
                 
                 // 개발 편의성: 테스트 엔드포인트 허용
                 .requestMatchers("/users/test-headers", "/users/me").permitAll()
+                .requestMatchers("/test/**").permitAll()  // 구독 테스트 페이지 허용
+                .requestMatchers("/simple/**").permitAll()  // 간단한 테스트 페이지
                 
                 // 기타 모든 요청 - JWT 인증 또는 완화된 접근
                 .anyRequest().permitAll()  // 개발 환경에서는 JWT가 없어도 허용

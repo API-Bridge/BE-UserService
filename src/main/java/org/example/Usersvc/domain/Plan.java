@@ -7,24 +7,24 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 구독 플랜 엔티티 - 제공된 스키마에 맞게 수정
+ * 구독 플랜 엔티티 - plan 테이블과 매핑
  */
 @Entity
 @Table(name = "plan")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class SubscriptionPlan {
+public class Plan {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "plan_id")
-    private Integer planId; // Long -> Integer로 변경
+    private Integer planId;
     
     @Column(name = "plan_name", nullable = false, unique = true)
     private String planName;
     
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
-    private java.math.BigDecimal price; // DECIMAL(10,2)에 맞게 BigDecimal 사용
+    private java.math.BigDecimal price;
     
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
@@ -33,7 +33,7 @@ public class SubscriptionPlan {
     private String features; // JSON 필드는 String으로 저장
     
     @Builder
-    public SubscriptionPlan(String planName, java.math.BigDecimal price, String description, String features) {
+    public Plan(String planName, java.math.BigDecimal price, String description, String features) {
         this.planName = planName;
         this.price = price;
         this.description = description;

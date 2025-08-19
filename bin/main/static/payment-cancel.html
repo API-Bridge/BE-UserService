@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>❌ 결제 취소 | UserService</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #e64553 100%);
+            color: white;
+            padding: 40px 20px;
+        }
+
+        .cancel-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: shakeX 0.8s ease-out;
+        }
+
+        @keyframes shakeX {
+            0% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-10px);
+            }
+            50% {
+                transform: translateX(10px);
+            }
+            75% {
+                transform: translateX(-10px);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 20px;
+        }
+
+        .cancel-info {
+            background: #fff5f5;
+            border: 2px solid #fed7d7;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: left;
+        }
+
+        .cancel-info h3 {
+            color: #c53030;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .cancel-info h3::before {
+            content: '⚠️';
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+
+        .reason-list {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        .reason-list li {
+            padding: 8px 0;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+        }
+
+        .reason-list li::before {
+            content: '•';
+            color: #dc3545;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .info-box {
+            background: #e6f3ff;
+            border: 1px solid #bee5eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #0c5460;
+        }
+
+        .info-box h4 {
+            margin-bottom: 10px;
+            color: #0c5460;
+            font-size: 1.1rem;
+        }
+
+        .actions {
+            margin-top: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #8d9498 100%);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+        }
+
+        .footer {
+            padding: 20px;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .plan-highlight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .plan-highlight h4 {
+            margin-bottom: 10px;
+        }
+
+        .features {
+            text-align: left;
+            margin-top: 15px;
+        }
+
+        .features li {
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .features li::before {
+            content: '✓';
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+            background: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <div class="cancel-icon">❌</div>
+            <h1>결제가 취소되었습니다</h1>
+            <p>Pro 플랜 구독 결제를 취소하셨습니다.</p>
+        </div>
+
+        <!-- 컨텐츠 -->
+        <div class="content">
+            <div class="cancel-info">
+                <h3>결제 취소 사유</h3>
+                <p>다음과 같은 이유로 결제가 취소될 수 있습니다:</p>
+                <ul class="reason-list">
+                    <li>사용자가 직접 결제를 취소한 경우</li>
+                    <li>결제 정보 입력 중 문제가 발생한 경우</li>
+                    <li>결제 처리 과정에서 오류가 발생한 경우</li>
+                    <li>네트워크 연결 문제로 인한 중단</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h4>💡 걱정하지 마세요!</h4>
+                <p>
+                    결제가 취소되어도 계정에는 아무런 영향이 없습니다. 
+                    언제든지 다시 구독을 시도하실 수 있으며, 무료 플랜은 계속 이용 가능합니다.
+                </p>
+            </div>
+
+            <div class="plan-highlight">
+                <h4>🚀 Pro 플랜의 혜택을 놓치지 마세요!</h4>
+                <ul class="features">
+                    <li>API 생성 100개까지</li>
+                    <li>분당 200회 요청</li>
+                    <li>시간당 5,000회 요청</li>
+                    <li>일일 50,000회 요청</li>
+                    <li>우선 지원 서비스</li>
+                    <li>고급 분석 도구</li>
+                </ul>
+            </div>
+
+            <div class="actions">
+                <a href="/test/dashboard" class="btn btn-primary">
+                    🔄 다시 결제하기
+                </a>
+                <a href="/test/dashboard" class="btn">
+                    🏠 테스트 대시보드로 돌아가기
+                </a>
+                <a href="/api/users/me/subscription" class="btn btn-secondary">
+                    📋 현재 구독 상태 확인
+                </a>
+            </div>
+        </div>
+
+        <!-- 푸터 -->
+        <div class="footer">
+            <p>
+                결제 관련 문의사항이 있으시면 고객 지원팀으로 연락해 주세요.<br>
+                <strong>언제든지 도움을 드릴 준비가 되어 있습니다!</strong>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // URL 파라미터에서 정보 추출
+        const urlParams = new URLSearchParams(window.location.search);
+        const plan = urlParams.get('plan') || 'Pro';
+        const reason = urlParams.get('reason') || 'user_cancelled';
+
+        console.log('결제 취소 페이지 로드됨');
+        console.log('Plan:', plan);
+        console.log('Reason:', reason);
+
+        // 취소 시간 기록
+        console.log('취소 시간:', new Date().toLocaleString('ko-KR'));
+
+        // 플랜 정보 업데이트
+        const planElements = document.querySelectorAll('[data-plan]');
+        planElements.forEach(element => {
+            element.textContent = element.textContent.replace('Pro', plan);
+        });
+    </script>
+</body>
+</html>

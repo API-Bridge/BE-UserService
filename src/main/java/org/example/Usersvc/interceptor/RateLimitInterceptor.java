@@ -10,7 +10,6 @@ import org.example.Usersvc.common.error.ErrorCode;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.DevRateLimitService;
-import org.example.Usersvc.service.RateLimitService;
 import org.example.Usersvc.service.UserService;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -30,10 +29,6 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         this.userService = userService;
         this.objectMapper = objectMapper;
     }
-    
-    // 프로덕션 환경용 Rate Limit 서비스 (optional)
-    @Autowired(required = false)
-    private RateLimitService rateLimitService;
     
     // 개발 환경용 Rate Limit 서비스 (optional)
     @Autowired(required = false)
@@ -92,9 +87,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             }
             
             // 프로덕션 환경에서는 RateLimitService 사용
-            return rateLimitService.isAllowedPerMinute(user) &&
-                   rateLimitService.isAllowedPerHour(user) &&
-                   rateLimitService.isAllowedPerDay(user);
+            return devRateLimitService != null ? 
+                   devRateLimitService.isAllowedPerMinute(user) &&
+                   devRateLimitService.isAllowedPerHour(user) &&
+                   devRateLimitService.isAllowedPerDay(user) : true;
                    
         } catch (Exception e) {
             log.error("Error checking rate limit for user: {}", user.getUserId(), e);

@@ -1,203 +1,187 @@
--- =====================================================
--- User Service 통합 스키마 & 테스트 데이터
--- 제공된 SQL 스키마에 맞게 수정
--- =====================================================
+-- ================================
+-- 완전한 DB 재생성 스크립트
+-- ================================
 
--- MySQL 데이터베이스 사용
+-- 기존 데이터베이스 삭제 후 새로 생성
+DROP DATABASE IF EXISTS userservice;
+CREATE DATABASE userservice;
+USE userservice;
 
--- =====================================================
--- 스키마 생성 (테이블 정의) - 제공된 스키마 기준
--- =====================================================
-
--- 1. 구독 플랜 테이블 (plan)
-CREATE TABLE IF NOT EXISTS plan (
-    plan_id INT NOT NULL AUTO_INCREMENT,
-    plan_name VARCHAR(255) NOT NULL,
+-- 1. Plan 테이블 (구독 플랜)
+CREATE TABLE plan (
+    plan_id INT AUTO_INCREMENT PRIMARY KEY,
+    plan_name VARCHAR(50) NOT NULL UNIQUE,
     price DECIMAL(10, 2) NOT NULL,
-    description TEXT NULL,
-    features JSON NULL,
-    PRIMARY KEY (plan_id),
-    UNIQUE KEY uk_plan_name (plan_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    description TEXT,
+    features JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_plan_name (plan_name)
+);
 
--- 2. 사용자 기본 정보 테이블 (user) - 백틱으로 감싸기
-CREATE TABLE IF NOT EXISTS `user` (
-    user_id VARCHAR(36) NOT NULL,
-    auth0_id VARCHAR(255) NOT NULL,
-    user_email VARCHAR(255) NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id),
-    UNIQUE KEY uk_auth0_id (auth0_id),
-    UNIQUE KEY uk_user_email (user_email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- 2. User 테이블 (사용자)
+CREATE TABLE `user` (
+    user_id VARCHAR(36) PRIMARY KEY,
+    auth0_id VARCHAR(255) UNIQUE,
+    user_email VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_email (user_email),
+    INDEX idx_auth0_id (auth0_id)
+);
 
--- 3. 사용자 구독 정보 테이블 (subscription)
-CREATE TABLE IF NOT EXISTS subscription (
-    subscription_id VARCHAR(36) NOT NULL,
+-- 3. Subscription 테이블 (사용자 구독) - stripe_subscription_id 포함
+CREATE TABLE subscription (
+    subscription_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     plan_id INT NOT NULL,
-    plan_payment_date DATETIME NOT NULL,
-    plan_update_date DATETIME NOT NULL,
+    plan_payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    plan_update_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (subscription_id),
+    stripe_subscription_id VARCHAR(255) NULL COMMENT 'Stripe에서 생성한 구독 ID (sub_xxx 형태)',
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (plan_id) REFERENCES plan(plan_id) ON DELETE RESTRICT,
+    INDEX idx_stripe_subscription_id (stripe_subscription_id),
     INDEX idx_user_id (user_id),
     INDEX idx_plan_id (plan_id),
-    CONSTRAINT fk_subscriptions_to_users FOREIGN KEY (user_id) REFERENCES `user` (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_subscriptions_to_plans FOREIGN KEY (plan_id) REFERENCES plan (plan_id) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX idx_is_active (is_active)
+);
 
--- 4. 사용자 시크릿 ARN 관리 테이블
-CREATE TABLE IF NOT EXISTS user_secrets_arn (
-    arn_id VARCHAR(36) NOT NULL,
+-- 4. User Secrets ARN 테이블
+CREATE TABLE user_secrets_arn (
+    arn_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    arn VARCHAR(255) NOT NULL,
-    arn_description VARCHAR(255) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (arn_id),
+    arn VARCHAR(500) NOT NULL,
+    arn_description VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id)
+);
+
+-- 5. Custom API 테이블
+CREATE TABLE custom_api (
+    custom_api_id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
-    CONSTRAINT fk_user_secrets_to_users FOREIGN KEY (user_id) REFERENCES `user` (user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    INDEX idx_name (name)
+);
 
--- 5. 커스텀 API 테이블
-CREATE TABLE IF NOT EXISTS custom_api (
-    custom_api_id VARCHAR(36) NOT NULL COMMENT 'PK. 커스텀 API 고유 식별자',
-    user_id VARCHAR(36) NOT NULL COMMENT 'FK. Users 테이블을 참조하는 외래키',
-    name VARCHAR(255) NOT NULL COMMENT '커스텀 API의 이름',
-    description TEXT NULL COMMENT '커스텀 API에 대한 설명',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시',
-    PRIMARY KEY (custom_api_id),
-    CONSTRAINT fk_custom_api_to_user FOREIGN KEY (user_id) REFERENCES `user` (user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='사용자가 생성한 커스텀 API의 메타 정보를 관리합니다.';
-
--- 인덱스는 테이블 생성 시 이미 포함되어 있음
-
--- =================================================================
--- 2. 공유 API 서비스 관련 테이블
--- =================================================================
-
--- 6. 공유 API 정보 테이블
-CREATE TABLE IF NOT EXISTS shared_api (
-    shared_api_id VARCHAR(36) NOT NULL,
+-- 6. Shared API 테이블
+CREATE TABLE shared_api (
+    shared_api_id VARCHAR(36) PRIMARY KEY,
     original_api_id VARCHAR(36) NOT NULL,
     creator_id VARCHAR(36) NOT NULL,
     api_name VARCHAR(255) NOT NULL,
-    description TEXT NULL,
-    data_count INT NOT NULL DEFAULT 0,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (shared_api_id),
+    description TEXT,
+    data_count INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (original_api_id) REFERENCES custom_api(custom_api_id) ON DELETE CASCADE,
+    FOREIGN KEY (creator_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_creator_id (creator_id),
+    INDEX idx_original_api_id (original_api_id),
     INDEX idx_api_name (api_name),
-    INDEX idx_is_active (is_active),
-    INDEX idx_created_at (created_at),
-    CONSTRAINT fk_shared_api_to_creator FOREIGN KEY (creator_id) REFERENCES `user` (user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='사용자가 공유한 API 정보';
+    INDEX idx_is_active (is_active)
+);
 
--- 7. 사용자 저장 API 테이블
-CREATE TABLE IF NOT EXISTS user_saved_api (
-    user_api_id VARCHAR(36) NOT NULL,
+-- 7. User Saved API 테이블
+CREATE TABLE user_saved_api (
+    user_api_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     shared_api_id VARCHAR(36) NOT NULL,
     api_name VARCHAR(255) NOT NULL,
-    description TEXT NULL,
-    data_count INT NOT NULL DEFAULT 0,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_api_id),
+    description TEXT,
+    data_count INT DEFAULT 0,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (shared_api_id) REFERENCES shared_api(shared_api_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_shared_api_id (shared_api_id),
-    INDEX idx_is_deleted (is_deleted),
-    INDEX idx_created_at (created_at),
-    CONSTRAINT fk_user_saved_api_to_user FOREIGN KEY (user_id) REFERENCES `user` (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_user_saved_api_to_shared_api FOREIGN KEY (shared_api_id) REFERENCES shared_api (shared_api_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='사용자가 저장한 공유 API 정보';
+    INDEX idx_is_deleted (is_deleted)
+);
 
--- 8. API 사용량 기록 테이블
-CREATE TABLE IF NOT EXISTS api_usage_record (
-    record_id VARCHAR(36) NOT NULL,
+-- 8. API Usage Record 테이블
+CREATE TABLE api_usage_record (
+    record_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     api_endpoint VARCHAR(255) NOT NULL,
-    request_count INT NOT NULL DEFAULT 0,
+    request_count INT DEFAULT 1,
     record_date DATE NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (record_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_record_date (record_date),
     INDEX idx_api_endpoint (api_endpoint),
-    INDEX idx_user_date (user_id, record_date),
-    CONSTRAINT fk_api_usage_to_user FOREIGN KEY (user_id) REFERENCES `user` (user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API 사용량 기록 정보';
+    UNIQUE KEY uk_user_api_date (user_id, api_endpoint, record_date)
+);
 
--- =====================================================
--- 테스트 데이터 삽입 - 새 스키마에 맞게 수정
--- =====================================================
+-- ================================
+-- 초기 데이터 삽입
+-- ================================
 
--- 구독 플랜 데이터 (plan 테이블)
-INSERT IGNORE INTO plan (plan_name, price, description, features) VALUES
-('Free', 0.00, '무료 기본 플랜', '{"maxApiCount": 5, "rateLimitPerMinute": 10, "rateLimitPerHour": 100, "rateLimitPerDay": 1000}'),
-('Pro', 299.00, '프로 플랜', '{"maxApiCount": 100, "rateLimitPerMinute": 200, "rateLimitPerHour": 5000, "rateLimitPerDay": 50000}');
+-- 1. Plan 데이터
+INSERT INTO plan (plan_name, price, description, features) VALUES 
+('Free', 0.00, '무료 플랜', '["월 100회 API 호출", "기본 지원", "커뮤니티 액세스"]'),
+('Pro', 22.00, '프로 플랜', '["월 10,000회 API 호출", "우선 지원", "고급 분석", "API 키 관리"]');
 
--- 테스트 사용자 데이터 (user 테이블)
-INSERT IGNORE INTO `user` (user_id, auth0_id, user_email, created_at) VALUES
-('user-001', 'auth0|6894dba797884cb2154bc2729', 'testuser1@example.com', CURRENT_TIMESTAMP),
-('user-002', 'auth0|test_user_2', 'testuser2@example.com', CURRENT_TIMESTAMP),
-('user-003', 'auth0|test_admin', 'admin@example.com', CURRENT_TIMESTAMP),
-('user-004', 'auth0|test_developer', 'developer@example.com', CURRENT_TIMESTAMP),
-('user-005', 'auth0|test_premium', 'premium@example.com', CURRENT_TIMESTAMP);
+-- 2. User 데이터
+INSERT INTO `user` (user_id, auth0_id, user_email, created_at) VALUES 
+('user-001', 'auth0|user001', 'user001@example.com', '2024-01-15 10:00:00'),
+('user-002', 'auth0|user002', 'user002@example.com', '2024-01-16 11:00:00'),
+('user-003', 'auth0|user003', 'user003@example.com', '2024-01-17 12:00:00'),
+('user-004', 'auth0|user004', 'user004@example.com', '2024-01-18 13:00:00'),
+('user-005', 'auth0|user005', 'user005@example.com', '2024-01-19 14:00:00'),
+('user-123', 'auth0|user123', 'test@example.com', '2024-01-20 15:00:00');
 
--- 사용자 구독 데이터 (subscription 테이블)
-INSERT IGNORE INTO subscription (subscription_id, user_id, plan_id, plan_payment_date, plan_update_date, is_active) VALUES
-('sub-user-001', 'user-001', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, true),
-('sub-user-004', 'user-004', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, true),
-('sub-user-002', 'user-002', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, true),
-('sub-user-005', 'user-005', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, true),
-('sub-user-003', 'user-003', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, true);
+-- 3. Subscription 데이터 (stripe_subscription_id는 일단 NULL)
+INSERT INTO subscription (subscription_id, user_id, plan_id, plan_payment_date, plan_update_date, is_active) VALUES 
+('sub-001', 'user-001', 1, '2024-01-15 10:00:00', '2024-01-15 10:00:00', true),
+('sub-002', 'user-002', 2, '2024-01-16 11:00:00', '2024-01-16 11:00:00', true),
+('sub-003', 'user-003', 1, '2024-01-17 12:00:00', '2024-01-17 12:00:00', true),
+('sub-004', 'user-004', 2, '2024-01-18 13:00:00', '2024-01-18 13:00:00', false),
+('sub-005', 'user-005', 1, '2024-01-19 14:00:00', '2024-01-19 14:00:00', true),
+('sub-123', 'user-123', 1, '2024-01-20 15:00:00', '2024-01-20 15:00:00', true);
 
--- 사용자 시크릿 ARN 데이터
-INSERT IGNORE INTO user_secrets_arn (arn_id, user_id, arn, arn_description, created_at) VALUES
-('arn-001', 'user-002', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-1-AbCdEf', 'OpenAI API Key', CURRENT_TIMESTAMP),
-('arn-002', 'user-003', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-2-GhIjKl', 'Claude API Key', CURRENT_TIMESTAMP),
-('arn-003', 'user-005', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:user-api-key-3-MnOpQr', 'Gemini API Key', CURRENT_TIMESTAMP);
+-- 4. User Secrets ARN 데이터
+INSERT INTO user_secrets_arn (arn_id, user_id, arn, arn_description, created_at) VALUES 
+('arn-001', 'user-001', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:user001-api-key-AbCdEf', 'User 001 API Key', '2024-01-15 10:00:00'),
+('arn-002', 'user-002', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:user002-api-key-GhIjKl', 'User 002 API Key', '2024-01-16 11:00:00'),
+('arn-003', 'user-003', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:user003-api-key-MnOpQr', 'User 003 API Key', '2024-01-17 12:00:00');
 
--- 커스텀 API 데이터 (custom_api 테이블)
-INSERT IGNORE INTO custom_api (custom_api_id, user_id, name, description, created_at, updated_at) VALUES
-('api-001', 'user-003', 'Weather API', '전 세계 날씨 정보를 제공하는 API', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('api-002', 'user-003', 'News API', '실시간 뉴스 정보 API', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('api-003', 'user-005', 'Stock Price API', '주식 가격 정보 API', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('api-004', 'user-002', 'Crypto API', '암호화폐 가격 정보 API', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('api-005', 'user-004', 'Sports API', '스포츠 경기 결과 API', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+-- 5. Custom API 데이터
+INSERT INTO custom_api (custom_api_id, user_id, name, description, created_at, updated_at) VALUES 
+('api-001', 'user-001', 'Weather API', 'Get current weather information', '2024-01-15 10:30:00', '2024-01-15 10:30:00'),
+('api-002', 'user-001', 'News API', 'Fetch latest news articles', '2024-01-15 11:00:00', '2024-01-15 11:00:00'),
+('api-003', 'user-002', 'Stock API', 'Real-time stock prices', '2024-01-16 11:30:00', '2024-01-16 11:30:00'),
+('api-004', 'user-002', 'Crypto API', 'Cryptocurrency data', '2024-01-16 12:00:00', '2024-01-16 12:00:00'),
+('api-005', 'user-003', 'Translation API', 'Text translation service', '2024-01-17 12:30:00', '2024-01-17 12:30:00');
 
--- =====================================================
--- 공유 API 관련 테스트 데이터
--- =====================================================
+-- 6. Shared API 데이터
+INSERT INTO shared_api (shared_api_id, original_api_id, creator_id, api_name, description, data_count, is_active, created_at, updated_at) VALUES 
+('shared-001', 'api-001', 'user-001', 'Public Weather API', 'Shared weather data', 150, true, '2024-01-20 09:00:00', '2024-01-20 09:00:00'),
+('shared-002', 'api-003', 'user-002', 'Stock Market Data', 'Shared stock information', 75, true, '2024-01-21 10:00:00', '2024-01-21 10:00:00'),
+('shared-003', 'api-005', 'user-003', 'Language Translator', 'Shared translation service', 200, true, '2024-01-22 11:00:00', '2024-01-22 11:00:00');
 
--- 공유 API 데이터 (shared_api 테이블)
-INSERT IGNORE INTO shared_api (shared_api_id, original_api_id, creator_id, api_name, description, data_count, is_active, created_at, updated_at) VALUES
-('shared-001', 'api-001', 'user-003', 'Weather API', '전 세계 날씨 정보를 제공하는 API', 10000, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('shared-002', 'api-002', 'user-003', 'News API', '실시간 뉴스 정보 API', 5000, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('shared-003', 'api-003', 'user-005', 'Stock Price API', '주식 가격 정보 API', 15000, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('shared-004', 'api-004', 'user-002', 'Crypto API', '암호화폐 가격 정보 API', 8000, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('shared-005', 'api-005', 'user-004', 'Sports API', '스포츠 경기 결과 API', 3000, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+-- 7. User Saved API 데이터
+INSERT INTO user_saved_api (user_api_id, user_id, shared_api_id, api_name, description, data_count, is_deleted, created_at, updated_at) VALUES 
+('saved-001', 'user-002', 'shared-001', 'Weather API', 'Saved weather data', 50, false, '2024-01-25 09:00:00', '2024-01-25 09:00:00'),
+('saved-002', 'user-003', 'shared-001', 'Weather API', 'Saved weather data', 30, false, '2024-01-25 10:00:00', '2024-01-25 10:00:00'),
+('saved-003', 'user-001', 'shared-002', 'Stock Market Data', 'Saved stock information', 25, false, '2024-01-25 11:00:00', '2024-01-25 11:00:00'),
+('saved-004', 'user-004', 'shared-003', 'Language Translator', 'Saved translation service', 40, false, '2024-01-25 12:00:00', '2024-01-25 12:00:00');
 
--- 사용자 저장 API 데이터 (user_saved_api 테이블)
-INSERT IGNORE INTO user_saved_api (user_api_id, user_id, shared_api_id, api_name, description, data_count, is_deleted, created_at, updated_at) VALUES
-('saved-001', 'user-001', 'shared-001', 'Weather API', '날씨 정보 API', 100, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('saved-002', 'user-002', 'shared-001', 'Weather API', '날씨 정보 API', 250, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('saved-003', 'user-002', 'shared-002', 'News API', '뉴스 정보 API', 150, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('saved-004', 'user-004', 'shared-003', 'Stock Price API', '주식 가격 API', 300, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('saved-005', 'user-001', 'shared-004', 'Crypto API', '암호화폐 가격 API', 75, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('saved-006', 'user-005', 'shared-001', 'Weather API', '날씨 정보 API', 500, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- API 사용량 기록 데이터 (api_usage_record 테이블)
-INSERT IGNORE INTO api_usage_record (record_id, user_id, api_endpoint, request_count, record_date, created_at) VALUES
-('usage-001', 'user-002', '/api/chat/completions', 25, CURRENT_DATE, CURRENT_TIMESTAMP),
-('usage-002', 'user-002', '/api/embeddings', 10, CURRENT_DATE, CURRENT_TIMESTAMP),
-('usage-003', 'user-003', '/api/chat/completions', 150, CURRENT_DATE, CURRENT_TIMESTAMP),
-('usage-004', 'user-005', '/api/generate', 75, CURRENT_DATE, CURRENT_TIMESTAMP),
-('usage-005', 'user-001', '/api/weather', 45, CURRENT_DATE, CURRENT_TIMESTAMP),
-('usage-006', 'user-004', '/api/stocks', 88, CURRENT_DATE, CURRENT_TIMESTAMP),
-('usage-007', 'user-002', '/api/news', 32, DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY), CURRENT_TIMESTAMP),
-('usage-008', 'user-003', '/api/crypto', 120, DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY), CURRENT_TIMESTAMP);
+-- 8. API Usage Record 데이터
+INSERT INTO api_usage_record (record_id, user_id, api_endpoint, request_count, record_date, created_at) VALUES 
+('usage-001', 'user-001', '/api/weather', 45, '2024-01-25', '2024-01-25 09:00:00'),
+('usage-002', 'user-001', '/api/news', 32, '2024-01-25', '2024-01-25 10:00:00'),
+('usage-003', 'user-002', '/api/stock', 58, '2024-01-25', '2024-01-25 11:00:00'),
+('usage-004', 'user-002', '/api/crypto', 23, '2024-01-25', '2024-01-25 12:00:00'),
+('usage-005', 'user-003', '/api/translate', 67, '2024-01-25', '2024-01-25 13:00:00'),
+('usage-006', 'user-001', '/api/weather', 38, '2024-01-26', '2024-01-26 09:00:00'),
+('usage-007', 'user-002', '/api/stock', 42, '2024-01-26', '2024-01-26 10:00:00');

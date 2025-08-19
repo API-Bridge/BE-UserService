@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.interceptor.ApiUsageTrackingInterceptor;
 import org.example.Usersvc.interceptor.RateLimitInterceptor;
-import org.example.Usersvc.interceptor.SubscriptionInterceptor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
     
     private final RateLimitInterceptor rateLimitInterceptor;
     private final ApiUsageTrackingInterceptor apiUsageTrackingInterceptor;
-    private final SubscriptionInterceptor subscriptionInterceptor;
+
     
     @Value("${spring.profiles.active:default}")
     private String activeProfile;
@@ -33,7 +33,8 @@ public class WebConfig implements WebMvcConfigurer {
             log.info("trusted-gateway 프로필 활성화 - 모든 인터셉터 비활성화");
             return;
         }
-        // 구독 상태 확인 인터셉터를 가장 먼저 등록 (최우선)
+        // 구독 상태 확인 인터셉터는 제거됨
+        /*
         registry.addInterceptor(subscriptionInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
@@ -48,6 +49,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/h2-console/**"
                 )
                 .order(0);
+        */
         
         // Rate Limit 인터셉터를 두 번째로 등록
         registry.addInterceptor(rateLimitInterceptor)

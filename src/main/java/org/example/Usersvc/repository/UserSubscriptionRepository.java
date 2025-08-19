@@ -30,4 +30,9 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     @Query("SELECT us FROM UserSubscription us " +
            "WHERE us.isActive = false")
     java.util.List<UserSubscription> findInactiveSubscriptions();
+    
+    /**
+     * Stripe 구독 ID로 사용자 구독 조회
+     */
+    Optional<UserSubscription> findByStripeSubscriptionId(String stripeSubscriptionId);
 }

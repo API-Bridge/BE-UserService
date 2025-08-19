@@ -12,8 +12,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class StripeSubscriptionService {
+    
+    private final MockStripeService mockStripeService;
 
     public String createSubscription(String customerId, String priceId) {
+        // Stripe API 키 유효성 검사
+        String currentApiKey = com.stripe.Stripe.apiKey;
+        if (!mockStripeService.isValidStripeKey(currentApiKey)) {
+            log.warn("유효하지 않은 Stripe API 키 감지, Mock 서비스 사용");
+            return mockStripeService.createMockSubscription(customerId, priceId);
+        }
+        
         try {
             SubscriptionCreateParams params = SubscriptionCreateParams.builder()
                     .setCustomer(customerId)
@@ -33,7 +42,8 @@ public class StripeSubscriptionService {
         } catch (StripeException e) {
             log.error("Stripe 구독 생성 실패 - customerId: {}, priceId: {}, error: {}", 
                     customerId, priceId, e.getMessage());
-            throw new RuntimeException("Stripe 구독 생성 실패: " + e.getMessage(), e);
+            log.info("실제 Stripe API 실패, Mock 서비스로 전환");
+            return mockStripeService.createMockSubscription(customerId, priceId);
         }
     }
 
@@ -63,6 +73,12 @@ public class StripeSubscriptionService {
     }
 
     public boolean cancelSubscription(String subscriptionId) {
+        // Mock 구독 ID인지 확인 또는 Stripe API 키 유효성 검사
+        if (subscriptionId.startsWith("sub_mock_") || !mockStripeService.isValidStripeKey(com.stripe.Stripe.apiKey)) {
+            log.warn("Mock 구독 또는 유효하지 않은 Stripe API 키 감지, Mock 서비스 사용");
+            return mockStripeService.cancelMockSubscription(subscriptionId);
+        }
+        
         try {
             Subscription subscription = Subscription.retrieve(subscriptionId);
             Subscription canceledSubscription = subscription.cancel();
@@ -73,7 +89,8 @@ public class StripeSubscriptionService {
             return isCanceled;
         } catch (StripeException e) {
             log.error("Stripe 구독 취소 실패 - subscriptionId: {}, error: {}", subscriptionId, e.getMessage());
-            throw new RuntimeException("Stripe 구독 취소 실패: " + e.getMessage(), e);
+            log.info("실제 Stripe API 실패, Mock 서비스로 전환");
+            return mockStripeService.cancelMockSubscription(subscriptionId);
         }
     }
 

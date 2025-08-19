@@ -19,15 +19,12 @@ public class StripeProperties {
     public static class Products {
         private String free;
         private String pro;
-        private String enterprise;
     }
 
     @Data
     public static class Prices {
         private String proMonthly;
         private String proYearly;
-        private String enterpriseMonthly;
-        private String enterpriseYearly;
     }
 
     public String getPlanTypeByPriceId(String priceId) {
@@ -39,10 +36,6 @@ public class StripeProperties {
             return "PRO";
         }
 
-        if (priceId.equals(prices.getEnterpriseMonthly()) || priceId.equals(prices.getEnterpriseYearly())) {
-            return "ENTERPRISE";
-        }
-
         return "FREE";
     }
 
@@ -51,7 +44,7 @@ public class StripeProperties {
             return "MONTHLY";
         }
 
-        if (priceId.equals(prices.getProYearly()) || priceId.equals(prices.getEnterpriseYearly())) {
+        if (priceId.equals(prices.getProYearly())) {
             return "YEARLY";
         }
 
@@ -62,8 +55,6 @@ public class StripeProperties {
         switch (planType.toUpperCase()) {
             case "PRO":
                 return products.getPro();
-            case "ENTERPRISE":
-                return products.getEnterprise();
             case "FREE":
             default:
                 return products.getFree();
@@ -74,8 +65,6 @@ public class StripeProperties {
         switch (planType.toUpperCase()) {
             case "PRO":
                 return prices.getProMonthly();
-            case "ENTERPRISE":
-                return prices.getEnterpriseMonthly();
             default:
                 return null;
         }
@@ -85,8 +74,6 @@ public class StripeProperties {
         switch (planType.toUpperCase()) {
             case "PRO":
                 return prices.getProYearly();
-            case "ENTERPRISE":
-                return prices.getEnterpriseYearly();
             default:
                 return null;
         }

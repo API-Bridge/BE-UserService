@@ -27,7 +27,13 @@ public class SharedApiService {
 
     @Transactional
     public SharedApi shareApi(String userId, String customApiId, String planType) {
-        log.debug("API 공유 시작 - userId: {}, customApiId: {}, planType: {}", userId, customApiId, planType);
+        return shareApi(userId, customApiId, planType, null, null);
+    }
+
+    @Transactional
+    public SharedApi shareApi(String userId, String customApiId, String planType, String apiName, String apiDescription) {
+        log.debug("API 공유 시작 - userId: {}, customApiId: {}, planType: {}, apiName: {}, apiDescription: {}", 
+                userId, customApiId, planType, apiName, apiDescription);
 
         CustomApi customApi = customApiRepository.findByCustomApiId(customApiId)
                 .orElseThrow(() -> new IllegalArgumentException("API를 찾을 수 없습니다."));
@@ -45,17 +51,22 @@ public class SharedApiService {
             throw new IllegalArgumentException("이미 공유된 API입니다.");
         }
 
+        // 사용자가 입력한 이름과 설명을 우선 사용, 없으면 기본값 사용
+        String finalApiName = (apiName != null && !apiName.trim().isEmpty()) ? apiName.trim() : customApi.getName();
+        String finalApiDescription = (apiDescription != null && !apiDescription.trim().isEmpty()) ? apiDescription.trim() : customApi.getDescription();
+
         SharedApi sharedApi = SharedApi.builder()
                 .sharedApiId(UUID.randomUUID().toString())
                 .originalApiId(customApiId)
                 .creatorId(userId)
-                .apiName(customApi.getName())
-                .description(customApi.getDescription())
+                .apiName(finalApiName)
+                .description(finalApiDescription)
                 .dataCount(0) // 새 스키마에서는 SharedApi가 dataCount를 관리
                 .build();
 
         SharedApi savedSharedApi = sharedApiRepository.save(sharedApi);
-        log.info("API 공유 완료 - sharedApiId: {}, originalApiId: {}", savedSharedApi.getSharedApiId(), customApiId);
+        log.info("API 공유 완료 - sharedApiId: {}, originalApiId: {}, finalApiName: {}, finalApiDescription: {}", 
+                savedSharedApi.getSharedApiId(), customApiId, finalApiName, finalApiDescription);
 
         return savedSharedApi;
     }

@@ -27,7 +27,7 @@ public class UserSubscription {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
-    private SubscriptionPlan plan;
+    private Plan plan;
     
     @Column(name = "plan_payment_date", nullable = false)
     private LocalDateTime planPaymentDate; // started_at -> plan_payment_date
@@ -38,8 +38,11 @@ public class UserSubscription {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = false; // 기본값이 FALSE
     
+    @Column(name = "stripe_subscription_id")
+    private String stripeSubscriptionId; // Stripe 구독 ID
+    
     @Builder
-    public UserSubscription(String subscriptionId, User user, SubscriptionPlan plan, LocalDateTime planPaymentDate) {
+    public UserSubscription(String subscriptionId, User user, Plan plan, LocalDateTime planPaymentDate) {
         this.subscriptionId = subscriptionId != null ? subscriptionId : java.util.UUID.randomUUID().toString();
         this.user = user;
         this.plan = plan;
@@ -106,5 +109,30 @@ public class UserSubscription {
     public void updatePaymentDate(LocalDateTime newPaymentDate) {
         this.planPaymentDate = newPaymentDate;
         this.planUpdateDate = LocalDateTime.now();
+    }
+
+    // Setter 메소드들 (웹훅 처리용)
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public void setPlan(Plan plan) {
+        this.plan = plan;
+    }
+
+    public void setPlanPaymentDate(LocalDateTime planPaymentDate) {
+        this.planPaymentDate = planPaymentDate;
+    }
+
+    public void setPlanUpdateDate(LocalDateTime planUpdateDate) {
+        this.planUpdateDate = planUpdateDate;
+    }
+
+    public void setStripeSubscriptionId(String stripeSubscriptionId) {
+        this.stripeSubscriptionId = stripeSubscriptionId;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

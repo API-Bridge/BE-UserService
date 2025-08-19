@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../BE-APIGateway"
+		},
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../EurekaServer"
+		}
+	],
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic",
+		"java.debug.settings.onBuildFailureProceed": true
+	}
+}

@@ -18,6 +18,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class StripeCustomerService {
+    
+    private final MockStripeService mockStripeService;
 
     public String createCustomer(User user) {
         try {
@@ -34,6 +36,36 @@ public class StripeCustomerService {
         } catch (StripeException e) {
             log.error("Stripe 고객 생성 실패 - userId: {}, error: {}", user.getUserId(), e.getMessage());
             throw new RuntimeException("Stripe 고객 생성 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 테스트용 고객 생성 메서드 (이메일과 이름으로 직접 생성)
+     */
+    public String createCustomer(String email, String name) {
+        // Stripe API 키 유효성 검사
+        String currentApiKey = com.stripe.Stripe.apiKey;
+        if (!mockStripeService.isValidStripeKey(currentApiKey)) {
+            log.warn("유효하지 않은 Stripe API 키 감지, Mock 서비스 사용: {}", 
+                    currentApiKey != null ? currentApiKey.substring(0, Math.min(20, currentApiKey.length())) + "..." : "null");
+            return mockStripeService.createMockCustomer(email, name);
+        }
+        
+        try {
+            CustomerCreateParams params = CustomerCreateParams.builder()
+                    .setEmail(email)
+                    .setName(name)
+                    .putMetadata("test_user", "true")
+                    .build();
+
+            Customer customer = Customer.create(params);
+            log.info("Stripe 테스트 고객 생성 완료 - customerId: {}, email: {}, name: {}", 
+                    customer.getId(), email, name);
+            return customer.getId();
+        } catch (StripeException e) {
+            log.error("Stripe 테스트 고객 생성 실패 - email: {}, error: {}", email, e.getMessage());
+            log.info("실제 Stripe API 실패, Mock 서비스로 전환");
+            return mockStripeService.createMockCustomer(email, name);
         }
     }
 

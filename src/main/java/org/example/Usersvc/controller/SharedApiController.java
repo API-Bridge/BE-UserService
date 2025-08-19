@@ -33,9 +33,11 @@ public class SharedApiController {
     public ResponseEntity<ApiResponse<SharedApi>> shareApi(
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId,
-            @Parameter(description = "플랜 타입", required = true) @RequestParam String planType) {
+            @Parameter(description = "플랜 타입", required = true) @RequestParam String planType,
+            @Parameter(description = "공유할 API 이름") @RequestParam(required = false) String apiName,
+            @Parameter(description = "공유할 API 설명") @RequestParam(required = false) String apiDescription) {
         
-        SharedApi sharedApi = sharedApiService.shareApi(userId, customApiId, planType);
+        SharedApi sharedApi = sharedApiService.shareApi(userId, customApiId, planType, apiName, apiDescription);
         return ResponseEntity.ok(ApiResponse.success(sharedApi));
     }
 
