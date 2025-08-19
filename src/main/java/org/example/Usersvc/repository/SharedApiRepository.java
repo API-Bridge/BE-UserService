@@ -23,4 +23,6 @@ public interface SharedApiRepository extends JpaRepository<SharedApi, String> {
     List<SharedApi> findByApiNameContainingIgnoreCaseAndIsActiveTrueOrderByCreatedAtDesc(String keyword);
 
     List<SharedApi> findByDataCountLessThanEqualAndIsActiveTrueOrderByCreatedAtDesc(Integer dataCount);
+
+    long countByCreatorIdAndIsActiveTrue(String creatorId);
 }

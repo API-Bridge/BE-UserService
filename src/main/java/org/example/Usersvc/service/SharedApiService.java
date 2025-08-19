@@ -3,6 +3,7 @@ package org.example.Usersvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.CustomApi;
+import org.example.Usersvc.domain.PlanType;
 import org.example.Usersvc.domain.SharedApi;
 import org.example.Usersvc.repository.CustomApiRepository;
 import org.example.Usersvc.repository.SharedApiRepository;
@@ -26,12 +27,12 @@ public class SharedApiService {
     private final ApiSharingValidationService apiSharingValidationService;
 
     @Transactional
-    public SharedApi shareApi(String userId, String customApiId, String planType) {
+    public SharedApi shareApi(String userId, String customApiId, PlanType planType) {
         return shareApi(userId, customApiId, planType, null, null);
     }
 
     @Transactional
-    public SharedApi shareApi(String userId, String customApiId, String planType, String apiName, String apiDescription) {
+    public SharedApi shareApi(String userId, String customApiId, PlanType planType, String apiName, String apiDescription) {
         log.debug("API 공유 시작 - userId: {}, customApiId: {}, planType: {}, apiName: {}, apiDescription: {}", 
                 userId, customApiId, planType, apiName, apiDescription);
 
@@ -73,7 +74,7 @@ public class SharedApiService {
 
     @Transactional
     public void unshareApi(String userId, String customApiId) {
-        log.debug("API 공유 취소 시작 - userId: {}, customApiId: {}", userId, customApiId);
+        log.debug("API 공유 취소 시작 (Custom API ID로) - userId: {}, customApiId: {}", userId, customApiId);
 
         SharedApi sharedApi = sharedApiRepository.findByOriginalApiIdAndIsActiveTrue(customApiId)
                 .orElseThrow(() -> new IllegalArgumentException("공유되지 않은 API입니다."));
@@ -86,6 +87,27 @@ public class SharedApiService {
         sharedApiRepository.save(sharedApi);
 
         log.info("API 공유 취소 완료 - sharedApiId: {}, originalApiId: {}", sharedApi.getSharedApiId(), customApiId);
+    }
+    
+    @Transactional
+    public void unshareApiBySharedId(String userId, String sharedApiId) {
+        log.debug("API 공유 취소 시작 (Shared API ID로) - userId: {}, sharedApiId: {}", userId, sharedApiId);
+
+        SharedApi sharedApi = sharedApiRepository.findById(sharedApiId)
+                .orElseThrow(() -> new IllegalArgumentException("공유 API를 찾을 수 없습니다."));
+
+        if (!sharedApi.isActive()) {
+            throw new IllegalArgumentException("이미 취소된 공유 API입니다.");
+        }
+
+        if (!sharedApi.isCreatedBy(userId)) {
+            throw new IllegalArgumentException("본인이 공유한 API만 취소할 수 있습니다.");
+        }
+
+        sharedApi.deactivate();
+        sharedApiRepository.save(sharedApi);
+
+        log.info("API 공유 취소 완료 - sharedApiId: {}, originalApiId: {}", sharedApiId, sharedApi.getOriginalApiId());
     }
 
     public List<SharedApi> getActiveSharedApis() {

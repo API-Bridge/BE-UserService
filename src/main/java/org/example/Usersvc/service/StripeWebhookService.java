@@ -6,6 +6,7 @@ import com.stripe.model.checkout.Session;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.Plan;
+import org.example.Usersvc.domain.PlanType;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.PlanRepository;
@@ -109,7 +110,7 @@ public class StripeWebhookService {
             userSubscriptionRepository.save(userSubscription);
             
             log.info("사용자 구독 업데이트 완료: userId={}, planName={}, active={}", 
-                user.getUserId(), plan.getPlanName(), userSubscription.getIsActive());
+                user.getUserId(), plan.getPlanType().getPlanName(), userSubscription.getIsActive());
             
         } catch (Exception e) {
             log.error("구독 생성 처리 중 오류: {}", e.getMessage(), e);
@@ -261,10 +262,10 @@ public class StripeWebhookService {
     private Optional<Plan> findPlanByPriceId(String priceId) {
         // Pro 플랜 Price ID 확인
         if ("price_1RwJ5zDefwpzeE1sRhAYJn4b".equals(priceId)) {
-            return planRepository.findByPlanName("Pro");
+            return planRepository.findByPlanName(PlanType.PRO.getPlanName());
         }
         // Free 플랜은 기본값
-        return planRepository.findByPlanName("Free");
+        return planRepository.findByPlanName(PlanType.FREE.getPlanName());
     }
 
     /**

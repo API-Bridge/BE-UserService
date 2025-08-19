@@ -3,6 +3,7 @@ package org.example.Usersvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.CustomApi;
+import org.example.Usersvc.domain.PlanType;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -10,20 +11,18 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ApiSharingValidationService {
 
-    public int getMaxDataCountForPlan(String planType) {
+    public int getMaxDataCountForPlan(PlanType planType) {
         switch (planType) {
-            case "FREE":
+            case FREE:
                 return 3;
-            case "PRO":
+            case PRO:
                 return 20;
-            case "ENTERPRISE":
-                return Integer.MAX_VALUE;
             default:
                 return 0;
         }
     }
 
-    public boolean validateApiForSharing(CustomApi api, String planType) {
+    public boolean validateApiForSharing(CustomApi api, PlanType planType) {
         if (api == null) {
             return false;
         }

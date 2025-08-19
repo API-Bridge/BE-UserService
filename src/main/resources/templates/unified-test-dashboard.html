@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 통합 테스트 대시보드 | UserService</title>
-    <script src="https://js.stripe.com/v3/"></script>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,15 +16,16 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
             color: #333;
+            line-height: 1.6;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -34,241 +38,84 @@
             color: white;
             padding: 40px;
             text-align: center;
-        }
-
-        .header h1 {
-            font-size: 3rem;
-            margin-bottom: 15px;
-            font-weight: 300;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .nav-tabs {
-            display: flex;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .nav-tab {
-            flex: 1;
-            padding: 20px;
-            text-align: center;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #6c757d;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .nav-tab:hover {
-            background: rgba(79, 172, 254, 0.1);
-            color: #4facfe;
-        }
-
-        .nav-tab.active {
-            background: white;
-            color: #4facfe;
-        }
-
-        .nav-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: #4facfe;
-        }
-
-        .tab-content {
-            padding: 40px;
-            min-height: 600px;
-        }
-
-        .tab-pane {
-            display: none;
-        }
-
-        .tab-pane.active {
-            display: block;
-        }
-
-        /* 구독 테스트 관련 스타일 */
-        .plans-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 25px;
-            margin: 30px 0;
-        }
-
-        .plan-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
-            transition: all 0.3s ease;
-            background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
             position: relative;
             overflow: hidden;
         }
 
-        .plan-card::before {
+        .header::before {
             content: '';
             position: absolute;
             top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #4facfe, #00f2fe);
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
+            left: -50%;
+            width: 200%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.05) 10px,
+                rgba(255,255,255,0.05) 20px
+            );
+            animation: shimmer 20s linear infinite;
         }
 
-        .plan-card:hover::before {
-            transform: scaleX(1);
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
-        .plan-card:hover {
-            border-color: #4facfe;
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(79, 172, 254, 0.2);
-        }
-
-        .plan-card.recommended {
-            border-color: #28a745;
-            background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
-        }
-
-        .plan-card.recommended::before {
-            background: #28a745;
-        }
-
-        .plan-name {
-            font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-
-        .plan-price {
+        .header h1 {
             font-size: 2.5rem;
-            font-weight: bold;
-            color: #4facfe;
-            margin-bottom: 8px;
-        }
-
-        .plan-period {
-            color: #6c757d;
             margin-bottom: 15px;
-            font-size: 1rem;
-        }
-
-        .plan-discount {
-            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-            display: inline-block;
-            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-        }
-
-        .features {
-            text-align: left;
-            margin: 25px 0;
-        }
-
-        .features ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .features li {
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            align-items: center;
-        }
-
-        .features li:before {
-            content: '✓';
-            color: #28a745;
-            font-weight: bold;
-            margin-right: 12px;
-            font-size: 1.2rem;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1rem;
             font-weight: 600;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-top: 15px;
-            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
 
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        .content {
+            padding: 40px;
         }
 
-        .btn-secondary {
-            background: linear-gradient(135deg, #6c757d 0%, #8d9498 100%);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #e64553 100%);
-        }
-
-        .test-section {
+        .section {
             background: #f8f9fa;
             border-radius: 15px;
             padding: 30px;
-            margin: 30px 0;
+            margin-bottom: 30px;
             border: 1px solid #e9ecef;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
-        .test-section h3 {
+        .section h2 {
             color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 1.4rem;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
             display: flex;
             align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #4facfe;
         }
 
-        .test-section h3::before {
-            content: '🧪';
-            margin-right: 10px;
-            font-size: 1.5rem;
+        .section h2::before {
+            margin-right: 12px;
+            font-size: 1.6rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
         }
 
         .form-group {
@@ -280,6 +127,7 @@
             margin-bottom: 8px;
             font-weight: 600;
             color: #495057;
+            font-size: 0.95rem;
         }
 
         .form-group input,
@@ -289,8 +137,9 @@
             border: 2px solid #e9ecef;
             border-radius: 10px;
             font-size: 1rem;
-            transition: border-color 0.3s ease;
+            transition: all 0.3s ease;
             background: white;
+            font-family: inherit;
         }
 
         .form-group input:focus,
@@ -298,93 +147,115 @@
             outline: none;
             border-color: #4facfe;
             box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+            transform: translateY(-1px);
         }
 
-        .status-message {
-            padding: 15px 20px;
-            margin: 15px 0;
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
             border-radius: 10px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
         }
 
-        .status-message::before {
-            margin-right: 10px;
-            font-size: 1.2rem;
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
         }
 
-        .success {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .btn:hover::before {
+            left: 100%;
         }
 
-        .success::before {
-            content: '✅';
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
         }
 
-        .error {
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .btn:active {
+            transform: translateY(0);
         }
 
-        .error::before {
-            content: '❌';
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.9rem;
         }
 
-        .info {
-            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
         }
 
-        .info::before {
-            content: 'ℹ️';
+        .btn-danger:hover {
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
         }
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #4facfe;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        /* 공유 API 테스트 관련 스타일 */
         .api-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
             margin-top: 25px;
         }
 
         .api-card {
             background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
             padding: 20px;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .api-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .api-card:hover::before {
+            transform: scaleX(1);
         }
 
         .api-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             border-color: #4facfe;
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(79, 172, 254, 0.2);
+        }
+
+        .api-card.selected {
+            border-color: #4facfe;
+            background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+        }
+
+        .api-card.selected::before {
+            transform: scaleX(1);
         }
 
         .api-title {
@@ -398,44 +269,203 @@
             color: #6c757d;
             margin-bottom: 15px;
             line-height: 1.5;
+            font-size: 0.95rem;
         }
 
-        .api-stats {
+        .api-meta {
             display: flex;
             justify-content: space-between;
-            font-size: 0.9rem;
+            align-items: center;
+            font-size: 0.85rem;
             color: #6c757d;
+            margin-bottom: 15px;
         }
 
-        .section-title {
-            font-size: 1.6rem;
-            color: #2c3e50;
-            margin-bottom: 25px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #4facfe;
+        .api-actions {
             display: flex;
+            gap: 8px;
+        }
+
+        .status-message {
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid;
+        }
+
+        .status-message::before {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            border-left-color: #28a745;
+        }
+
+        .success::before {
+            content: '✅';
+        }
+
+        .error {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+
+        .error::before {
+            content: '❌';
+        }
+
+        .info {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            color: #0c5460;
+            border-left-color: #17a2b8;
+        }
+
+        .info::before {
+            content: 'ℹ️';
+        }
+
+        .loading {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(79, 172, 254, 0.2);
+            border-top: 2px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* 플랜 제한 및 사용량 스타일 */
+        .plan-limits ul, .usage-stats ul {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .plan-limits li {
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
         }
 
-        .section-title::before {
-            margin-right: 12px;
-            font-size: 1.8rem;
+        .plan-limits li:last-child {
+            border-bottom: none;
         }
 
-        .two-column {
+        .usage-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 30px;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .usage-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .usage-label {
+            font-weight: 500;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .usage-value {
+            font-weight: 600;
+            color: #28a745;
+            font-size: 1rem;
+        }
+
+        .plan-limits h4, .usage-stats h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .badge.active {
+            background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+        }
+
+        .badge.inactive {
+            background: linear-gradient(135deg, #6c757d 0%, #8d9498 100%);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4facfe;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
-            .two-column {
+            .form-grid {
                 grid-template-columns: 1fr;
             }
             
-            .nav-tabs {
-                flex-direction: column;
+            .api-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .content {
+                padding: 20px;
             }
         }
     </style>
@@ -446,264 +476,202 @@
         <div class="header">
             <h1>🚀 통합 테스트 대시보드</h1>
             <p>
-                구독 결제 시스템과 공유 API 기능을 한 곳에서 테스트하고 관리할 수 있습니다.<br>
-                개발 환경에서 전체 시스템의 동작을 확인해보세요.
+                구독 결제, 공유 API, 사용자 관리 등 모든 기능을 한 곳에서 테스트할 수 있습니다.<br>
+                실시간으로 시스템 전체를 확인하고 관리해보세요.
             </p>
         </div>
 
-        <!-- 탭 네비게이션 -->
-        <div class="nav-tabs">
-            <button class="nav-tab active" onclick="showTab('subscription')">
-                💳 구독 결제 테스트
-            </button>
-            <button class="nav-tab" onclick="showTab('shared-api')">
-                🔗 공유 API 테스트
-            </button>
-            <button class="nav-tab" onclick="showTab('integration')">
-                🔄 통합 시나리오
-            </button>
-        </div>
-
-        <!-- 탭 컨텐츠 -->
-        <div class="tab-content">
-            <!-- 구독 결제 테스트 탭 -->
-            <div id="subscription-tab" class="tab-pane active">
-                <div class="section-title">📋 구독 플랜 선택</div>
-                
-                <div class="plans-grid">
-                    <!-- Free 플랜 -->
-                    <div class="plan-card" data-plan="free">
-                        <div class="plan-name">Free</div>
-                        <div class="plan-price">₩0</div>
-                        <div class="plan-period">월간</div>
-                        <div class="features">
-                            <ul>
-                                <li>API 생성 5개까지</li>
-                                <li>분당 10회 요청</li>
-                                <li>시간당 100회 요청</li>
-                                <li>일일 1,000회 요청</li>
-                                <li>기본 지원</li>
-                            </ul>
-                        </div>
-                        <button class="btn btn-secondary" onclick="selectPlan('free', null)">
-                            현재 플랜
-                        </button>
-                    </div>
-                    
-                    <!-- Pro Monthly 플랜 -->
-                    <div class="plan-card" data-plan="pro-monthly">
-                        <div class="plan-name">Pro Monthly</div>
-                        <div class="plan-price">$22</div>
-                        <div class="plan-period">월간</div>
-                        <div class="features">
-                            <ul>
-                                <li>API 생성 100개까지</li>
-                                <li>분당 200회 요청</li>
-                                <li>시간당 5,000회 요청</li>
-                                <li>일일 50,000회 요청</li>
-                                <li>우선 지원</li>
-                                <li>고급 분석</li>
-                            </ul>
-                        </div>
-                        <button class="btn" onclick="selectPlan('pro', 'monthly')" th:data-price-id="${proMonthlyPriceId}">
-                            월간 구독하기
-                        </button>
-                    </div>
-                    
-                    <!-- Pro Yearly 플랜 -->
-                    <div class="plan-card recommended" data-plan="pro-yearly">
-                        <div class="plan-name">Pro Yearly</div>
-                        <div class="plan-price">₩2,390</div>
-                        <div class="plan-period">연간</div>
-                        <div class="plan-discount">20% 절약!</div>
-                        <div class="features">
-                            <ul>
-                                <li>API 생성 100개까지</li>
-                                <li>분당 200회 요청</li>
-                                <li>시간당 5,000회 요청</li>
-                                <li>일일 50,000회 요청</li>
-                                <li>우선 지원</li>
-                                <li>고급 분석</li>
-                                <li><strong>2개월 무료!</strong></li>
-                            </ul>
-                        </div>
-                        <button class="btn btn-success" onclick="selectPlan('pro', 'yearly')" th:data-price-id="${proYearlyPriceId}">
-                            연간 구독하기 (20% 할인)
-                        </button>
-                    </div>
+        <div class="content">
+            <!-- 통계 현황 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsers">6</div>
+                    <div class="stat-label">등록된 사용자</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalSharedApis">-</div>
+                    <div class="stat-label">전체 공유 API</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="mySharedApis">-</div>
+                    <div class="stat-label">내가 공유한 API</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="savedApis">-</div>
+                    <div class="stat-label">저장한 API</div>
+                </div>
+            </div>
 
-                <!-- 구독 테스트 도구 -->
-                <div class="test-section">
-                    <h3>테스트 도구</h3>
-                    <div class="two-column">
-                        <div>
-                            <div class="form-group">
-                                <label>기존 DB 사용자 선택:</label>
-                                <select id="testUserId" onchange="updateUserInfo()">
-                                    <option value="user-001">user-001 (testuser1@example.com) - Free 플랜</option>
-                                    <option value="user-002" selected>user-002 (testuser2@example.com) - Pro 플랜</option>
-                                    <option value="user-003">user-003 (admin@example.com) - Pro 플랜</option>
-                                    <option value="user-004">user-004 (developer@example.com) - Free 플랜</option>
-                                    <option value="user-005">user-005 (premium@example.com) - Pro 연간</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>선택된 사용자 정보:</label>
-                                <div id="selectedUserInfo" style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 5px;">
-                                    <strong>user-002</strong><br>
-                                    📧 testuser2@example.com<br>
-                                    📋 현재 Pro 월간 플랜 사용 중
-                                </div>
-                            </div>
-                            <button class="btn" onclick="createTestCustomer()">
-                                <span class="loading hidden" id="customerLoading"></span>
-                                1. 기존 사용자로 Stripe 고객 생성
-                            </button>
-                        </div>
-                        
-                        <div id="customerSection" class="hidden">
-                            <div class="form-group">
-                                <label>고객 ID:</label>
-                                <input type="text" id="customerId" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>선택된 플랜:</label>
-                                <select id="planSelect">
-                                    <option value="">플랜을 선택하세요</option>
-                                    <option th:value="${proMonthlyPriceId}">Pro Monthly ($22/월)</option>
-                                    <option th:value="${proYearlyPriceId}">Pro Yearly (₩2,390/년)</option>
-                                </select>
-                            </div>
-                            <button class="btn" onclick="createTestSubscription()">
-                                <span class="loading hidden" id="subscriptionLoading"></span>
-                                2. 구독 생성
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div id="subscriptionSection" class="hidden" style="margin-top: 20px;">
+            <!-- 구독 결제 테스트 -->
+            <div class="section">
+                <h2>💳 구독 결제 테스트</h2>
+                <div class="form-grid">
+                    <div>
                         <div class="form-group">
-                            <label>구독 ID:</label>
-                            <input type="text" id="subscriptionId" readonly>
-                        </div>
-                        <button class="btn btn-danger" onclick="cancelTestSubscription()">
-                            <span class="loading hidden" id="cancelLoading"></span>
-                            구독 취소
-                        </button>
-                    </div>
-                    
-                    <!-- Stripe Checkout 테스트 섹션 -->
-                    <div class="test-section" style="margin-top: 20px; padding: 20px; border: 2px solid #28a745; border-radius: 8px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
-                        <h3 style="color: #28a745; margin-bottom: 15px;">💳 실제 Stripe Checkout 테스트</h3>
-                        <p style="font-size: 14px; color: #6c757d; margin-bottom: 15px;">
-                            실제 Stripe 결제 창으로 리다이렉트하여 전체 결제 플로우를 테스트합니다.<br>
-                            <strong>테스트 카드번호:</strong> 4242 4242 4242 4242 (만료일: 12/34, CVC: 123)
-                        </p>
-                        <div class="form-group">
-                            <label>결제할 플랜 선택:</label>
-                            <select id="checkoutPlanSelect">
-                                <option th:value="${proMonthlyPriceId}">Pro Monthly ($22/월)</option>
-                                <option th:value="${proYearlyPriceId}">Pro Yearly (할인가/년)</option>
+                            <label>현재 사용자 선택:</label>
+                            <select id="subscriptionUserId" onchange="updateSubscriptionUser()">
+                                <option value="user-001">user-001 (testuser1@example.com) - Free 플랜</option>
+                                <option value="user-002" selected>user-002 (testuser2@example.com) - Pro 플랜</option>
+                                <option value="user-003">user-003 (admin@example.com) - Pro 플랜</option>
+                                <option value="user-004">user-004 (developer@example.com) - Free 플랜</option>
+                                <option value="user-005">user-005 (premium@example.com) - Pro 플랜</option>
                             </select>
                         </div>
-                        <button class="btn" onclick="startStripeCheckout()" style="background: linear-gradient(45deg, #6772e5, #5469d4); color: white; border: none; padding: 12px 24px; font-weight: bold;">
-                            <span class="loading hidden" id="checkoutLoading"></span>
-                            🚀 Stripe Checkout 시작 (실제 결제창)
-                        </button>
+                        <div class="form-group">
+                            <label>플랜 선택:</label>
+                            <select id="planSelection">
+                                <option value="price_1RwJ5zDefwpzeE1sRhAYJn4b">Pro 월간 ($22/월)</option>
+                                <option value="price_1RwJ5zDefwpzeE1sRhAYJn4b">Pro 연간 ($220/년)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label>현재 구독 상태:</label>
+                            <div id="currentSubscriptionStatus" style="padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                                <span style="color: #6c757d;">로딩 중...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 플랜 제한 표시 섹션 -->
+                        <div class="form-group">
+                            <label>플랜 제한 정보:</label>
+                            <div id="planLimitsDisplay" style="padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                                <span style="color: #6c757d;">로딩 중...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 실시간 사용량 표시 섹션 -->
+                        <div class="form-group">
+                            <label>실시간 사용량:</label>
+                            <div id="realTimeUsage" style="padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                                <span style="color: #6c757d;">로딩 중...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button class="btn" onclick="createStripeCheckout()">
+                                <span class="loading hidden" id="checkoutLoading"></span>
+                                💳 Stripe 결제 시작
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 공유 API 테스트 탭 -->
-            <div id="shared-api-tab" class="tab-pane">
-                <div class="section-title">🔗 공유 API 관리</div>
-                
-                <div class="test-section">
-                    <h3>API 공유하기</h3>
-                    <div class="two-column">
-                        <div>
-                            <div class="form-group">
-                                <label>API 이름:</label>
-                                <input type="text" id="shareApiName" placeholder="예: Weather API" value="Test Shared API">
-                            </div>
-                            <div class="form-group">
-                                <label>API 설명:</label>
-                                <input type="text" id="shareApiDescription" placeholder="API에 대한 설명을 입력하세요" value="테스트용 공유 API입니다">
-                            </div>
-                            <div class="form-group">
-                                <label>사용자 ID:</label>
-                                <input type="text" id="shareUserId" placeholder="user-001" value="user-001">
-                            </div>
+            <!-- API 공유하기 -->
+            <div class="section">
+                <h2>📤 API 공유하기</h2>
+                <div class="form-grid">
+                    <div>
+                        <div class="form-group">
+                            <label>현재 사용자 선택:</label>
+                            <select id="currentUserId" onchange="updateCurrentUser()">
+                                <option value="user-001">user-001 (testuser1@example.com) - Free 플랜</option>
+                                <option value="user-002" selected>user-002 (testuser2@example.com) - Pro 플랜</option>
+                                <option value="user-003">user-003 (admin@example.com) - Pro 플랜</option>
+                                <option value="user-004">user-004 (developer@example.com) - Free 플랜</option>
+                                <option value="user-005">user-005 (premium@example.com) - Pro 플랜</option>
+                            </select>
                         </div>
-                        <div>
-                            <div class="form-group">
-                                <label>원본 API ID:</label>
-                                <input type="text" id="shareOriginalApiId" placeholder="api-001" value="api-test-001">
-                            </div>
-                            <button class="btn" onclick="shareApiTest()">
+                        <div class="form-group">
+                            <label>API 이름:</label>
+                            <input type="text" id="apiName" placeholder="예: Weather API" value="Test Shared API">
+                        </div>
+                        <div class="form-group">
+                            <label>API 설명:</label>
+                            <input type="text" id="apiDescription" placeholder="API에 대한 설명을 입력하세요" value="테스트용 공유 API입니다">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <label>원본 API ID:</label>
+                            <input type="text" id="originalApiId" placeholder="api-001" value="api-001">
+                        </div>
+                        <div class="form-group">
+                            <label>플랜 타입:</label>
+                            <select id="planType">
+                                <option value="FREE">FREE</option>
+                                <option value="PRO" selected>PRO</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button class="btn" onclick="shareApi()">
                                 <span class="loading hidden" id="shareLoading"></span>
-                                📤 API 공유하기
+                                📤 API 공유하기 (스마트 모드)
+                            </button>
+                            <button class="btn btn-secondary" onclick="fallbackShareOnly()" style="margin-left: 10px;">
+                                <span class="loading hidden" id="fallbackLoading"></span>
+                                🔧 기존 방식으로만
                             </button>
                         </div>
-                    </div>
-                </div>
-
-                <div class="test-section">
-                    <h3>공유 API 목록</h3>
-                    <button class="btn btn-secondary" onclick="loadSharedApis()">
-                        🔄 목록 새로고침
-                    </button>
-                    <div id="sharedApiList" class="api-grid">
-                        <!-- 동적으로 로드됨 -->
+                        <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                            💡 스마트 모드: CustomAPI가 없으면 자동 생성 후 공유 | 기존 방식: CustomAPI가 이미 있어야 함
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 통합 시나리오 탭 -->
-            <div id="integration-tab" class="tab-pane">
-                <div class="section-title">🔄 통합 테스트 시나리오</div>
-                
-                <div class="test-section">
-                    <h3>전체 플로우 테스트</h3>
-                    <p style="margin-bottom: 25px; color: #6c757d; line-height: 1.6;">
-                        실제 사용자의 여정을 시뮬레이션합니다: 
-                        <strong>회원가입 → 구독 → API 생성 → API 공유 → 사용량 확인</strong>
-                    </p>
-                    
-                    <button class="btn" onclick="runIntegrationTest()" style="margin-bottom: 25px;">
-                        <span class="loading hidden" id="integrationLoading"></span>
-                        🚀 통합 테스트 실행
+            <!-- 내가 공유한 API 목록 -->
+            <div class="section">
+                <h2>📋 내가 공유한 API</h2>
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-secondary btn-sm" onclick="loadMySharedApis()">
+                        🔄 새로고침
                     </button>
-                    
-                    <div id="integrationResults">
-                        <!-- 테스트 결과가 여기에 표시됩니다 -->
-                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="deleteSelectedApi()" style="margin-left: 10px;">
+                        <span class="loading hidden" id="deleteLoading"></span>
+                        🗑️ 선택된 API 삭제
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="debugSharedApis()" style="margin-left: 10px;">
+                        🔍 DB 상태 확인
+                    </button>
                 </div>
+                <div id="mySharedApiList" class="api-grid">
+                    <!-- 동적으로 로드됨 -->
+                </div>
+            </div>
 
-                <div class="test-section">
-                    <h3>시스템 상태 모니터링</h3>
-                    <div class="two-column">
-                        <div>
-                            <h4 style="margin-bottom: 15px;">📊 서비스 상태</h4>
-                            <div id="serviceStatus">
-                                <div class="status-message info">
-                                    시스템 상태를 확인하려면 '상태 확인' 버튼을 클릭하세요.
-                                </div>
-                            </div>
-                            <button class="btn btn-secondary" onclick="checkServiceStatus()">
-                                🔍 상태 확인
+            <!-- 전체 공유 API 목록 -->
+            <div class="section">
+                <h2>🌐 전체 공유 API</h2>
+                <div class="form-grid" style="margin-bottom: 20px;">
+                    <div>
+                        <div class="form-group">
+                            <label>검색 키워드:</label>
+                            <input type="text" id="searchKeyword" placeholder="API 이름이나 설명으로 검색" value="">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="form-group">
+                            <button class="btn btn-secondary btn-sm" onclick="searchApis()">
+                                🔍 검색
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="loadAllSharedApis()" style="margin-left: 10px;">
+                                🔄 전체 목록
                             </button>
                         </div>
-                        <div>
-                            <h4 style="margin-bottom: 15px;">⚙️ 설정 정보</h4>
-                            <div id="configInfo">
-                                <p><strong>Stripe 설정:</strong> <span id="stripeStatus">확인 중...</span></p>
-                                <p><strong>데이터베이스:</strong> <span id="dbStatus">확인 중...</span></p>
-                                <p><strong>Redis:</strong> <span id="redisStatus">확인 중...</span></p>
-                            </div>
-                        </div>
                     </div>
+                </div>
+                <div id="allSharedApiList" class="api-grid">
+                    <!-- 동적으로 로드됨 -->
+                </div>
+            </div>
+
+            <!-- 저장된 API 목록 -->
+            <div class="section">
+                <h2>💾 저장된 API</h2>
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-secondary btn-sm" onclick="loadSavedApis()">
+                        🔄 새로고침
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteSelectedSavedApi()" style="margin-left: 10px;">
+                        <span class="loading hidden" id="deleteSavedLoading"></span>
+                        🗑️ 선택된 API 삭제
+                    </button>
+                </div>
+                <div id="savedApiList" class="api-grid">
+                    <!-- 동적으로 로드됨 -->
                 </div>
             </div>
         </div>
@@ -712,34 +680,14 @@
         <div id="statusMessages" style="padding: 0 40px 40px;"></div>
     </div>
 
-    <script th:inline="javascript">
-        // Thymeleaf 변수를 JavaScript로 전달
-        const STRIPE_PUBLIC_KEY = /*[[${stripePublicKey}]]*/ 'pk_test_dummy';
-        const PRO_MONTHLY_PRICE_ID = /*[[${proMonthlyPriceId}]]*/ 'price_monthly';
-        const PRO_YEARLY_PRICE_ID = /*[[${proYearlyPriceId}]]*/ 'price_yearly';
-        
-        // Stripe 초기화
-        let stripe;
-        try {
-            stripe = Stripe(STRIPE_PUBLIC_KEY);
-        } catch (e) {
-            console.warn('Stripe 초기화 실패:', e.message);
-        }
-        
-        let currentCustomerId = null;
-        let currentSubscriptionId = null;
-        
-        // 탭 관리
-        function showTab(tabName) {
-            // 모든 탭과 컨텐츠 숨기기
-            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-            
-            // 선택된 탭 활성화
-            event.target.classList.add('active');
-            document.getElementById(tabName + '-tab').classList.add('active');
-        }
-        
+    <script>
+        // 전역 변수
+        let currentUserId = 'user-002';
+        let subscriptionUserId = 'user-002';
+        let selectedSharedApiId = null;
+        let selectedSavedApiId = null;
+
+        // 유틸리티 함수들
         function showMessage(message, type = 'info') {
             const messagesDiv = document.getElementById('statusMessages');
             const messageDiv = document.createElement('div');
@@ -747,7 +695,6 @@
             messageDiv.textContent = message;
             messagesDiv.appendChild(messageDiv);
             
-            // 5초 후 메시지 자동 제거
             setTimeout(() => {
                 messageDiv.remove();
             }, 5000);
@@ -763,151 +710,78 @@
                 }
             }
         }
-        
-        // =============================================================================
-        // 구독 관련 함수들
-        // =============================================================================
-        
-        function selectPlan(planType, billingPeriod) {
-            if (planType === 'free') {
-                showMessage('무료 플랜이 선택되었습니다.', 'info');
-                return;
-            }
-            
-            const priceId = billingPeriod === 'yearly' ? PRO_YEARLY_PRICE_ID : PRO_MONTHLY_PRICE_ID;
-            const planSelect = document.getElementById('planSelect');
-            if (planSelect) {
-                planSelect.value = priceId;
-            }
-            
-            showMessage(`${planType.toUpperCase()} ${billingPeriod} 플랜이 선택되었습니다.`, 'success');
+
+        // 현재 사용자 업데이트
+        function updateCurrentUser() {
+            currentUserId = document.getElementById('currentUserId').value;
+            showMessage(`공유 API 사용자가 ${currentUserId}로 변경되었습니다.`, 'info');
+            loadMySharedApis();
+            loadSavedApis();
         }
-        
-        async function createTestCustomer() {
-            const userId = document.getElementById('testUserId').value;
+
+        // 구독 사용자 업데이트
+        function updateSubscriptionUser() {
+            subscriptionUserId = document.getElementById('subscriptionUserId').value;
+            showMessage(`구독 사용자가 ${subscriptionUserId}로 변경되었습니다.`, 'info');
+            // 구독 상태 업데이트 (추후 구현)
+            updateSubscriptionStatus();
+        }
+
+        // 구독 상태 업데이트
+        function updateSubscriptionStatus() {
+            const statusDiv = document.getElementById('currentSubscriptionStatus');
+            statusDiv.innerHTML = `<span style="color: #28a745;">✅ ${subscriptionUserId} - 활성 구독</span>`;
+        }
+
+        // Stripe Checkout 세션 생성
+        async function createStripeCheckout() {
+            const priceId = document.getElementById('planSelection').value;
             
-            if (!userId) {
-                showMessage('사용자를 선택해주세요.', 'error');
-                return;
-            }
-            
-            showLoading('customerLoading', true);
+            showLoading('checkoutLoading', true);
             
             try {
-                const response = await fetch('/test/api/create-customer', {
+                const response = await fetch('/api/subscription/checkout', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-User-Id': subscriptionUserId
                     },
-                    body: JSON.stringify({ userId })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    currentCustomerId = result.data.customerId;
-                    document.getElementById('customerId').value = currentCustomerId;
-                    document.getElementById('customerSection').classList.remove('hidden');
-                    showMessage('테스트 고객이 생성되었습니다.', 'success');
-                } else {
-                    showMessage('고객 생성 실패: ' + result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('고객 생성 중 오류가 발생했습니다: ' + error.message, 'error');
-            } finally {
-                showLoading('customerLoading', false);
-            }
-        }
-        
-        async function createTestSubscription() {
-            const planSelect = document.getElementById('planSelect');
-            const priceId = planSelect.value;
-            
-            if (!currentCustomerId) {
-                showMessage('먼저 고객을 생성해주세요.', 'error');
-                return;
-            }
-            
-            if (!priceId) {
-                showMessage('플랜을 선택해주세요.', 'error');
-                return;
-            }
-            
-            showLoading('subscriptionLoading', true);
-            
-            try {
-                const response = await fetch('/test/api/create-subscription', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        customerId: currentCustomerId, 
-                        priceId: priceId 
+                    body: JSON.stringify({
+                        priceId: priceId,
+                        userId: subscriptionUserId,
+                        plan: 'Pro'
                     })
                 });
-                
+
                 const result = await response.json();
-                
-                if (result.success) {
-                    currentSubscriptionId = result.data.subscriptionId;
-                    document.getElementById('subscriptionId').value = currentSubscriptionId;
-                    document.getElementById('subscriptionSection').classList.remove('hidden');
-                    showMessage(`구독이 생성되었습니다. 플랜: ${result.data.planType} ${result.data.billingPeriod}`, 'success');
+
+                if (result.success && result.data) {
+                    const checkoutUrl = result.data.checkoutUrl || result.data.sessionUrl;
+                    if (checkoutUrl) {
+                        showMessage('Stripe 결제 페이지로 이동합니다...', 'success');
+                        window.location.href = checkoutUrl; // 같은 탭에서 이동
+                    } else {
+                        showMessage('결제 세션이 생성되었지만 URL을 받지 못했습니다: ' + JSON.stringify(result.data), 'error');
+                    }
                 } else {
-                    showMessage('구독 생성 실패: ' + result.message, 'error');
+                    showMessage('결제 세션 생성 실패: ' + (result.message || '알 수 없는 오류'), 'error');
                 }
             } catch (error) {
-                showMessage('구독 생성 중 오류가 발생했습니다: ' + error.message, 'error');
+                console.error('Stripe Checkout 오류:', error);
+                showMessage('결제 초기화 중 오류가 발생했습니다: ' + error.message, 'error');
             } finally {
-                showLoading('subscriptionLoading', false);
+                showLoading('checkoutLoading', false);
             }
         }
-        
-        async function cancelTestSubscription() {
-            if (!currentSubscriptionId) {
-                showMessage('취소할 구독이 없습니다.', 'error');
-                return;
-            }
+
+        // API 공유하기 (완전한 테스트로 변경)
+        async function shareApi() {
+            const apiName = document.getElementById('apiName').value.trim();
+            const description = document.getElementById('apiDescription').value.trim();
+            const originalApiId = document.getElementById('originalApiId').value.trim();
+            const planType = document.getElementById('planType').value;
             
-            showLoading('cancelLoading', true);
-            
-            try {
-                const response = await fetch('/test/api/cancel-subscription', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ subscriptionId: currentSubscriptionId })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showMessage('구독이 취소되었습니다.', 'success');
-                    document.getElementById('subscriptionSection').classList.add('hidden');
-                    currentSubscriptionId = null;
-                } else {
-                    showMessage('구독 취소 실패: ' + result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('구독 취소 중 오류가 발생했습니다: ' + error.message, 'error');
-            } finally {
-                showLoading('cancelLoading', false);
-            }
-        }
-        
-        // =============================================================================
-        // 공유 API 관련 함수들
-        // =============================================================================
-        
-        async function shareApiTest() {
-            const apiName = document.getElementById('shareApiName').value;
-            const description = document.getElementById('shareApiDescription').value;
-            const userId = document.getElementById('shareUserId').value;
-            const originalApiId = document.getElementById('shareOriginalApiId').value;
-            
-            if (!apiName || !description || !userId) {
+            if (!apiName || !description || !originalApiId) {
                 showMessage('모든 필드를 입력해주세요.', 'error');
                 return;
             }
@@ -915,328 +789,727 @@
             showLoading('shareLoading', true);
             
             try {
-                const response = await fetch('/test/api/share-api', {
+                // 먼저 완전한 공유 테스트 시도 (CustomApi 생성 + 공유)
+                const response = await fetch('/test/api/complete-share-test', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        apiName,
-                        description,
-                        userId,
-                        apiId: originalApiId
+                        userId: currentUserId,
+                        apiId: originalApiId,
+                        apiName: apiName,
+                        description: description,
+                        planType: planType
                     })
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
-                    showMessage('API가 성공적으로 공유되었습니다!', 'success');
-                    loadSharedApis(); // 목록 새로고침
+                    const customApiCreated = result.data.customApiCreated ? ' (새 CustomApi 생성됨)' : ' (기존 CustomApi 사용됨)';
+                    showMessage('API가 성공적으로 공유되었습니다!' + customApiCreated, 'success');
+                    loadMySharedApis();
+                    loadAllSharedApis();
+                    updateStats();
+                    
+                    // 폼 초기화
+                    document.getElementById('apiName').value = '';
+                    document.getElementById('apiDescription').value = '';
                 } else {
-                    showMessage('API 공유 실패: ' + result.message, 'error');
+                    // 완전한 테스트가 실패하면 기존 방식 시도
+                    showMessage('완전한 테스트 실패, 기존 방식 시도 중...', 'info');
+                    await fallbackShareApi(apiName, description, originalApiId, planType);
                 }
             } catch (error) {
-                showMessage('API 공유 중 오류가 발생했습니다: ' + error.message, 'error');
+                console.error('API 공유 오류:', error);
+                // 오류 발생 시 기존 방식 시도
+                showMessage('완전한 테스트 오류, 기존 방식 시도 중...', 'info');
+                await fallbackShareApi(apiName, description, originalApiId, planType);
             } finally {
                 showLoading('shareLoading', false);
             }
         }
-        
-        async function loadSharedApis() {
+
+        // 기존 방식의 API 공유 (CustomApi가 이미 존재하는 경우)
+        async function fallbackShareApi(apiName, description, originalApiId, planType) {
             try {
-                const response = await fetch('/test/api/shared-apis');
-                const result = await response.json();
+                const requestBody = new URLSearchParams({
+                    customApiId: originalApiId,
+                    planType: planType,
+                    apiName: apiName,
+                    apiDescription: description
+                });
                 
-                const listDiv = document.getElementById('sharedApiList');
-                if (result.success && result.data) {
-                    // 실제 데이터가 있으면 표시, 없으면 샘플 데이터 표시
-                    const apis = Array.isArray(result.data) ? result.data : getSampleSharedApis();
-                    displaySharedApis(apis);
-                } else {
-                    displaySharedApis(getSampleSharedApis());
-                }
-            } catch (error) {
-                console.error('공유 API 목록 로드 실패:', error);
-                displaySharedApis(getSampleSharedApis());
-            }
-        }
-        
-        function getSampleSharedApis() {
-            return [
-                {
-                    sharedApiId: 'shared-001',
-                    apiName: 'Weather API',
-                    description: '전 세계 날씨 정보를 제공하는 API',
-                    dataCount: 10000,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    sharedApiId: 'shared-002',
-                    apiName: 'News API', 
-                    description: '실시간 뉴스 정보 API',
-                    dataCount: 5000,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    sharedApiId: 'shared-003',
-                    apiName: 'Stock Price API',
-                    description: '주식 가격 정보 API',
-                    dataCount: 15000,
-                    createdAt: new Date().toISOString()
-                }
-            ];
-        }
-        
-        function displaySharedApis(apis) {
-            const listDiv = document.getElementById('sharedApiList');
-            
-            if (!apis || apis.length === 0) {
-                listDiv.innerHTML = '<p class="status-message info">공유된 API가 없습니다.</p>';
-                return;
-            }
-            
-            listDiv.innerHTML = apis.map(api => `
-                <div class="api-card">
-                    <div class="api-title">${api.apiName}</div>
-                    <div class="api-description">${api.description}</div>
-                    <div class="api-stats">
-                        <span>📊 ${api.dataCount.toLocaleString()} records</span>
-                        <span>📅 ${new Date(api.createdAt).toLocaleDateString()}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        // =============================================================================
-        // 통합 테스트 관련 함수들
-        // =============================================================================
-        
-        async function runIntegrationTest() {
-            showLoading('integrationLoading', true);
-            const resultsDiv = document.getElementById('integrationResults');
-            resultsDiv.innerHTML = '<div class="status-message info">통합 테스트를 실행 중입니다...</div>';
-            
-            try {
-                const steps = [
-                    { name: '1. 테스트 고객 생성', action: 'createCustomer' },
-                    { name: '2. Pro Monthly 구독', action: 'createSubscription' },
-                    { name: '3. API 공유 테스트', action: 'shareApi' },
-                    { name: '4. 플랜 정보 확인', action: 'checkPlans' }
-                ];
-                
-                const results = [];
-                
-                for (let step of steps) {
-                    try {
-                        let result;
-                        switch (step.action) {
-                            case 'createCustomer':
-                                result = await testCreateCustomer();
-                                break;
-                            case 'createSubscription':
-                                result = await testCreateSubscription();
-                                break;
-                            case 'shareApi':
-                                result = await testShareApi();
-                                break;
-                            case 'checkPlans':
-                                result = await testCheckPlans();
-                                break;
-                        }
-                        results.push({ step: step.name, success: true, message: result });
-                    } catch (error) {
-                        results.push({ step: step.name, success: false, message: error.message });
-                    }
-                }
-                
-                displayIntegrationResults(results);
-                
-            } catch (error) {
-                resultsDiv.innerHTML = `<div class="status-message error">통합 테스트 실행 실패: ${error.message}</div>`;
-            } finally {
-                showLoading('integrationLoading', false);
-            }
-        }
-        
-        function displayIntegrationResults(results) {
-            const resultsDiv = document.getElementById('integrationResults');
-            const successCount = results.filter(r => r.success).length;
-            const totalCount = results.length;
-            
-            const summary = `<div class="status-message ${successCount === totalCount ? 'success' : 'error'}">
-                통합 테스트 완료: ${successCount}/${totalCount} 성공
-            </div>`;
-            
-            const details = results.map(result => `
-                <div class="status-message ${result.success ? 'success' : 'error'}" style="margin: 10px 0;">
-                    <strong>${result.step}:</strong> ${result.message}
-                </div>
-            `).join('');
-            
-            resultsDiv.innerHTML = summary + details;
-        }
-        
-        // 테스트 헬퍼 함수들
-        async function testCreateCustomer() {
-            const response = await fetch('/test/api/create-customer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: 'integration-test@example.com', name: 'Integration Test User' })
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-            currentCustomerId = result.data.customerId;
-            return `고객 생성 성공 (ID: ${currentCustomerId.substring(0, 12)}...)`;
-        }
-        
-        async function testCreateSubscription() {
-            const response = await fetch('/test/api/create-subscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ customerId: currentCustomerId, priceId: PRO_MONTHLY_PRICE_ID })
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-            return `구독 생성 성공 (${result.data.planType} ${result.data.billingPeriod})`;
-        }
-        
-        async function testShareApi() {
-            const response = await fetch('/test/api/share-api', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    apiName: 'Integration Test API',
-                    description: '통합 테스트용 API',
-                    userId: 'integration-user',
-                    apiId: 'integration-api-001'
-                })
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-            return 'API 공유 테스트 성공';
-        }
-        
-        async function testCheckPlans() {
-            const response = await fetch('/test/api/plans');
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message);
-            const planCount = Object.keys(result.data).length;
-            return `플랜 정보 확인 성공 (${planCount}개 플랜)`;
-        }
-        
-        async function checkServiceStatus() {
-            const statusDiv = document.getElementById('serviceStatus');
-            statusDiv.innerHTML = '<div class="status-message info">서비스 상태를 확인하는 중...</div>';
-            
-            try {
-                // 여러 엔드포인트를 병렬로 체크
-                const [plansCheck, healthCheck] = await Promise.allSettled([
-                    fetch('/test/api/plans'),
-                    fetch('/actuator/health')
-                ]);
-                
-                let status = '<div class="status-message success">✅ 모든 서비스가 정상 작동 중입니다.</div>';
-                
-                if (plansCheck.status === 'rejected' || healthCheck.status === 'rejected') {
-                    status = '<div class="status-message error">⚠️ 일부 서비스에 문제가 있습니다.</div>';
-                }
-                
-                statusDiv.innerHTML = status;
-                
-                // 설정 정보 업데이트
-                document.getElementById('stripeStatus').textContent = STRIPE_PUBLIC_KEY.includes('dummy') ? '⚠️ 테스트 모드' : '✅ 연결됨';
-                document.getElementById('dbStatus').textContent = '✅ 연결됨';
-                document.getElementById('redisStatus').textContent = '⚠️ 비활성화';
-                
-            } catch (error) {
-                statusDiv.innerHTML = `<div class="status-message error">서비스 상태 확인 실패: ${error.message}</div>`;
-            }
-        }
-        
-        // Stripe Checkout 시작 함수
-        async function startStripeCheckout() {
-            const priceId = document.getElementById('checkoutPlanSelect').value;
-            
-            if (!priceId) {
-                showMessage('플랜을 선택해주세요.', 'error');
-                return;
-            }
-            
-            showLoading('checkoutLoading', true);
-            
-            try {
-                console.log('Stripe Checkout 세션 생성 요청 - priceId:', priceId);
-                
-                const response = await fetch('/api/subscription/checkout', {
+                const response = await fetch('/api/shared-apis/share', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-User-Id': currentUserId
+                    },
+                    body: requestBody
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('API가 성공적으로 공유되었습니다! (기존 방식)', 'success');
+                    loadMySharedApis();
+                    loadAllSharedApis();
+                    updateStats();
+                    
+                    // 폼 초기화
+                    document.getElementById('apiName').value = '';
+                    document.getElementById('apiDescription').value = '';
+                } else {
+                    showMessage('API 공유 실패: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('기존 방식 API 공유 오류:', error);
+                showMessage('API 공유 중 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        }
+
+        // 기존 방식으로만 공유 (테스트용)
+        async function fallbackShareOnly() {
+            const apiName = document.getElementById('apiName').value.trim();
+            const description = document.getElementById('apiDescription').value.trim();
+            const originalApiId = document.getElementById('originalApiId').value.trim();
+            const planType = document.getElementById('planType').value;
+            
+            if (!apiName || !description || !originalApiId) {
+                showMessage('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            showLoading('fallbackLoading', true);
+            
+            try {
+                await fallbackShareApi(apiName, description, originalApiId, planType);
+            } finally {
+                showLoading('fallbackLoading', false);
+            }
+        }
+
+        // 완전한 공유 테스트 (CustomApi 생성 + 공유)
+        async function completeShareTest() {
+            const apiName = document.getElementById('apiName').value.trim();
+            const description = document.getElementById('apiDescription').value.trim();
+            const originalApiId = document.getElementById('originalApiId').value.trim();
+            const planType = document.getElementById('planType').value;
+            
+            if (!apiName || !description || !originalApiId) {
+                showMessage('모든 필드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            showLoading('completeShareLoading', true);
+            
+            try {
+                const response = await fetch('/test/api/complete-share-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        priceId: priceId,
-                        successUrl: window.location.origin + '/payment-success.html?session_id={CHECKOUT_SESSION_ID}&plan=Pro',
-                        cancelUrl: window.location.origin + '/payment-cancel.html?plan=Pro'
+                        userId: currentUserId,
+                        apiId: originalApiId,
+                        apiName: apiName,
+                        description: description,
+                        planType: planType
                     })
                 });
                 
                 const result = await response.json();
-                console.log('Checkout API 응답:', result);
                 
-                if (result.success && result.data.checkoutUrl) {
-                    console.log('Stripe Checkout URL로 리다이렉트:', result.data.checkoutUrl);
-                    showMessage('Stripe 결제창으로 리다이렉트됩니다...', 'success');
-                    
-                    // 약간의 지연 후 리다이렉트 (사용자가 메시지를 볼 수 있도록)
-                    setTimeout(() => {
-                        window.location.href = result.data.checkoutUrl;
-                    }, 1000);
+                if (result.success) {
+                    const customApiCreated = result.data.customApiCreated ? '(새 CustomApi 생성됨)' : '(기존 CustomApi 사용)';
+                    showMessage(`완전한 공유 테스트 성공! ${customApiCreated}`, 'success');
+                    loadMySharedApis();
+                    loadAllSharedApis();
+                    updateStats();
                 } else {
-                    throw new Error(result.message || '결제 세션 생성에 실패했습니다.');
+                    showMessage('완전한 공유 테스트 실패: ' + result.message, 'error');
                 }
+            } catch (error) {
+                console.error('완전한 공유 테스트 오류:', error);
+                showMessage('완전한 공유 테스트 중 오류가 발생했습니다: ' + error.message, 'error');
+            } finally {
+                showLoading('completeShareLoading', false);
+            }
+        }
+
+        // 데이터베이스 공유 API 상태 디버깅
+        async function debugSharedApis() {
+            try {
+                const response = await fetch('/test/api/debug-shared-apis');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const totalCount = result.data.totalCount;
+                    const apis = result.data.apis;
+                    
+                    console.log('데이터베이스 공유 API 상태:', result.data);
+                    
+                    let message = `데이터베이스에 ${totalCount}개의 활성 공유 API가 있습니다.`;
+                    if (apis.length > 0) {
+                        message += '\n\n최근 API들:';
+                        apis.slice(0, 3).forEach(api => {
+                            message += `\n- ${api.apiName} (${api.isActive ? '활성' : '비활성'})`;
+                        });
+                    }
+                    
+                    showMessage(message, 'info');
+                } else {
+                    showMessage('DB 상태 확인 실패: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('DB 상태 확인 오류:', error);
+                showMessage('DB 상태 확인 중 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        }
+
+        // 내가 공유한 API 목록 로드
+        async function loadMySharedApis() {
+            try {
+                const response = await fetch('/api/shared-apis/my', {
+                    headers: {
+                        'X-User-Id': currentUserId
+                    }
+                });
+                const result = await response.json();
+                
+                const listDiv = document.getElementById('mySharedApiList');
+                if (result.success && result.data && result.data.length > 0) {
+                    displayMySharedApis(result.data);
+                } else {
+                    listDiv.innerHTML = '<div class="info">공유한 API가 없습니다.</div>';
+                }
+            } catch (error) {
+                console.error('내 공유 API 목록 로드 실패:', error);
+                document.getElementById('mySharedApiList').innerHTML = '<div class="error">목록 로드 실패</div>';
+            }
+        }
+
+        // 전체 공유 API 목록 로드
+        async function loadAllSharedApis() {
+            try {
+                const response = await fetch('/api/shared-apis?page=0&size=20');
+                const result = await response.json();
+                
+                const listDiv = document.getElementById('allSharedApiList');
+                if (result.success && result.data) {
+                    const apis = result.data.content || result.data;
+                    if (apis.length > 0) {
+                        displayAllSharedApis(apis);
+                    } else {
+                        listDiv.innerHTML = '<div class="info">공유된 API가 없습니다.</div>';
+                    }
+                } else {
+                    listDiv.innerHTML = '<div class="info">공유된 API가 없습니다.</div>';
+                }
+            } catch (error) {
+                console.error('전체 공유 API 목록 로드 실패:', error);
+                document.getElementById('allSharedApiList').innerHTML = '<div class="error">목록 로드 실패</div>';
+            }
+        }
+
+        // API 검색
+        async function searchApis() {
+            const keyword = document.getElementById('searchKeyword').value.trim();
+            
+            if (!keyword) {
+                showMessage('검색 키워드를 입력해주세요.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/shared-apis/search?keyword=${encodeURIComponent(keyword)}`);
+                const result = await response.json();
+                
+                const listDiv = document.getElementById('allSharedApiList');
+                if (result.success && result.data && result.data.length > 0) {
+                    displayAllSharedApis(result.data);
+                    showMessage(`'${keyword}' 검색 결과: ${result.data.length}개`, 'success');
+                } else {
+                    listDiv.innerHTML = '<div class="info">검색 결과가 없습니다.</div>';
+                    showMessage(`'${keyword}' 검색 결과가 없습니다.`, 'info');
+                }
+            } catch (error) {
+                console.error('검색 실패:', error);
+                showMessage('검색 중 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        }
+
+        // 저장된 API 목록 로드
+        async function loadSavedApis() {
+            try {
+                const response = await fetch('/api/shared-apis/saved?page=0&size=20', {
+                    headers: {
+                        'X-User-Id': currentUserId
+                    }
+                });
+                const result = await response.json();
+                
+                const listDiv = document.getElementById('savedApiList');
+                if (result.success && result.data) {
+                    const savedApis = result.data.content || result.data;
+                    if (savedApis.length > 0) {
+                        displaySavedApis(savedApis);
+                    } else {
+                        listDiv.innerHTML = '<div class="info">저장된 API가 없습니다.</div>';
+                    }
+                } else {
+                    listDiv.innerHTML = '<div class="info">저장된 API가 없습니다.</div>';
+                }
+            } catch (error) {
+                console.error('저장된 API 목록 로드 실패:', error);
+                document.getElementById('savedApiList').innerHTML = '<div class="error">목록 로드 실패</div>';
+            }
+        }
+
+        // API 저장하기
+        async function saveApi(sharedApiId) {
+            try {
+                const response = await fetch('/api/shared-apis/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-User-Id': currentUserId
+                    },
+                    body: new URLSearchParams({
+                        sharedApiId: sharedApiId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('API가 성공적으로 저장되었습니다!', 'success');
+                    loadSavedApis();
+                    updateStats();
+                } else {
+                    showMessage('API 저장 실패: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('API 저장 중 오류가 발생했습니다: ' + error.message, 'error');
+            }
+        }
+
+        // 선택된 공유 API 삭제
+        async function deleteSelectedApi() {
+            if (!selectedSharedApiId) {
+                showMessage('삭제할 API를 선택해주세요.', 'error');
+                return;
+            }
+            
+            if (!confirm('정말로 이 API의 공유를 취소하시겠습니까?')) {
+                return;
+            }
+            
+            showLoading('deleteLoading', true);
+            
+            try {
+                const response = await fetch('/api/shared-apis/unshare', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-User-Id': currentUserId
+                    },
+                    body: new URLSearchParams({
+                        customApiId: selectedSharedApiId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('API 공유가 취소되었습니다.', 'success');
+                    selectedSharedApiId = null;
+                    loadMySharedApis();
+                    loadAllSharedApis();
+                    updateStats();
+                } else {
+                    showMessage('삭제 실패: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('삭제 중 오류가 발생했습니다: ' + error.message, 'error');
+            } finally {
+                showLoading('deleteLoading', false);
+            }
+        }
+
+        // 선택된 저장 API 삭제
+        async function deleteSelectedSavedApi() {
+            if (!selectedSavedApiId) {
+                showMessage('삭제할 저장된 API를 선택해주세요.', 'error');
+                return;
+            }
+            
+            if (!confirm('정말로 이 저장된 API를 삭제하시겠습니까?')) {
+                return;
+            }
+            
+            showLoading('deleteSavedLoading', true);
+            
+            try {
+                const response = await fetch(`/api/shared-apis/saved/${selectedSavedApiId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-User-Id': currentUserId
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('저장된 API가 삭제되었습니다.', 'success');
+                    selectedSavedApiId = null;
+                    loadSavedApis();
+                    updateStats();
+                } else {
+                    showMessage('삭제 실패: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('삭제 중 오류가 발생했습니다: ' + error.message, 'error');
+            } finally {
+                showLoading('deleteSavedLoading', false);
+            }
+        }
+
+        // 내가 공유한 API 목록 표시
+        function displayMySharedApis(apis) {
+            const listDiv = document.getElementById('mySharedApiList');
+            
+            listDiv.innerHTML = apis.map(api => `
+                <div class="api-card ${selectedSharedApiId === api.originalApiId ? 'selected' : ''}" 
+                     onclick="selectSharedApi('${api.originalApiId}')" style="cursor: pointer;">
+                    <div class="api-title">${api.apiName || 'Unknown API'}</div>
+                    <div class="api-description">${api.description || 'No description'}</div>
+                    <div class="api-meta">
+                        <span>🆔 ${api.sharedApiId}</span>
+                        <span class="badge ${api.isActive ? 'active' : 'inactive'}">${api.isActive ? '활성' : '비활성'}</span>
+                    </div>
+                    <div class="api-meta">
+                        <span>📅 ${new Date(api.createdAt).toLocaleDateString()}</span>
+                        <span>📊 ${api.dataCount || 0}회 사용</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 전체 공유 API 목록 표시
+        function displayAllSharedApis(apis) {
+            const listDiv = document.getElementById('allSharedApiList');
+            
+            listDiv.innerHTML = apis.map(api => `
+                <div class="api-card">
+                    <div class="api-title">${api.apiName || 'Unknown API'}</div>
+                    <div class="api-description">${api.description || 'No description'}</div>
+                    <div class="api-meta">
+                        <span>👤 ${api.creatorId}</span>
+                        <span>📊 ${api.dataCount || 0}회 사용</span>
+                    </div>
+                    <div class="api-meta">
+                        <span>📅 ${new Date(api.createdAt).toLocaleDateString()}</span>
+                        <span class="badge active">공유됨</span>
+                    </div>
+                    <div class="api-actions">
+                        <button class="btn btn-sm" onclick="saveApi('${api.sharedApiId}')" 
+                                style="width: 100%;">
+                            💾 저장하기
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 저장된 API 목록 표시
+        function displaySavedApis(apis) {
+            const listDiv = document.getElementById('savedApiList');
+            
+            listDiv.innerHTML = apis.map(api => `
+                <div class="api-card ${selectedSavedApiId === api.userApiId ? 'selected' : ''}" 
+                     onclick="selectSavedApi('${api.userApiId}')" style="cursor: pointer;">
+                    <div class="api-title">${api.apiName || (api.sharedApi?.apiName) || 'Unknown API'}</div>
+                    <div class="api-description">${api.description || (api.sharedApi?.description) || 'No description'}</div>
+                    <div class="api-meta">
+                        <span>🆔 ${api.userApiId}</span>
+                        <span class="badge active">저장됨</span>
+                    </div>
+                    <div class="api-meta">
+                        <span>📅 ${new Date(api.createdAt).toLocaleDateString()}</span>
+                        <span>📊 ${api.dataCount || 0}회 사용</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // API 선택
+        function selectSharedApi(apiId) {
+            selectedSharedApiId = selectedSharedApiId === apiId ? null : apiId;
+            loadMySharedApis();
+        }
+
+        function selectSavedApi(apiId) {
+            selectedSavedApiId = selectedSavedApiId === apiId ? null : apiId;
+            loadSavedApis();
+        }
+
+        // 통계 업데이트
+        async function updateStats() {
+            try {
+                // 전체 공유 API 수 가져오기
+                const allResponse = await fetch('/api/shared-apis?page=0&size=1000');
+                const allResult = await allResponse.json();
+                const totalCount = allResult.success && allResult.data ? 
+                    (allResult.data.content?.length || allResult.data.length || 0) : 0;
+                
+                // 내가 공유한 API 수 가져오기
+                const myResponse = await fetch('/api/shared-apis/my', {
+                    headers: { 'X-User-Id': currentUserId }
+                });
+                const myResult = await myResponse.json();
+                const myCount = myResult.success && myResult.data ? myResult.data.length : 0;
+                
+                // 저장한 API 수 가져오기
+                const savedResponse = await fetch('/api/shared-apis/saved?page=0&size=1000', {
+                    headers: { 'X-User-Id': currentUserId }
+                });
+                const savedResult = await savedResponse.json();
+                const savedCount = savedResult.success && savedResult.data ? 
+                    (savedResult.data.content?.length || savedResult.data.length || 0) : 0;
+                
+                // 통계 업데이트
+                document.getElementById('totalSharedApis').textContent = totalCount;
+                document.getElementById('mySharedApis').textContent = myCount;
+                document.getElementById('savedApis').textContent = savedCount;
                 
             } catch (error) {
-                console.error('Stripe Checkout 오류:', error);
-                showMessage('결제 처리 중 오류가 발생했습니다: ' + error.message, 'error');
-            } finally {
-                showLoading('checkoutLoading', false);
+                console.error('통계 업데이트 실패:', error);
             }
         }
-        
-        // 사용자 정보 업데이트 함수
-        function updateUserInfo() {
-            const userId = document.getElementById('testUserId').value;
-            const infoDiv = document.getElementById('selectedUserInfo');
+
+        // URL 파라미터에서 결제 상태 확인
+        function checkPaymentStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentStatus = urlParams.get('payment');
             
-            const userInfo = {
-                'user-001': { name: 'Test User 1', email: 'testuser1@example.com', plan: 'Free 월간' },
-                'user-002': { name: 'Test User 2 (Pro)', email: 'testuser2@example.com', plan: 'Pro 월간' },
-                'user-003': { name: 'Admin User', email: 'admin@example.com', plan: 'Pro 월간' },
-                'user-004': { name: 'Developer', email: 'developer@example.com', plan: 'Free 월간' },
-                'user-005': { name: 'Premium User', email: 'premium@example.com', plan: 'Pro 연간' }
-            };
-            
-            const user = userInfo[userId];
-            if (user) {
-                infoDiv.innerHTML = `
-                    <strong>${userId}</strong> (${user.name})<br>
-                    📧 ${user.email}<br>
-                    📋 현재 ${user.plan} 플랜 사용 중
-                `;
+            if (paymentStatus === 'success') {
+                showMessage('🎉 결제가 성공적으로 완료되었습니다! 구독이 활성화되었습니다.', 'success');
+                
+                // 구독 상태 업데이트
+                setTimeout(() => {
+                    updateSubscriptionStatus();
+                    // 구독 업데이트 API 호출 (필요시)
+                    updateSubscriptionAfterPayment();
+                }, 1000);
+                
+                // URL에서 payment 파라미터 제거
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+            } else if (paymentStatus === 'cancel') {
+                showMessage('❌ 결제가 취소되었습니다. 언제든지 다시 시도하실 수 있습니다.', 'error');
+                
+                // URL에서 payment 파라미터 제거
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
-        
+
+        // 결제 완료 후 구독 업데이트
+        async function updateSubscriptionAfterPayment() {
+            try {
+                const response = await fetch('/api/subscription/update-after-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionId: 'payment-success-' + Date.now(),
+                        plan: 'PRO'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ Pro 구독이 활성화되었습니다!', 'success');
+                    updateSubscriptionStatus();
+                } else {
+                    console.warn('구독 업데이트 실패:', result.message);
+                }
+            } catch (error) {
+                console.error('구독 업데이트 오류:', error);
+            }
+        }
+
         // 페이지 로드 시 초기화
         window.addEventListener('load', function() {
             console.log('통합 테스트 대시보드 로드됨');
             
-            // 설정 정보 초기화
-            document.getElementById('stripeStatus').textContent = STRIPE_PUBLIC_KEY.includes('dummy') ? '⚠️ 테스트 모드' : '✅ 설정됨';
-            document.getElementById('dbStatus').textContent = '✅ 연결됨';
-            document.getElementById('redisStatus').textContent = '⚠️ 비활성화';
+            // 결제 상태 먼저 확인
+            checkPaymentStatus();
             
-            // 공유 API 목록 로드
-            loadSharedApis();
+            // 초기 데이터 로드
+            updateSubscriptionStatus();
+            loadMySharedApis();
+            loadAllSharedApis();
+            loadSavedApis();
+            updateStats();
+            
+            showMessage('통합 테스트 대시보드가 로드되었습니다.', 'success');
+        });
+
+        // 결제 성공/실패 후 처리 함수
+        function handlePaymentResult() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const success = urlParams.get('success');
+            const canceled = urlParams.get('canceled');
+            
+            if (success === 'true') {
+                showMessage('✅ 결제가 성공적으로 완료되었습니다! DB 업데이트를 확인 중입니다...', 'success');
+                checkSubscriptionUpdate();
+            } else if (canceled === 'true') {
+                showMessage('❌ 결제가 취소되었습니다.', 'warning');
+            }
+        }
+
+        // 구독 업데이트 확인 (폴링 방식)
+        async function checkSubscriptionUpdate(attempts = 0, maxAttempts = 10) {
+            if (attempts >= maxAttempts) {
+                showMessage('⚠️ DB 업데이트 확인 시간이 초과되었습니다. 수동으로 새로고침해주세요.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/subscription/limits-status`, {
+                    method: 'GET',
+                    headers: {
+                        'X-User-Id': subscriptionUserId
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.data.hasActiveSubscription) {
+                    showMessage(`🎉 구독이 성공적으로 활성화되었습니다! 플랜: ${result.data.planName}`, 'success');
+                    
+                    // 대시보드 업데이트
+                    updateSubscriptionStatus(result.data);
+                    updatePlanLimitsDisplay(result.data);
+                    
+                    return;
+                } else {
+                    // 3초 후 재시도
+                    setTimeout(() => {
+                        checkSubscriptionUpdate(attempts + 1, maxAttempts);
+                    }, 3000);
+                    
+                    if (attempts === 0) {
+                        showMessage(`🔄 DB 업데이트 확인 중... (${attempts + 1}/${maxAttempts})`, 'info');
+                    }
+                }
+            } catch (error) {
+                console.error('구독 상태 확인 오류:', error);
+                setTimeout(() => {
+                    checkSubscriptionUpdate(attempts + 1, maxAttempts);
+                }, 3000);
+            }
+        }
+
+        // 구독 상태 업데이트
+        function updateSubscriptionStatus(subscriptionData) {
+            const statusDiv = document.getElementById('currentSubscriptionStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = `
+                    <div style="color: #28a745; font-weight: 600;">
+                        ✅ 활성 구독: ${subscriptionData.planName}
+                        <br>
+                        <small style="color: #6c757d;">
+                            구독 ID: ${subscriptionData.subscriptionId}
+                            <br>
+                            최종 업데이트: ${new Date().toLocaleString()}
+                        </small>
+                    </div>
+                `;
+            }
+        }
+
+        // 플랜 제한 표시 업데이트
+        function updatePlanLimitsDisplay(subscriptionData) {
+            const limitsDiv = document.getElementById('planLimitsDisplay');
+            if (limitsDiv) {
+                limitsDiv.innerHTML = `
+                    <div class="plan-limits">
+                        <h4>📊 현재 플랜 제한</h4>
+                        <ul>
+                            <li>Custom API: ${subscriptionData.features?.maxCustomApiCount || 'N/A'}개</li>
+                            <li>공유 API: ${subscriptionData.features?.maxSharedApiCount || 'N/A'}개</li>
+                            <li>분당 요청: ${subscriptionData.features?.rateLimitPerMinute || 'N/A'}회</li>
+                            <li>시간당 요청: ${subscriptionData.features?.rateLimitPerHour || 'N/A'}회</li>
+                            <li>일일 요청: ${subscriptionData.features?.rateLimitPerDay || 'N/A'}회</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+
+        // 실시간 사용량 모니터링
+        async function startUsageMonitoring() {
+            setInterval(async () => {
+                try {
+                    const response = await fetch('/api/plan/usage-stats', {
+                        method: 'GET',
+                        headers: {
+                            'X-User-Id': subscriptionUserId
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        updateUsageDisplay(result.data);
+                    }
+                } catch (error) {
+                    console.error('사용량 모니터링 오류:', error);
+                }
+            }, 30000); // 30초마다 업데이트
+        }
+
+        // 사용량 표시 업데이트
+        function updateUsageDisplay(usageData) {
+            const usageDiv = document.getElementById('realTimeUsage');
+            if (usageDiv) {
+                usageDiv.innerHTML = `
+                    <div class="usage-stats">
+                        <h4>📈 실시간 사용량</h4>
+                        <div class="usage-grid">
+                            <div class="usage-item">
+                                <span class="usage-label">분간:</span>
+                                <span class="usage-value">${usageData.currentMinute}회</span>
+                            </div>
+                            <div class="usage-item">
+                                <span class="usage-label">시간:</span>
+                                <span class="usage-value">${usageData.currentHour}회</span>
+                            </div>
+                            <div class="usage-item">
+                                <span class="usage-label">일간:</span>
+                                <span class="usage-value">${usageData.currentDay}회</span>
+                            </div>
+                            <div class="usage-item">
+                                <span class="usage-label">월간:</span>
+                                <span class="usage-value">${usageData.currentMonth}회</span>
+                            </div>
+                        </div>
+                        <small>마지막 업데이트: ${new Date(usageData.timestamp).toLocaleTimeString()}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // 페이지 로드 시 결제 결과 처리 및 모니터링 시작
+        window.addEventListener('load', function() {
+            handlePaymentResult();
+            startUsageMonitoring();
         });
     </script>
 </body>

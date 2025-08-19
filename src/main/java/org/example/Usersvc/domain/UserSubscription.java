@@ -128,11 +128,15 @@ public class UserSubscription {
         this.planUpdateDate = planUpdateDate;
     }
 
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    /**
+     * Stripe 구독 ID 설정
+     */
     public void setStripeSubscriptionId(String stripeSubscriptionId) {
         this.stripeSubscriptionId = stripeSubscriptionId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
-    }
 }

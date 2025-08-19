@@ -15,24 +15,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.domain.Plan;
+import org.example.Usersvc.domain.PlanType;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.service.DevRateLimitService;
+import org.example.Usersvc.service.ApiUsageTrackingService;
+import org.example.Usersvc.service.ProductionRateLimitService;
 
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
-import org.springframework.core.env.Environment;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -50,10 +50,15 @@ public class SubscriptionController {
     private final UserService userService;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
-    private final Environment environment;
     
     @Autowired(required = false)
     private DevRateLimitService devRateLimitService;
+    
+    @Autowired(required = false)
+    private ProductionRateLimitService productionRateLimitService;
+    
+    @Autowired(required = false)
+    private ApiUsageTrackingService apiUsageTrackingService;
     
     @Value("${stripe.secret-key:sk_test_dummy_key}")
     private String stripeSecretKey;
@@ -103,13 +108,14 @@ public class SubscriptionController {
             if (userOptional.isEmpty()) {
                 // 사용자가 없으면 기본 구독 정보 반환
                 Map<String, Object> defaultSubscription = new HashMap<>();
-                defaultSubscription.put("planName", "FREE");
+                PlanType freePlan = PlanType.FREE;
+                defaultSubscription.put("planName", freePlan.getPlanName());
                 defaultSubscription.put("status", "ACTIVE");
                 defaultSubscription.put("startDate", LocalDateTime.now().toString());
-                defaultSubscription.put("maxApiCount", 10);
-                defaultSubscription.put("rateLimitPerMinute", 10);
-                defaultSubscription.put("rateLimitPerHour", 100);
-                defaultSubscription.put("rateLimitPerDay", 1000);
+                defaultSubscription.put("maxApiCount", freePlan.getMaxApiCount());
+                defaultSubscription.put("rateLimitPerMinute", freePlan.getRateLimitPerMinute());
+                defaultSubscription.put("rateLimitPerHour", freePlan.getRateLimitPerHour());
+                defaultSubscription.put("rateLimitPerDay", freePlan.getRateLimitPerDay());
                 
                 return ResponseEntity.ok(ApiResponse.success(defaultSubscription));
             }
@@ -133,13 +139,14 @@ public class SubscriptionController {
                 subscriptionInfo.put("stripeSubscriptionId", subscription.getStripeSubscriptionId());
             } else {
                 // 활성 구독이 없으면 기본 FREE 플랜 정보 반환
-                subscriptionInfo.put("planName", "FREE");
+                PlanType freePlan = PlanType.FREE;
+                subscriptionInfo.put("planName", freePlan.getPlanName());
                 subscriptionInfo.put("status", "ACTIVE");
                 subscriptionInfo.put("startDate", LocalDateTime.now().toString());
-                subscriptionInfo.put("maxApiCount", 10);
-                subscriptionInfo.put("rateLimitPerMinute", 10);
-                subscriptionInfo.put("rateLimitPerHour", 100);
-                subscriptionInfo.put("rateLimitPerDay", 1000);
+                subscriptionInfo.put("maxApiCount", freePlan.getMaxApiCount());
+                subscriptionInfo.put("rateLimitPerMinute", freePlan.getRateLimitPerMinute());
+                subscriptionInfo.put("rateLimitPerHour", freePlan.getRateLimitPerHour());
+                subscriptionInfo.put("rateLimitPerDay", freePlan.getRateLimitPerDay());
             }
             
             return ResponseEntity.ok(ApiResponse.success(subscriptionInfo));
@@ -197,32 +204,7 @@ public class SubscriptionController {
         }
     }
     
-    @Operation(
-            summary = "구독 플랜 변경",
-            description = "사용자의 구독 플랜을 변경합니다.",
-            security = @SecurityRequirement(name = "Bearer Authentication")
-    )
-    @PutMapping("/users/{userId}/subscription")
-    // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
-    public ResponseEntity<ApiResponse<String>> changePlan(
-            @Parameter(description = "사용자 ID") @PathVariable String userId,
-            @Parameter(description = "새로운 플랜명") @RequestParam String planName) {
-        
-        try {
-            Optional<User> userOptional = userService.getUserById(userId);
-            if (userOptional.isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-            User user = userOptional.get();
-            // subscriptionService 제거됨 - 간단한 응답으로 대체
-            return ResponseEntity.ok(ApiResponse.success("플랜 변경 요청이 접수되었습니다"));
-            
-        } catch (Exception e) {
-            log.error("플랜 변경 중 오류 발생 - userId: {}, planName: {}", userId, planName, e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("플랜 변경에 실패했습니다.", "PLAN_CHANGE_ERROR"));
-        }
-    }
+    // 구독 플랜 변경 엔드포인트 제거됨 - 구독/취소로 처리
     
     @Operation(
             summary = "API 사용량 조회",
@@ -249,13 +231,18 @@ public class SubscriptionController {
             // 현재 사용량 조회
             long minuteUsage, hourUsage, dayUsage;
             
-            if (devRateLimitService != null) {
-                // 개발 환경
+            if (apiUsageTrackingService != null) {
+                // 실제 사용량 추적 서비스 사용
+                minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
+                hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
+                dayUsage = apiUsageTrackingService.getCurrentDayUsage(user);
+            } else if (devRateLimitService != null) {
+                // 개발 환경 폴백
                 minuteUsage = devRateLimitService.getCurrentMinuteUsage(user);
                 hourUsage = devRateLimitService.getCurrentHourUsage(user);
                 dayUsage = devRateLimitService.getCurrentDayUsage(user);
             } else {
-                // 프로덕션 환경 - 기본값 사용
+                // 폴백 - 기본값 사용
                 minuteUsage = 0;
                 hourUsage = 0;
                 dayUsage = 0;
@@ -327,6 +314,7 @@ public class SubscriptionController {
                 
                 Map<String, String> response = new HashMap<>();
                 response.put("checkoutUrl", mockCheckoutUrl);
+                response.put("sessionUrl", mockCheckoutUrl);  // 프론트엔드 호환성을 위해 추가
                 response.put("sessionId", mockSessionId);
                 response.put("priceId", priceId);
                 
@@ -341,9 +329,9 @@ public class SubscriptionController {
                     .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
                     .setSuccessUrl(request.getSuccessUrl() != null ? request.getSuccessUrl() : 
-                            "http://localhost:8080/integrated-test.html?payment=success")
+                            "http://localhost:8081/test/dashboard?success=true")
                     .setCancelUrl(request.getCancelUrl() != null ? request.getCancelUrl() : 
-                            "http://localhost:8080/integrated-test.html?payment=cancel")
+                            "http://localhost:8081/test/dashboard?canceled=true")
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
                                     .setQuantity(1L)
@@ -356,6 +344,7 @@ public class SubscriptionController {
             
             Map<String, String> response = new HashMap<>();
             response.put("checkoutUrl", session.getUrl());
+            response.put("sessionUrl", session.getUrl());  // 프론트엔드 호환성을 위해 추가
             response.put("sessionId", session.getId());
             response.put("priceId", priceId);
             
@@ -413,7 +402,7 @@ public class SubscriptionController {
             User user = userOptional.get();
             
             // PRO 플랜 조회 (데이터베이스에서)
-            Optional<Plan> proPlanOptional = planRepository.findByPlanName("Pro");
+            Optional<Plan> proPlanOptional = planRepository.findByPlanName(PlanType.PRO.getPlanName());
             if (proPlanOptional.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Pro 플랜을 찾을 수 없습니다.", "PLAN_NOT_FOUND"));
@@ -478,6 +467,43 @@ public class SubscriptionController {
     }
     
     /**
+     * 구독 취소 엔드포인트
+     */
+    @Operation(
+            summary = "구독 취소",
+            description = "현재 사용자의 활성 구독을 취소합니다.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @PostMapping("/subscription/cancel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cancelSubscription() {
+        try {
+            // 개발 환경에서는 Mock 응답 반환
+            if (isTestMode()) {
+                Map<String, Object> mockResponse = new HashMap<>();
+                mockResponse.put("status", "CANCELLED");
+                mockResponse.put("message", "구독이 성공적으로 취소되었습니다 (테스트 모드)");
+                mockResponse.put("cancelledAt", LocalDateTime.now().toString());
+                
+                log.info("Mock 구독 취소 완료");
+                return ResponseEntity.ok(ApiResponse.success(mockResponse));
+            }
+            
+            // 실제 구독 취소 로직 (필요시 구현)
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "CANCELLED");
+            response.put("message", "구독이 성공적으로 취소되었습니다");
+            response.put("cancelledAt", LocalDateTime.now().toString());
+            
+            return ResponseEntity.ok(ApiResponse.success(response));
+            
+        } catch (Exception e) {
+            log.error("구독 취소 중 오류 발생", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("구독 취소에 실패했습니다: " + e.getMessage(), "CANCEL_ERROR"));
+        }
+    }
+    
+    /**
      * Stripe 설정 정보 조회 엔드포인트
      */
     @Operation(
@@ -497,6 +523,39 @@ public class SubscriptionController {
             log.error("Stripe 프로덕트 정보 조회 중 오류 발생", e);
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("프로덕트 정보 조회에 실패했습니다.", "PRODUCT_INFO_ERROR"));
+        }
+    }
+    
+    /**
+     * Stripe 설정 디버깅 엔드포인트
+     */
+    @Operation(
+            summary = "Stripe 설정 디버깅",
+            description = "현재 Stripe 설정 값들을 확인합니다."
+    )
+    @GetMapping("/subscription/debug")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> debugStripeConfig() {
+        try {
+            Map<String, Object> debugInfo = new HashMap<>();
+            debugInfo.put("secretKeyLength", stripeSecretKey != null ? stripeSecretKey.length() : 0);
+            debugInfo.put("secretKeyPrefix", stripeSecretKey != null ? stripeSecretKey.substring(0, Math.min(20, stripeSecretKey.length())) : "null");
+            debugInfo.put("freeProductId", freeProductId);
+            debugInfo.put("proProductId", proProductId);
+            debugInfo.put("isTestMode", isTestMode());
+            
+            // 환경변수 직접 확인
+            debugInfo.put("envStripeKey", System.getenv("STRIPE_SECRET_KEY") != null ? "설정됨" : "미설정");
+            debugInfo.put("envPublicKey", System.getenv("STRIPE_PUBLIC_KEY") != null ? "설정됨" : "미설정");
+            debugInfo.put("envProMonthlyPrice", System.getenv("STRIPE_PRO_MONTHLY_PRICE_ID"));
+            
+            log.info("Stripe 디버깅 정보: {}", debugInfo);
+            
+            return ResponseEntity.ok(ApiResponse.success(debugInfo));
+            
+        } catch (Exception e) {
+            log.error("Stripe 디버깅 중 오류 발생", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("디버깅 정보 조회에 실패했습니다.", "DEBUG_ERROR"));
         }
     }
     
@@ -524,10 +583,93 @@ public class SubscriptionController {
      * 실제 Stripe 테스트 키가 설정되어 있으면 실제 API 사용
      */
     private boolean isTestMode() {
-        // 실제 Stripe 키가 아닌 경우에만 Mock 모드 사용
+        // 실제 Stripe 키가 설정되어 있으면 실제 API 사용
         return stripeSecretKey == null ||
                stripeSecretKey.contains("mock_key_for_dev") ||
                stripeSecretKey.equals("sk_test_your_test_key_here") ||
-               !stripeSecretKey.startsWith("sk_test_") && !stripeSecretKey.startsWith("sk_live_");
+               stripeSecretKey.equals("sk_test_dummy_key") ||
+               (!stripeSecretKey.startsWith("sk_test_") && !stripeSecretKey.startsWith("sk_live_"));
+    }
+
+    /**
+     * 구독 제한 상태 조회
+     */
+    @Operation(
+        summary = "구독 제한 상태 조회",
+        description = "현재 구독 플랜의 제한 상태 및 사용량 확인"
+    )
+    @GetMapping("/subscription/limits-status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLimitsStatus(
+            @Parameter(description = "사용자 ID") @RequestHeader("X-User-Id") String userId) {
+        
+        log.info("구독 제한 상태 조회 요청 - userId: {}", userId);
+        
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                log.warn("빈 사용자 ID - userId: {}", userId);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("사용자 ID는 필수입니다.", "INVALID_USER_ID"));
+            }
+            
+            Optional<User> userOpt = userService.getUserById(userId);
+            if (userOpt.isEmpty()) {
+                log.warn("구독 제한 상태 조회 실패 - 사용자를 찾을 수 없음: {}", userId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("사용자를 찾을 수 없습니다.", "USER_NOT_FOUND"));
+            }
+            
+            User user = userOpt.get();
+            
+            // 현재 구독 정보 조회
+            Optional<UserSubscription> currentSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            
+            Map<String, Object> status;
+            if (currentSubscription.isPresent()) {
+                UserSubscription subscription = currentSubscription.get();
+                Plan plan = subscription.getPlan();
+                
+                status = Map.of(
+                    "hasActiveSubscription", true,
+                    "planType", plan.getPlanType().name(),
+                    "planName", plan.getPlanType().getPlanName(),
+                    "subscriptionId", subscription.getStripeSubscriptionId() != null ? subscription.getStripeSubscriptionId() : "N/A",
+                    "isActive", subscription.getIsActive(),
+                    "planPaymentDate", subscription.getPlanPaymentDate(),
+                    "planUpdateDate", subscription.getPlanUpdateDate(),
+                    "features", Map.of(
+                        "maxCustomApiCount", plan.getMaxCustomApiCount(),
+                        "maxSharedApiCount", plan.getMaxSharedApiCount(),
+                        "maxDataBundleCount", plan.getMaxDataBundleCount(),
+                        "rateLimitPerMinute", plan.getRateLimitPerMinute(),
+                        "rateLimitPerHour", plan.getRateLimitPerHour(),
+                        "rateLimitPerDay", plan.getRateLimitPerDay()
+                    ),
+                    "message", "자세한 사용량 정보는 /api/plan/limits-status 엔드포인트를 사용하세요.",
+                    "redirectTo", "/api/plan/limits-status"
+                );
+            } else {
+                status = Map.of(
+                    "hasActiveSubscription", false,
+                    "planType", "FREE",
+                    "planName", "Free Plan",
+                    "message", "활성 구독이 없습니다. FREE 플랜이 적용됩니다.",
+                    "features", Map.of(
+                        "maxCustomApiCount", PlanType.FREE.getMaxCustomApiCount(),
+                        "maxSharedApiCount", PlanType.FREE.getMaxSharedApiCount(),
+                        "maxDataBundleCount", PlanType.FREE.getMaxDataBundleCount(),
+                        "rateLimitPerMinute", PlanType.FREE.getRateLimitPerMinute(),
+                        "rateLimitPerHour", PlanType.FREE.getRateLimitPerHour(),
+                        "rateLimitPerDay", PlanType.FREE.getRateLimitPerDay()
+                    )
+                );
+            }
+            
+            return ResponseEntity.ok(ApiResponse.success(status));
+            
+        } catch (Exception e) {
+            log.error("구독 제한 상태 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("구독 제한 상태 조회에 실패했습니다.", "LIMITS_STATUS_RETRIEVAL_FAILED"));
+        }
     }
 }

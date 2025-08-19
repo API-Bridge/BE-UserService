@@ -10,13 +10,13 @@ USE userservice;
 -- 1. Plan 테이블 (구독 플랜)
 CREATE TABLE plan (
     plan_id INT AUTO_INCREMENT PRIMARY KEY,
-    plan_name VARCHAR(50) NOT NULL UNIQUE,
+    plan_type VARCHAR(20) NOT NULL UNIQUE,
     price DECIMAL(10, 2) NOT NULL,
     description TEXT,
     features JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_plan_name (plan_name)
+    INDEX idx_plan_type (plan_type)
 );
 
 -- 2. User 테이블 (사용자)
@@ -70,7 +70,7 @@ CREATE TABLE custom_api (
     INDEX idx_name (name)
 );
 
--- 6. Shared API 테이블
+-- 6. Shared API 테이블 
 CREATE TABLE shared_api (
     shared_api_id VARCHAR(36) PRIMARY KEY,
     original_api_id VARCHAR(36) NOT NULL,
@@ -127,9 +127,9 @@ CREATE TABLE api_usage_record (
 -- ================================
 
 -- 1. Plan 데이터
-INSERT INTO plan (plan_name, price, description, features) VALUES 
-('Free', 0.00, '무료 플랜', '["월 100회 API 호출", "기본 지원", "커뮤니티 액세스"]'),
-('Pro', 22.00, '프로 플랜', '["월 10,000회 API 호출", "우선 지원", "고급 분석", "API 키 관리"]');
+INSERT INTO plan (plan_type, price, description, features) VALUES 
+('FREE', 0.00, '무료 플랜', '["월 100회 API 호출", "기본 지원", "커뮤니티 액세스"]'),
+('PRO', 22.00, '프로 플랜', '["월 10,000회 API 호출", "우선 지원", "고급 분석", "API 키 관리"]');
 
 -- 2. User 데이터
 INSERT INTO `user` (user_id, auth0_id, user_email, created_at) VALUES 

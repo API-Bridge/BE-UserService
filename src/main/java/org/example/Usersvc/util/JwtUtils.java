@@ -34,6 +34,10 @@ public class JwtUtils {
         return getClaimFromJwt("name");
     }
 
+    public Optional<String> getCurrentAuth0Id() {
+        return getClaimFromJwt("sub");
+    }
+
     public Optional<String> getClaimFromJwt(String claim) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

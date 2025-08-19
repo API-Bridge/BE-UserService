@@ -7,6 +7,9 @@ import org.example.Usersvc.config.StripeProperties;
 import org.example.Usersvc.service.StripeCustomerService;
 import org.example.Usersvc.service.StripeSubscriptionService;
 import org.example.Usersvc.service.SharedApiService;
+import org.example.Usersvc.domain.CustomApi;
+import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.repository.CustomApiRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -30,6 +33,7 @@ public class UnifiedTestController {
     private final StripeCustomerService customerService;
     private final StripeSubscriptionService subscriptionService;
     private final SharedApiService sharedApiService;
+    private final CustomApiRepository customApiRepository;
 
     /**
      * 통합 테스트 메인 페이지
@@ -53,6 +57,15 @@ public class UnifiedTestController {
             log.error("대시보드 로딩 중 오류: {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * 공유 API 전용 테스트 페이지
+     */
+    @GetMapping("/shared-api")
+    public String sharedApiTestPage() {
+        log.info("공유 API 전용 테스트 페이지 접근 - URL: /test/shared-api");
+        return "shared-api-test";
     }
 
     // =============================================================================
@@ -269,7 +282,7 @@ public class UnifiedTestController {
     }
 
     /**
-     * API 공유하기 테스트
+     * API 공유하기 테스트 (실제 데이터베이스 연동)
      */
     @PostMapping("/api/share-api")
     @ResponseBody
@@ -277,30 +290,182 @@ public class UnifiedTestController {
         try {
             log.info("API 공유 테스트 요청: {}", request);
             
-            // 테스트 데이터로 API 공유
+            // 요청 데이터 추출
             String testUserId = request.getOrDefault("userId", "user-001").toString();
             String testApiId = request.getOrDefault("apiId", "api-test-001").toString();
             String testApiName = request.getOrDefault("apiName", "Test Shared API").toString();
             String testDescription = request.getOrDefault("description", "테스트용 공유 API").toString();
+            String planType = request.getOrDefault("planType", "PRO").toString();
             
-            // SharedApiService 메서드 호출
+            try {
+                // 실제 SharedApiService를 사용하여 API 공유
+                PlanType planTypeEnum = PlanType.fromString(planType);
+                var sharedApi = sharedApiService.shareApi(testUserId, testApiId, planTypeEnum, testApiName, testDescription);
+                
+                var result = Map.of(
+                    "success", true,
+                    "sharedApiId", sharedApi.getSharedApiId(),
+                    "message", "API가 데이터베이스에 성공적으로 공유되었습니다.",
+                    "data", Map.of(
+                        "sharedApiId", sharedApi.getSharedApiId(),
+                        "originalApiId", sharedApi.getOriginalApiId(),
+                        "creatorId", sharedApi.getCreatorId(),
+                        "apiName", sharedApi.getApiName(),
+                        "description", sharedApi.getDescription(),
+                        "isActive", sharedApi.isActive(),
+                        "createdAt", sharedApi.getCreatedAt().toString()
+                    )
+                );
+                
+                return ResponseEntity.ok(ApiResponse.success(result));
+                
+            } catch (IllegalArgumentException e) {
+                // 비즈니스 로직 오류 (이미 공유된 API 등)
+                log.warn("API 공유 비즈니스 로직 오류: {}", e.getMessage());
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("API 공유 실패: " + e.getMessage(), "BUSINESS_LOGIC_ERROR"));
+            }
+            
+        } catch (Exception e) {
+            log.error("API 공유 테스트 실패: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("API 공유 테스트 실패: " + e.getMessage(), "API_SHARE_TEST_FAILED"));
+        }
+    }
+
+    /**
+     * API 공유 취소 테스트 (실제 데이터베이스 연동)
+     */
+    @DeleteMapping("/api/unshare-api")
+    @ResponseBody
+    public ResponseEntity<ApiResponse<Object>> unshareApiTest(
+            @RequestParam String userId,
+            @RequestParam String customApiId) {
+        try {
+            log.info("API 공유 취소 테스트 요청 - userId: {}, customApiId: {}", userId, customApiId);
+            
+            // 실제 SharedApiService를 사용하여 API 공유 취소
+            sharedApiService.unshareApi(userId, customApiId);
+            
             var result = Map.of(
                 "success", true,
-                "sharedApiId", "shared-test-" + System.currentTimeMillis(),
-                "message", "API 공유가 완료되었습니다.",
+                "message", "API 공유가 데이터베이스에서 성공적으로 취소되었습니다.",
                 "data", Map.of(
-                    "userId", testUserId,
-                    "apiId", testApiId,
-                    "apiName", testApiName,
-                    "description", testDescription
+                    "userId", userId,
+                    "customApiId", customApiId,
+                    "action", "unshared"
                 )
             );
             
             return ResponseEntity.ok(ApiResponse.success(result));
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("API 공유 취소 비즈니스 로직 오류: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("API 공유 취소 실패: " + e.getMessage(), "BUSINESS_LOGIC_ERROR"));
         } catch (Exception e) {
-            log.error("API 공유 테스트 실패: {}", e.getMessage());
+            log.error("API 공유 취소 테스트 실패: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("API 공유 테스트 실패: " + e.getMessage(), "API_SHARE_TEST_FAILED"));
+                    .body(ApiResponse.error("API 공유 취소 테스트 실패: " + e.getMessage(), "API_UNSHARE_TEST_FAILED"));
+        }
+    }
+
+    /**
+     * 데이터베이스 공유 API 상태 확인 (디버깅용)
+     */
+    @GetMapping("/api/debug-shared-apis")
+    @ResponseBody
+    public ResponseEntity<ApiResponse<Object>> debugSharedApis() {
+        try {
+            // 모든 공유 API 조회 (활성/비활성 포함)
+            var allSharedApis = sharedApiService.getActiveSharedApis();
+            
+            var result = Map.of(
+                "success", true,
+                "message", "데이터베이스 공유 API 상태 조회 완료",
+                "data", Map.of(
+                    "totalCount", allSharedApis.size(),
+                    "apis", allSharedApis
+                )
+            );
+            
+            return ResponseEntity.ok(ApiResponse.success(result));
+            
+        } catch (Exception e) {
+            log.error("공유 API 디버깅 실패: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("공유 API 디버깅 실패: " + e.getMessage(), "DEBUG_FAILED"));
+        }
+    }
+
+    /**
+     * 완전한 API 공유 테스트 (CustomApi 생성 + 공유)
+     */
+    @PostMapping("/api/complete-share-test")
+    @ResponseBody
+    public ResponseEntity<ApiResponse<Object>> completeShareTest(@RequestBody Map<String, Object> request) {
+        try {
+            log.info("완전한 API 공유 테스트 요청: {}", request);
+            
+            // 요청 데이터 추출
+            String testUserId = request.getOrDefault("userId", "user-001").toString();
+            String testApiId = request.getOrDefault("apiId", "api-test-001").toString();
+            String testApiName = request.getOrDefault("apiName", "Test Shared API").toString();
+            String testDescription = request.getOrDefault("description", "테스트용 공유 API").toString();
+            String planType = request.getOrDefault("planType", "PRO").toString();
+            
+            // 1. CustomApi가 존재하는지 확인하고, 없으면 생성
+            var existingCustomApi = customApiRepository.findByCustomApiId(testApiId);
+            if (existingCustomApi.isEmpty()) {
+                log.info("CustomApi를 찾을 수 없어 새로 생성합니다 - apiId: {}", testApiId);
+                
+                CustomApi newCustomApi = CustomApi.builder()
+                        .customApiId(testApiId)
+                        .userId(testUserId)
+                        .name(testApiName)
+                        .description(testDescription)
+                        .build();
+                
+                customApiRepository.save(newCustomApi);
+                log.info("CustomApi 생성 완료 - apiId: {}", testApiId);
+            } else {
+                log.info("기존 CustomApi 발견 - apiId: {}", testApiId);
+            }
+            
+            // 2. API 공유
+            try {
+                PlanType planTypeEnum = PlanType.fromString(planType);
+                var sharedApi = sharedApiService.shareApi(testUserId, testApiId, planTypeEnum, testApiName, testDescription);
+                
+                var result = Map.of(
+                    "success", true,
+                    "message", "CustomApi 생성 및 공유가 데이터베이스에 성공적으로 완료되었습니다.",
+                    "data", Map.of(
+                        "customApiCreated", existingCustomApi.isEmpty(),
+                        "sharedApi", Map.of(
+                            "sharedApiId", sharedApi.getSharedApiId(),
+                            "originalApiId", sharedApi.getOriginalApiId(),
+                            "creatorId", sharedApi.getCreatorId(),
+                            "apiName", sharedApi.getApiName(),
+                            "description", sharedApi.getDescription(),
+                            "isActive", sharedApi.isActive(),
+                            "createdAt", sharedApi.getCreatedAt().toString()
+                        )
+                    )
+                );
+                
+                return ResponseEntity.ok(ApiResponse.success(result));
+                
+            } catch (IllegalArgumentException e) {
+                log.warn("API 공유 비즈니스 로직 오류: {}", e.getMessage());
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("API 공유 실패: " + e.getMessage(), "BUSINESS_LOGIC_ERROR"));
+            }
+            
+        } catch (Exception e) {
+            log.error("완전한 API 공유 테스트 실패: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("완전한 API 공유 테스트 실패: " + e.getMessage(), "COMPLETE_SHARE_TEST_FAILED"));
         }
     }
 }

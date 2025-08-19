@@ -73,10 +73,15 @@ public class DevSecurityConfig {
                 
                 // API 엔드포인트 허용
                 .requestMatchers("/api/subscription/checkout").permitAll()
+                .requestMatchers("/api/subscription/cancel").permitAll()
                 .requestMatchers("/api/subscription/products").permitAll()
+                .requestMatchers("/api/subscription/debug").permitAll()
                 .requestMatchers("/api/users/*/subscription").permitAll()
                 .requestMatchers("/api/webhooks/**").permitAll()
                 .requestMatchers("/webhook").permitAll()
+                
+                // 공유 API 엔드포인트 허용
+                .requestMatchers("/api/shared-apis/**").permitAll()
                 
                 // 개발 편의성: 테스트 엔드포인트 허용
                 .requestMatchers("/users/test-headers", "/users/me").permitAll()

@@ -2,7 +2,9 @@ package org.example.Usersvc.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.example.Usersvc.domain.PlanType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
@@ -33,7 +35,7 @@ public class SharedApiController {
     public ResponseEntity<ApiResponse<SharedApi>> shareApi(
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId,
-            @Parameter(description = "플랜 타입", required = true) @RequestParam String planType,
+            @Parameter(description = "플랜 타입", required = true, schema = @Schema(allowableValues = {"FREE", "PRO"})) @RequestParam PlanType planType,
             @Parameter(description = "공유할 API 이름") @RequestParam(required = false) String apiName,
             @Parameter(description = "공유할 API 설명") @RequestParam(required = false) String apiDescription) {
         
@@ -41,8 +43,18 @@ public class SharedApiController {
         return ResponseEntity.ok(ApiResponse.success(sharedApi));
     }
 
-    @DeleteMapping("/unshare")
+    @DeleteMapping("/unshare/{sharedApiId}")
     @Operation(summary = "API 공유 취소", description = "공유된 API를 취소합니다.")
+    public ResponseEntity<ApiResponse<Void>> unshareApiBySharedId(
+            @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
+            @Parameter(description = "공유 API ID", required = true) @PathVariable String sharedApiId) {
+        
+        sharedApiService.unshareApiBySharedId(userId, sharedApiId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @DeleteMapping("/unshare")
+    @Operation(summary = "API 공유 취소 (Custom API ID로)", description = "Custom API ID로 공유된 API를 취소합니다.")
     public ResponseEntity<ApiResponse<Void>> unshareApi(
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId) {

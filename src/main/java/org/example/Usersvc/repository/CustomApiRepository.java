@@ -21,4 +21,6 @@ public interface CustomApiRepository extends JpaRepository<CustomApi, String> {
     List<CustomApi> findByUserIdOrderByCreatedAtDesc(String userId);
 
     List<CustomApi> findByNameContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
+
+    long countByUserId(String userId);
 }

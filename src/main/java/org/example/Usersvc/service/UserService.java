@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
+import org.example.Usersvc.util.UserIdGenerator;
 
 /**
  * 사용자 관리 서비스
@@ -66,7 +66,7 @@ public class UserService {
         try {
             // 새 사용자 엔티티 생성
             User newUser = User.builder()
-                    .userId(UUID.randomUUID().toString())
+                    .userId(UserIdGenerator.generateUserId())
                     .auth0Id(auth0Id)
                     .userEmail(userEmail)
                     .createdAt(LocalDateTime.now())
@@ -323,6 +323,65 @@ public class UserService {
         if (auth0Id == null || auth0Id.trim().isEmpty()) {
             throw new IllegalArgumentException("Auth0 ID는 필수입니다.");
         }
+        
+        // Auth0 ID 형식 검증 - 다양한 OAuth 제공자 지원
+        if (!isValidAuth0IdFormat(auth0Id)) {
+            throw new IllegalArgumentException("올바른 Auth0 ID 형식이 아닙니다. 지원 형식: provider|identifier (예: google-oauth2|123456789)");
+        }
+    }
+    
+    /**
+     * Auth0 ID 형식 유효성 검증
+     * 다양한 OAuth 제공자의 Auth0 ID 형식을 지원합니다.
+     * 
+     * 지원 형식:
+     * - auth0|{identifier} (Auth0 네이티브 사용자)
+     * - google-oauth2|{identifier} (구글 OAuth)
+     * - github|{identifier} (깃허브 OAuth)
+     * - facebook|{identifier} (페이스북 OAuth)
+     * - twitter|{identifier} (트위터 OAuth)
+     * - linkedin|{identifier} (링크드인 OAuth)
+     * - apple|{identifier} (애플 OAuth)
+     * - microsoft|{identifier} (마이크로소프트 OAuth)
+     * 
+     * @param auth0Id 검증할 Auth0 ID
+     * @return 유효한 형식이면 true, 그렇지 않으면 false
+     */
+    private boolean isValidAuth0IdFormat(String auth0Id) {
+        if (auth0Id == null || auth0Id.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Auth0 ID는 "provider|identifier" 형식이어야 함
+        if (!auth0Id.contains("|")) {
+            return false;
+        }
+        
+        String[] parts = auth0Id.split("\\|", 2);
+        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            return false;
+        }
+        
+        String provider = parts[0].toLowerCase();
+        String identifier = parts[1];
+        
+        // 지원하는 OAuth 제공자 목록
+        boolean isValidProvider = provider.equals("auth0") ||
+                                provider.equals("google-oauth2") ||
+                                provider.equals("github") ||
+                                provider.equals("facebook") ||
+                                provider.equals("twitter") ||
+                                provider.equals("linkedin") ||
+                                provider.equals("apple") ||
+                                provider.equals("microsoft") ||
+                                provider.equals("windowslive") ||
+                                provider.equals("oauth2");
+        
+        // 기본 형식 검증: identifier는 최소 1자 이상이어야 함
+        boolean isValidIdentifier = identifier.length() >= 1 && 
+                                  identifier.matches("^[a-zA-Z0-9._-]+$");
+        
+        return isValidProvider && isValidIdentifier;
     }
     
     /**

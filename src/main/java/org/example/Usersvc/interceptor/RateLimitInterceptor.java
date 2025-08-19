@@ -10,6 +10,7 @@ import org.example.Usersvc.common.error.ErrorCode;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.DevRateLimitService;
+import org.example.Usersvc.service.ProductionRateLimitService;
 import org.example.Usersvc.service.UserService;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     // 개발 환경용 Rate Limit 서비스 (optional)
     @Autowired(required = false)
     private DevRateLimitService devRateLimitService;
+    
+    // 프로덕션 환경용 Rate Limit 서비스 (optional)
+    @Autowired(required = false)
+    private ProductionRateLimitService productionRateLimitService;
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -79,18 +84,21 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      */
     private boolean checkRateLimit(User user) {
         try {
-            // 개발 환경에서는 DevRateLimitService 사용
+            // 프로덕션 환경 - ProductionRateLimitService 우선 사용
+            if (productionRateLimitService != null) {
+                return productionRateLimitService.isAllowed(user);
+            }
+            
+            // 개발 환경 - DevRateLimitService 사용
             if (devRateLimitService != null) {
                 return devRateLimitService.isAllowedPerMinute(user) &&
                        devRateLimitService.isAllowedPerHour(user) &&
                        devRateLimitService.isAllowedPerDay(user);
             }
             
-            // 프로덕션 환경에서는 RateLimitService 사용
-            return devRateLimitService != null ? 
-                   devRateLimitService.isAllowedPerMinute(user) &&
-                   devRateLimitService.isAllowedPerHour(user) &&
-                   devRateLimitService.isAllowedPerDay(user) : true;
+            // 폴백 - 서비스가 없으면 허용
+            log.debug("Rate limiting service not available - allowing request for user: {}", user.getUserId());
+            return true;
                    
         } catch (Exception e) {
             log.error("Error checking rate limit for user: {}", user.getUserId(), e);

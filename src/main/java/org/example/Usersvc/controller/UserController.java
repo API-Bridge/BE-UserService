@@ -73,7 +73,7 @@ public class UserController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = ApiResponse.class),
                             examples = @ExampleObject(
-                                    value = "{\"success\":true,\"message\":\"요청이 성공적으로 처리되었습니다.\",\"data\":{\"userId\":\"123e4567-e89b-12d3-a456-426614174000\",\"auth0Id\":\"auth0|12345\",\"userEmail\":\"user@example.com\",\"createdAt\":\"2024-01-01T10:00:00\"}}"
+                                    value = "{\"success\":true,\"message\":\"요청이 성공적으로 처리되었습니다.\",\"data\":{\"userId\":\"123e4567-e89b-12d3-a456-426614174000\",\"auth0Id\":\"google-oauth2|117885903921309558140\",\"userEmail\":\"user@example.com\",\"createdAt\":\"2024-01-01T10:00:00\"}}"
                             )
                     )
             ),
@@ -362,6 +362,49 @@ public class UserController {
                     .body(ApiResponse.error("INTERNAL_ERROR", "키 목록 조회에 실패했습니다."));
         }
     }
+
+    /**
+     * 플랜별 기능 조회
+     */
+    @Operation(
+        summary = "플랜 기능 조회",
+        description = "사용자의 현재 플랜에서 사용 가능한 기능 목록 조회"
+    )
+    @GetMapping("/users/plan-features")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPlanFeatures(
+            @Parameter(description = "사용자 ID") @RequestHeader("X-User-Id") String userId) {
+        
+        log.debug("플랜 기능 조회 요청 - userId: {}", userId);
+        
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                log.warn("빈 사용자 ID - userId: {}", userId);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
+            }
+            
+            Optional<User> userOpt = userService.getUserById(userId);
+            if (userOpt.isEmpty()) {
+                log.warn("플랜 기능 조회 실패 - 사용자를 찾을 수 없음: {}", userId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+            }
+            
+            // PlanController를 통해 기능 정보 조회 (실제로는 서비스 레이어 호출)
+            Map<String, Object> features = Map.of(
+                "message", "플랜 기능 정보는 /api/plan/features 엔드포인트를 사용하세요.",
+                "redirectTo", "/api/plan/features"
+            );
+            
+            log.debug("플랜 기능 조회 완료 - userId: {}", userId);
+            return ResponseEntity.ok(ApiResponse.success(features));
+            
+        } catch (Exception e) {
+            log.error("플랜 기능 조회 중 오류 발생 - userId: {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("INTERNAL_ERROR", "플랜 기능 조회에 실패했습니다."));
+        }
+    }
     
     // 사용자 생성 요청 유효성 검증
     // Auth0 ID와 이메일 형식을 검증합니다.
@@ -378,7 +421,8 @@ public class UserController {
             throw new IllegalArgumentException("올바른 이메일 형식이 아닙니다.");
         }
         
-        if (!request.auth0Id().startsWith("auth0|")) {
+        // Auth0 ID 형식 검증 - 다양한 OAuth 제공자 지원
+        if (!isValidAuth0IdFormat(request.auth0Id())) {
             throw new IllegalArgumentException("올바른 Auth0 ID 형식이 아닙니다.");
         }
     }
@@ -407,12 +451,59 @@ public class UserController {
     
     // UUID 형식 유효성 검증 메서드
 
+    // Auth0 ID 형식 유효성 검증 메서드
+    // 다양한 OAuth 제공자의 Auth0 ID 형식을 지원합니다.
+    // 지원 형식:
+    // - auth0|{identifier} (Auth0 네이티브 사용자)
+    // - google-oauth2|{identifier} (구글 OAuth)
+    // - github|{identifier} (깃허브 OAuth)
+    // - facebook|{identifier} (페이스북 OAuth)
+    // - twitter|{identifier} (트위터 OAuth)
+    // - linkedin|{identifier} (링크드인 OAuth)
+    // - apple|{identifier} (애플 OAuth)
+    // - microsoft|{identifier} (마이크로소프트 OAuth)
+    private boolean isValidAuth0IdFormat(String auth0Id) {
+        if (auth0Id == null || auth0Id.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Auth0 ID는 "provider|identifier" 형식이어야 함
+        if (!auth0Id.contains("|")) {
+            return false;
+        }
+        
+        String[] parts = auth0Id.split("\\|", 2);
+        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            return false;
+        }
+        
+        String provider = parts[0].toLowerCase();
+        String identifier = parts[1];
+        
+        // 지원하는 OAuth 제공자 목록
+        boolean isValidProvider = provider.equals("auth0") ||
+                                provider.equals("google-oauth2") ||
+                                provider.equals("github") ||
+                                provider.equals("facebook") ||
+                                provider.equals("twitter") ||
+                                provider.equals("linkedin") ||
+                                provider.equals("apple") ||
+                                provider.equals("microsoft") ||
+                                provider.equals("windowslive") ||
+                                provider.equals("oauth2");
+        
+        // 기본 형식 검증: identifier는 최소 1자 이상이어야 함
+        boolean isValidIdentifier = identifier.length() >= 1 && 
+                                  identifier.matches("^[a-zA-Z0-9._-]+$");
+        
+        return isValidProvider && isValidIdentifier;
+    }
     
     // 사용자 생성 요청 DTO
     // Auth0에서 받은 사용자 정보를 담는 요청 객체입니다.
     @Schema(description = "사용자 생성 요청")
     public record CreateUserRequest(
-            @Schema(description = "Auth0 사용자 ID", example = "auth0|12345", required = true)
+            @Schema(description = "Auth0 사용자 ID (다양한 OAuth 제공자 지원)", example = "google-oauth2|117885903921309558140", required = true)
             @NotBlank(message = "Auth0 ID는 필수입니다")
             String auth0Id,
             
