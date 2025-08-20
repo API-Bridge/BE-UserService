@@ -14,8 +14,18 @@ import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSecretsArn;
 import org.example.Usersvc.dto.UserInfoResponse;
 import org.example.Usersvc.common.response.ApiResponse;
+import org.example.Usersvc.common.util.ValidationUtils;
+import org.example.Usersvc.common.util.ValidationConstants;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.UserSecretsArnService;
+import org.example.Usersvc.common.logging.UserActionLogger;
+import org.example.Usersvc.common.logging.SecurityAuditLogger;
+import org.example.Usersvc.common.metrics.CustomMetrics;
+import org.example.Usersvc.repository.UserSubscriptionRepository;
+import org.example.Usersvc.repository.PlanRepository;
+import org.example.Usersvc.domain.UserSubscription;
+import org.example.Usersvc.domain.Plan;
+import org.example.Usersvc.domain.PlanType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -54,6 +64,11 @@ public class UserController {
 
     private final UserService userService;
     private final UserSecretsArnService userSecretsArnService;
+    private final UserActionLogger userActionLogger;
+    private final SecurityAuditLogger securityAuditLogger;
+    private final CustomMetrics customMetrics;
+    private final UserSubscriptionRepository userSubscriptionRepository;
+    private final PlanRepository planRepository;
 
     // 사용자 생성 엔드포인트
     // Auth0에서 받은 사용자 정보를 기반으로 새로운 사용자를 시스템에 등록합니다.
@@ -173,12 +188,13 @@ public class UserController {
         log.debug("사용자 조회 요청 - userId: {}", userId);
         
         try {
-            // 기본적인 사용자 ID 유효성 검사 (null, empty 체크)
-            if (userId == null || userId.trim().isEmpty()) {
-                log.warn("빈 사용자 ID - userId: {}", userId);
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
+            // 사용자 ID 유효성 검사 (ValidationUtils 사용)
+            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            if (validationError != null) {
+                return ResponseEntity.status(validationError.getStatusCode())
+                        .body(ApiResponse.error(validationError.getBody().getMessage(), validationError.getBody().getErrorCode()));
             }
+            
             Optional<User> user = userService.getUserById(userId);
             
             if (user.isEmpty()) {
@@ -216,16 +232,29 @@ public class UserController {
             @Parameter(description = "개인 키 등록 요청 정보") @Valid @RequestBody RegisterSecretRequest request) {
         log.info("개인 키 등록 요청 - userId: {}, secretName: {}", userId, request.secretName());
         
+        // API 키 등록 시간 측정 시작
+        var registrationTimer = customMetrics.startApiKeyRegistrationTimer();
+        
         try {
-            // 기본적인 사용자 ID 유효성 검사 (null, empty 체크)
-            if (userId == null || userId.trim().isEmpty()) {
-                log.warn("빈 사용자 ID - userId: {}", userId);
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
+            // 사용자 ID 유효성 검사 (ValidationUtils 사용)
+            ResponseEntity<ApiResponse<Void>> userIdValidationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            if (userIdValidationError != null) {
+                return ResponseEntity.status(userIdValidationError.getStatusCode())
+                        .body(ApiResponse.error(userIdValidationError.getBody().getMessage(), userIdValidationError.getBody().getErrorCode()));
             }
             
-            // 입력 데이터 검증
-            validateRegisterSecretRequest(request);
+            // 입력 데이터 검증 (ValidationUtils 사용)
+            ResponseEntity<ApiResponse<Void>> secretNameValidationError = ValidationUtils.validateSecretNameAndReturnError(request.secretName());
+            if (secretNameValidationError != null) {
+                return ResponseEntity.status(secretNameValidationError.getStatusCode())
+                        .body(ApiResponse.error(secretNameValidationError.getBody().getMessage(), secretNameValidationError.getBody().getErrorCode()));
+            }
+            
+            ResponseEntity<ApiResponse<Void>> secretValueValidationError = ValidationUtils.validateSecretValueAndReturnError(request.secretValue());
+            if (secretValueValidationError != null) {
+                return ResponseEntity.status(secretValueValidationError.getStatusCode())
+                        .body(ApiResponse.error(secretValueValidationError.getBody().getMessage(), secretValueValidationError.getBody().getErrorCode()));
+            }
             
             // 사용자 존재 여부 확인
             if (!userService.getUserById(userId).isPresent()) {
@@ -238,18 +267,41 @@ public class UserController {
             UserSecretsArn registeredArn = userSecretsArnService.storeUserSecret(
                     userId, request.secretName(), request.secretValue(), request.description());
             
+            // 메트릭 기록
+            customMetrics.incrementApiKeyRegistered();
+            customMetrics.recordApiKeyRegistrationTime(registrationTimer);
+            
+            // 사용자 액션 로깅
+            userActionLogger.logApiKeyRegistration(userId, request.secretName(), true);
+            
             log.info("개인 키 등록 성공 - userId: {}, arnId: {}", userId, registeredArn.getArnId());
             
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success(registeredArn));
                     
         } catch (IllegalArgumentException e) {
+            // 실패한 경우에도 시간 측정 종료
+            customMetrics.recordApiKeyRegistrationTime(registrationTimer);
+            
             log.warn("키 등록 실패 - 잘못된 요청: {}", e.getMessage());
+            
+            // 보안 로그
+            securityAuditLogger.logApiKeyRegistrationFailure(userId, request.secretName(), 
+                ValidationUtils.getCurrentIpAddress(), "INVALID_REQUEST: " + e.getMessage());
+            
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("INVALID_REQUEST", e.getMessage()));
                     
         } catch (Exception e) {
+            // 실패한 경우에도 시간 측정 종료
+            customMetrics.recordApiKeyRegistrationTime(registrationTimer);
+            
             log.error("개인 키 등록 중 오류 발생 - userId: {}", userId, e);
+            
+            // 보안 로그
+            securityAuditLogger.logApiKeyRegistrationFailure(userId, request.secretName(), 
+                ValidationUtils.getCurrentIpAddress(), "INTERNAL_ERROR: " + e.getMessage());
+            
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("INTERNAL_ERROR", "개인 키 등록에 실패했습니다."));
         }
@@ -274,11 +326,11 @@ public class UserController {
         log.info("개인 키 조회 요청 - userId: {}, arnId: {}", userId, arnId);
         
         try {
-            // 기본적인 사용자 ID 유효성 검사 (null, empty 체크)
-            if (userId == null || userId.trim().isEmpty()) {
-                log.warn("빈 사용자 ID - userId: {}", userId);
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
+            // 사용자 ID 유효성 검사 (ValidationUtils 사용)
+            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            if (validationError != null) {
+                return ResponseEntity.status(validationError.getStatusCode())
+                        .body(ApiResponse.error(validationError.getBody().getMessage(), validationError.getBody().getErrorCode()));
             }
             
             // ARN 정보 조회
@@ -336,11 +388,11 @@ public class UserController {
         log.debug("사용자 키 목록 조회 요청 - userId: {}", userId);
         
         try {
-            // 기본적인 사용자 ID 유효성 검사 (null, empty 체크)
-            if (userId == null || userId.trim().isEmpty()) {
-                log.warn("빈 사용자 ID - userId: {}", userId);
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
+            // 사용자 ID 유효성 검사 (ValidationUtils 사용)
+            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            if (validationError != null) {
+                return ResponseEntity.status(validationError.getStatusCode())
+                        .body(ApiResponse.error(validationError.getBody().getMessage(), validationError.getBody().getErrorCode()));
             }
             
             // 사용자 존재 여부 확인
@@ -391,13 +443,51 @@ public class UserController {
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
             }
             
-            // PlanController를 통해 기능 정보 조회 (실제로는 서비스 레이어 호출)
-            Map<String, Object> features = Map.of(
-                "message", "플랜 기능 정보는 /api/plan/features 엔드포인트를 사용하세요.",
-                "redirectTo", "/api/plan/features"
-            );
+            User user = userOpt.get();
             
-            log.debug("플랜 기능 조회 완료 - userId: {}", userId);
+            // 현재 구독 정보 조회
+            Optional<UserSubscription> currentSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            
+            Map<String, Object> features;
+            if (currentSubscription.isPresent()) {
+                Plan plan = currentSubscription.get().getPlan();
+                features = Map.of(
+                    "planType", plan.getPlanType().name(),
+                    "planName", plan.getPlanName(),
+                    "price", plan.getPrice(),
+                    "description", plan.getDescription() != null ? plan.getDescription() : "",
+                    "features", Map.of(
+                        "maxApiCount", plan.getMaxApiCount(),
+                        "maxCustomApiCount", plan.getMaxCustomApiCount(),
+                        "maxSharedApiCount", plan.getMaxSharedApiCount(),
+                        "maxDataBundleCount", plan.getMaxDataBundleCount(),
+                        "rateLimitPerMinute", plan.getRateLimitPerMinute(),
+                        "rateLimitPerHour", plan.getRateLimitPerHour(),
+                        "rateLimitPerDay", plan.getRateLimitPerDay()
+                    )
+                );
+            } else {
+                // 활성 구독이 없으면 FREE 플랜 기능 표시
+                PlanType freePlan = PlanType.FREE;
+                features = Map.of(
+                    "planType", freePlan.name(),
+                    "planName", freePlan.getPlanName(),
+                    "price", freePlan.getPrice(),
+                    "description", "기본 무료 플랜",
+                    "features", Map.of(
+                        "maxApiCount", freePlan.getMaxApiCount(),
+                        "maxCustomApiCount", freePlan.getMaxCustomApiCount(),
+                        "maxSharedApiCount", freePlan.getMaxSharedApiCount(),
+                        "maxDataBundleCount", freePlan.getMaxDataBundleCount(),
+                        "rateLimitPerMinute", freePlan.getRateLimitPerMinute(),
+                        "rateLimitPerHour", freePlan.getRateLimitPerHour(),
+                        "rateLimitPerDay", freePlan.getRateLimitPerDay()
+                    )
+                );
+            }
+            
+            log.debug("플랜 기능 조회 완료 - userId: {}, planType: {}", userId, 
+                     currentSubscription.isPresent() ? currentSubscription.get().getPlan().getPlanType() : "FREE");
             return ResponseEntity.ok(ApiResponse.success(features));
             
         } catch (Exception e) {
@@ -522,98 +612,25 @@ public class UserController {
         }
     }
     
-    // 사용자 생성 요청 유효성 검증
-    // Auth0 ID와 이메일 형식을 검증합니다.
+    // 사용자 생성 요청 유효성 검증 (ValidationUtils 사용)
     private void validateCreateUserRequest(CreateUserRequest request) {
-        if (request.auth0Id() == null || request.auth0Id().trim().isEmpty()) {
-            throw new IllegalArgumentException("Auth0 ID는 필수입니다.");
+        if (!ValidationUtils.isValidAuth0IdFormat(request.auth0Id())) {
+            throw new IllegalArgumentException(ValidationConstants.AUTH0_ID_INVALID_FORMAT_MESSAGE);
         }
         
-        if (request.userEmail() == null || request.userEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("이메일은 필수입니다.");
-        }
-        
-        if (!request.userEmail().contains("@")) {
-            throw new IllegalArgumentException("올바른 이메일 형식이 아닙니다.");
-        }
-        
-        // Auth0 ID 형식 검증 - 다양한 OAuth 제공자 지원
-        if (!isValidAuth0IdFormat(request.auth0Id())) {
-            throw new IllegalArgumentException("올바른 Auth0 ID 형식이 아닙니다.");
+        if (!ValidationUtils.isValidEmail(request.userEmail())) {
+            throw new IllegalArgumentException(ValidationConstants.EMAIL_INVALID_FORMAT_MESSAGE);
         }
     }
     
-    // 키 등록 요청 유효성 검증
-    // 시크릿 이름, 값, 설명의 유효성을 검증합니다.
+    // 키 등록 요청 유효성 검증 (더 이상 사용되지 않음 - ValidationUtils 사용)
+    @Deprecated
     private void validateRegisterSecretRequest(RegisterSecretRequest request) {
-        if (request.secretName() == null || request.secretName().trim().isEmpty()) {
-            throw new IllegalArgumentException("시크릿 이름은 필수입니다.");
-        }
-        
-        if (request.secretValue() == null || request.secretValue().trim().isEmpty()) {
-            throw new IllegalArgumentException("시크릿 값은 필수입니다.");
-        }
-        
-        // 시크릿 이름 길이 제한 (AWS Secrets Manager 제한 고려)
-        if (request.secretName().length() > 512) {
-            throw new IllegalArgumentException("시크릿 이름이 너무 깁니다. (최대 512자)");
-        }
-        
-        // 시크릿 값 길이 제한 (AWS Secrets Manager 제한 고려)
-        if (request.secretValue().length() > 65536) {
-            throw new IllegalArgumentException("시크릿 값이 너무 큽니다. (최대 65KB)");
-        }
+        // ValidationUtils에서 개별 검증으로 대체됨
+        // 이 메서드는 하위 호환성을 위해 유지되지만 실제 검증은 컨트롤러 메서드에서 직접 수행됨
     }
     
-    // UUID 형식 유효성 검증 메서드
-
-    // Auth0 ID 형식 유효성 검증 메서드
-    // 다양한 OAuth 제공자의 Auth0 ID 형식을 지원합니다.
-    // 지원 형식:
-    // - auth0|{identifier} (Auth0 네이티브 사용자)
-    // - google-oauth2|{identifier} (구글 OAuth)
-    // - github|{identifier} (깃허브 OAuth)
-    // - facebook|{identifier} (페이스북 OAuth)
-    // - twitter|{identifier} (트위터 OAuth)
-    // - linkedin|{identifier} (링크드인 OAuth)
-    // - apple|{identifier} (애플 OAuth)
-    // - microsoft|{identifier} (마이크로소프트 OAuth)
-    private boolean isValidAuth0IdFormat(String auth0Id) {
-        if (auth0Id == null || auth0Id.trim().isEmpty()) {
-            return false;
-        }
-        
-        // Auth0 ID는 "provider|identifier" 형식이어야 함
-        if (!auth0Id.contains("|")) {
-            return false;
-        }
-        
-        String[] parts = auth0Id.split("\\|", 2);
-        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
-            return false;
-        }
-        
-        String provider = parts[0].toLowerCase();
-        String identifier = parts[1];
-        
-        // 지원하는 OAuth 제공자 목록
-        boolean isValidProvider = provider.equals("auth0") ||
-                                provider.equals("google-oauth2") ||
-                                provider.equals("github") ||
-                                provider.equals("facebook") ||
-                                provider.equals("twitter") ||
-                                provider.equals("linkedin") ||
-                                provider.equals("apple") ||
-                                provider.equals("microsoft") ||
-                                provider.equals("windowslive") ||
-                                provider.equals("oauth2");
-        
-        // 기본 형식 검증: identifier는 최소 1자 이상이어야 함
-        boolean isValidIdentifier = identifier.length() >= 1 && 
-                                  identifier.matches("^[a-zA-Z0-9._-]+$");
-        
-        return isValidProvider && isValidIdentifier;
-    }
+    // 검증 메서드들은 ValidationUtils로 이동됨
     
     // 사용자 생성 요청 DTO
     // Auth0에서 받은 사용자 정보를 담는 요청 객체입니다.

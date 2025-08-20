@@ -24,7 +24,6 @@ public class StripeProperties {
     @Data
     public static class Prices {
         private String proMonthly;
-        private String proYearly;
     }
 
     public String getPlanTypeByPriceId(String priceId) {
@@ -32,7 +31,7 @@ public class StripeProperties {
             return "FREE";
         }
 
-        if (priceId.equals(prices.getProMonthly()) || priceId.equals(prices.getProYearly())) {
+        if (priceId.equals(prices.getProMonthly())) {
             return "PRO";
         }
 
@@ -40,14 +39,7 @@ public class StripeProperties {
     }
 
     public String getBillingPeriodByPriceId(String priceId) {
-        if (priceId == null) {
-            return "MONTHLY";
-        }
-
-        if (priceId.equals(prices.getProYearly())) {
-            return "YEARLY";
-        }
-
+        // 현재는 Monthly만 지원
         return "MONTHLY";
     }
 
@@ -70,12 +62,4 @@ public class StripeProperties {
         }
     }
 
-    public String getYearlyPriceIdByPlanType(String planType) {
-        switch (planType.toUpperCase()) {
-            case "PRO":
-                return prices.getProYearly();
-            default:
-                return null;
-        }
-    }
 }

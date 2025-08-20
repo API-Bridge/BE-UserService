@@ -3,8 +3,16 @@ package org.example.Usersvc.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSecretsArn;
+import org.example.Usersvc.domain.UserSubscription;
+import org.example.Usersvc.domain.Plan;
+import org.example.Usersvc.domain.PlanType;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.UserSecretsArnService;
+import org.example.Usersvc.repository.UserSubscriptionRepository;
+import org.example.Usersvc.repository.PlanRepository;
+import org.example.Usersvc.common.logging.UserActionLogger;
+import org.example.Usersvc.common.logging.SecurityAuditLogger;
+import org.example.Usersvc.common.metrics.CustomMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,10 +64,27 @@ class UserControllerTest {
 
     @MockBean
     private UserSecretsArnService userSecretsArnService;
+    
+    @MockBean
+    private UserSubscriptionRepository userSubscriptionRepository;
+    
+    @MockBean
+    private PlanRepository planRepository;
+    
+    @MockBean
+    private UserActionLogger userActionLogger;
+    
+    @MockBean
+    private SecurityAuditLogger securityAuditLogger;
+    
+    @MockBean
+    private CustomMetrics customMetrics;
 
     private User testUser;
     private UserSecretsArn testUserSecretsArn;
     private String testUserId;
+    private Plan testPlan;
+    private UserSubscription testSubscription;
 
     // 각 테스트 메서드 실행 전 테스트 데이터 초기화
     // 테스트에 필요한 공통 데이터를 설정하여 일관된 테스트 환경을 제공합니다.
@@ -81,6 +106,21 @@ class UserControllerTest {
                 .arnDescription("Test encryption key")
                 .createdAt(LocalDateTime.now())
                 .build();
+
+        testPlan = Plan.builder()
+                .planType(PlanType.PRO)
+                .price(java.math.BigDecimal.valueOf(22.00))
+                .description("Pro plan for testing")
+                .features("{\"maxApiCount\":10000}")
+                .build();
+                
+        testSubscription = UserSubscription.builder()
+                .subscriptionId(UUID.randomUUID().toString())
+                .user(testUser)
+                .plan(testPlan)
+                .planPaymentDate(LocalDateTime.now())
+                .build();
+        testSubscription.setIsActive(true);
     }
 
     // 사용자 생성 API 성공 테스트
@@ -355,5 +395,92 @@ class UserControllerTest {
         mockMvc.perform(get("/api/users/{userId}", invalidUserId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    // 플랜 기능 조회 API 성공 테스트 - Pro 플랜
+    @Test
+    @DisplayName("GET /api/users/plan-features - Pro 플랜 기능 조회 성공")
+    @WithMockUser
+    void getPlanFeatures_ProPlan_Success() throws Exception {
+        // given: Pro 플랜을 사용하는 사용자
+        when(userService.getUserById(testUserId)).thenReturn(Optional.of(testUser));
+        when(userSubscriptionRepository.findActiveSubscriptionByUser(testUser))
+                .thenReturn(Optional.of(testSubscription));
+
+        // when & then: 플랜 기능 조회 API 호출 및 검증
+        mockMvc.perform(get("/api/users/plan-features")
+                        .header("X-User-Id", testUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.planType").value("PRO"))
+                .andExpect(jsonPath("$.data.planName").value("Pro"))
+                .andExpect(jsonPath("$.data.price").exists())
+                .andExpect(jsonPath("$.data.features.maxCustomApiCount").exists())
+                .andExpect(jsonPath("$.data.features.maxSharedApiCount").exists())
+                .andExpect(jsonPath("$.data.features.rateLimitPerMinute").exists());
+
+        verify(userService).getUserById(testUserId);
+        verify(userSubscriptionRepository).findActiveSubscriptionByUser(testUser);
+    }
+
+    // 플랜 기능 조회 API 성공 테스트 - Free 플랜 (구독 없음)
+    @Test
+    @DisplayName("GET /api/users/plan-features - Free 플랜 기능 조회 성공")
+    @WithMockUser
+    void getPlanFeatures_FreePlan_Success() throws Exception {
+        // given: 활성 구독이 없는 사용자 (Free 플랜)
+        when(userService.getUserById(testUserId)).thenReturn(Optional.of(testUser));
+        when(userSubscriptionRepository.findActiveSubscriptionByUser(testUser))
+                .thenReturn(Optional.empty());
+
+        // when & then: 플랜 기능 조회 API 호출 및 검증
+        mockMvc.perform(get("/api/users/plan-features")
+                        .header("X-User-Id", testUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.planType").value("FREE"))
+                .andExpect(jsonPath("$.data.planName").value("Free"))
+                .andExpect(jsonPath("$.data.price").value(0.0))
+                .andExpect(jsonPath("$.data.description").value("기본 무료 플랜"))
+                .andExpect(jsonPath("$.data.features.maxCustomApiCount").exists())
+                .andExpect(jsonPath("$.data.features.maxSharedApiCount").exists())
+                .andExpect(jsonPath("$.data.features.rateLimitPerMinute").exists());
+
+        verify(userService).getUserById(testUserId);
+        verify(userSubscriptionRepository).findActiveSubscriptionByUser(testUser);
+    }
+
+    // 플랜 기능 조회 API 실패 테스트 - 사용자 없음
+    @Test
+    @DisplayName("GET /api/users/plan-features - 사용자 없음으로 조회 실패")
+    @WithMockUser
+    void getPlanFeatures_UserNotFound() throws Exception {
+        // given: 사용자가 존재하지 않음
+        when(userService.getUserById(testUserId)).thenReturn(Optional.empty());
+
+        // when & then: 404 Not Found 응답 검증
+        mockMvc.perform(get("/api/users/plan-features")
+                        .header("X-User-Id", testUserId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("USER_NOT_FOUND"));
+
+        verify(userService).getUserById(testUserId);
+        verify(userSubscriptionRepository, never()).findActiveSubscriptionByUser(any());
+    }
+
+    // 플랜 기능 조회 API 실패 테스트 - 사용자 ID 없음
+    @Test
+    @DisplayName("GET /api/users/plan-features - X-User-Id 헤더 없음으로 조회 실패")
+    @WithMockUser
+    void getPlanFeatures_NoUserId() throws Exception {
+        // when & then: 400 Bad Request 응답 검증
+        mockMvc.perform(get("/api/users/plan-features"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_USER_ID"));
+
+        verify(userService, never()).getUserById(anyString());
+        verify(userSubscriptionRepository, never()).findActiveSubscriptionByUser(any());
     }
 }

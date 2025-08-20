@@ -1,0 +1,21 @@
+apiVersion: v2
+name: userservice
+description: A Helm chart for UserService - Spring Boot microservice with Auth0 integration
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - spring-boot
+  - microservice
+  - user-service
+  - auth0
+  - stripe
+
+home: https://github.com/your-org/userservice
+sources:
+  - https://github.com/your-org/userservice
+
+maintainers:
+  - name: Development Team
+    email: dev@yourcompany.com

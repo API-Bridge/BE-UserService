@@ -37,6 +37,12 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.example.Usersvc.common.logging.UserActionLogger;
+import org.example.Usersvc.common.metrics.CustomMetrics;
+import org.example.Usersvc.event.model.SubscriptionUpdatedEvent;
+import org.example.Usersvc.event.model.SubscriptionDeactivatedEvent;
+import org.example.Usersvc.event.publisher.EventPublisherService;
+import org.example.Usersvc.config.StripeProperties;
 
 /**
  * 구독 및 API 사용량 관리 컨트롤러
@@ -61,6 +67,11 @@ public class SubscriptionController {
     
     @Autowired(required = false)
     private ApiUsageTrackingService apiUsageTrackingService;
+    
+    private final UserActionLogger userActionLogger;
+    private final CustomMetrics customMetrics;
+    private final EventPublisherService eventPublisher;
+    private final StripeProperties stripeProperties;
     
     @Value("${stripe.secret-key:sk_test_dummy_key}")
     private String stripeSecretKey;
@@ -160,49 +171,104 @@ public class SubscriptionController {
         }
     }
     
+    
+    /**
+     * 구독하기 엔드포인트
+     */
     @Operation(
-            summary = "사용자 구독 정보 조회",
-            description = "사용자의 현재 활성 구독 정보를 조회합니다.",
+            summary = "구독하기",
+            description = "Pro 플랜 구독을 시작합니다. Stripe 결제 세션을 생성하고 결제 완료 후 플랜을 업그레이드합니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "구독 정보 조회 성공",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ApiResponse.class)
-                    )
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "사용자를 찾을 수 없음",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ApiResponse.class)
-                    )
-            )
-    })
-    @GetMapping("/users/{userId}/subscription")
-    // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
-    public ResponseEntity<ApiResponse<UserSubscription>> getUserSubscription(
-            @Parameter(description = "사용자 ID", example = "123e4567-e89b-12d3-a456-426614174000") @PathVariable String userId) {
+    @PostMapping("/subscription/subscribe")
+    public ResponseEntity<ApiResponse<Map<String, String>>> subscribe(
+            @RequestBody SubscribeRequest request) {
         
         try {
-            Optional<User> userOptional = userService.getUserById(userId);
+            log.info("구독하기 요청 - userId: {}, planType: {}", request.getUserId(), request.getPlanType());
+            
+            // 사용자 존재 여부 확인
+            Optional<User> userOptional = userService.getUserById(request.getUserId());
             if (userOptional.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
             User user = userOptional.get();
-            UserSubscription subscription = userSubscriptionRepository.findActiveSubscriptionByUser(user)
-                .orElseThrow(() -> new RuntimeException("활성 구독을 찾을 수 없습니다"));
             
-            return ResponseEntity.ok(ApiResponse.success(subscription));
+            // 이미 Pro 플랜인지 확인
+            Optional<UserSubscription> existingSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            if (existingSubscription.isPresent() && 
+                existingSubscription.get().getPlan().getPlanType() == PlanType.PRO) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("이미 Pro 플랜을 사용 중입니다.", "ALREADY_PRO_PLAN"));
+            }
+            
+            // 개발 환경에서는 Mock 응답 반환
+            if (isTestMode()) {
+                log.info("테스트 모드: Mock 구독 시작");
+                
+                String mockSessionId = "cs_test_subscribe_" + System.currentTimeMillis();
+                String mockCheckoutUrl = "https://stripe-mock-checkout.example.com/subscribe/" + mockSessionId;
+                
+                Map<String, String> response = new HashMap<>();
+                response.put("checkoutUrl", mockCheckoutUrl);
+                response.put("sessionUrl", mockCheckoutUrl);
+                response.put("sessionId", mockSessionId);
+                response.put("planType", request.getPlanType());
+                response.put("userId", request.getUserId());
+                
+                log.info("Mock 구독 세션 생성 완료 - sessionId: {}, url: {}", 
+                        mockSessionId, mockCheckoutUrl);
+                
+                return ResponseEntity.ok(ApiResponse.success(response));
+            }
+            
+            // 실제 Stripe Checkout 세션 생성 로직 (기존 createCheckoutSession과 유사)
+            String priceId = stripeProperties.getMonthlyPriceIdByPlanType(request.getPlanType());
+            
+            if (priceId == null) {
+                log.error("Price ID를 찾을 수 없습니다 - planType: {}", request.getPlanType());
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("지원하지 않는 플랜 타입입니다.", "INVALID_PLAN_TYPE"));
+            }
+            
+            SessionCreateParams params = SessionCreateParams.builder()
+                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+                    .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                    .setSuccessUrl("http://localhost:8081/subscription/success?session_id={CHECKOUT_SESSION_ID}")
+                    .setCancelUrl("http://localhost:8081/subscription/cancel")
+                    .addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setQuantity(1L)
+                                    .setPrice(priceId)
+                                    .build()
+                    )
+                    .putMetadata("userId", request.getUserId())
+                    .putMetadata("planType", request.getPlanType())
+                    .build();
+            
+            Session session = Session.create(params);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("checkoutUrl", session.getUrl());
+            response.put("sessionUrl", session.getUrl());
+            response.put("sessionId", session.getId());
+            response.put("planType", request.getPlanType());
+            response.put("userId", request.getUserId());
+            
+            log.info("구독 Stripe Checkout 세션 생성 완료 - sessionId: {}, url: {}", 
+                    session.getId(), session.getUrl());
+            
+            return ResponseEntity.ok(ApiResponse.success(response));
+            
+        } catch (StripeException e) {
+            log.error("구독 Stripe API 오류 - code: {}, message: {}", e.getCode(), e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("구독 결제 세션 생성 실패: " + e.getMessage(), "STRIPE_ERROR"));
             
         } catch (Exception e) {
-            log.error("구독 정보 조회 중 오류 발생 - userId: {}", userId, e);
+            log.error("구독 처리 중 예상치 못한 오류 발생", e);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("구독 정보 조회에 실패했습니다.", "SUBSCRIPTION_ERROR"));
+                    .body(ApiResponse.error("구독 처리 중 오류가 발생했습니다.", "SUBSCRIPTION_ERROR"));
         }
     }
     
@@ -376,8 +442,9 @@ public class SubscriptionController {
     }
     
     /**
-     * 결제 완료 후 구독 정보 업데이트 엔드포인트 (개발 환경용)
+     * 결제 완료 후 구독 정보 업데이트 엔드포인트 (개발 환경용) - 주석 처리됨
      */
+    /*
     @Operation(
             summary = "결제 완료 후 구독 정보 업데이트",
             description = "Stripe 결제 완료 후 사용자의 구독 정보를 Pro 플랜으로 업데이트합니다.",
@@ -459,6 +526,7 @@ public class SubscriptionController {
                     .body(ApiResponse.error("구독 업데이트에 실패했습니다: " + e.getMessage(), "UPDATE_ERROR"));
         }
     }
+    */
     
     
     /**
@@ -547,7 +615,11 @@ public class SubscriptionController {
             
             // 실제 Stripe 구독 취소 로직
             if (activeSubscription.getStripeSubscriptionId() != null) {
-                boolean stripeCanceled = stripeSubscriptionService.cancelSubscription(activeSubscription.getStripeSubscriptionId());
+                boolean stripeCanceled = stripeSubscriptionService.cancelSubscription(
+                    activeSubscription.getStripeSubscriptionId(), 
+                    userId, 
+                    activeSubscription.getPlan().getPlanType().name(), 
+                    "USER_CANCELLED");
                 if (!stripeCanceled) {
                     return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Stripe 구독 취소에 실패했습니다.", "STRIPE_CANCEL_FAILED"));
@@ -614,8 +686,9 @@ public class SubscriptionController {
     }
     
     /**
-     * Stripe 설정 디버깅 엔드포인트
+     * Stripe 설정 디버깅 엔드포인트 - 주석 처리됨
      */
+    /*
     @Operation(
             summary = "Stripe 설정 디버깅",
             description = "현재 Stripe 설정 값들을 확인합니다."
@@ -645,6 +718,7 @@ public class SubscriptionController {
                     .body(ApiResponse.error("디버깅 정보 조회에 실패했습니다.", "DEBUG_ERROR"));
         }
     }
+    */
     
     /**
      * Stripe Checkout 요청 DTO
@@ -675,6 +749,60 @@ public class SubscriptionController {
                stripeSecretKey.contains("mock_key_for_dev") ||
                stripeSecretKey.equals("sk_test_your_test_key_here") ||
                stripeSecretKey.equals("sk_test_dummy_key");
+    }
+    
+    /**
+     * 구독 요청 DTO
+     */
+    public static class SubscribeRequest {
+        private String userId;
+        private String planType;
+        
+        // Getters and Setters
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        
+        public String getPlanType() { return planType; }
+        public void setPlanType(String planType) { this.planType = planType; }
+    }
+
+    /**
+     * 사용량 통계 조회
+     */
+    @GetMapping("/subscription/usage-stats")
+    @Operation(summary = "사용량 통계 조회", description = "분/시간/일/월별 API 사용량 통계 조회")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUsageStats(
+            @Parameter(description = "사용자 ID", required = true) 
+            @RequestHeader("X-User-Id") String userId) {
+        
+        try {
+            log.info("사용량 통계 조회 요청 - userId: {}", userId);
+            
+            User user = userService.getUserById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+            
+            // 각종 사용량 통계 수집
+            long minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
+            long hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
+            long dayUsage = apiUsageTrackingService.getCurrentDayUsage(user);
+            long monthlyUsage = apiUsageTrackingService.getMonthlyUsage(user);
+            
+            Map<String, Object> usageStats = Map.of(
+                "currentMinute", minuteUsage,
+                "currentHour", hourUsage, 
+                "currentDay", dayUsage,
+                "currentMonth", monthlyUsage,
+                "userId", userId,
+                "timestamp", java.time.LocalDateTime.now()
+            );
+            
+            return ResponseEntity.ok(ApiResponse.success(usageStats));
+            
+        } catch (Exception e) {
+            log.error("사용량 통계 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("사용량 통계 조회 실패: " + e.getMessage(), "USAGE_STATS_RETRIEVAL_FAILED"));
+        }
     }
 
     /**
@@ -757,5 +885,108 @@ public class SubscriptionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("구독 제한 상태 조회에 실패했습니다.", "LIMITS_STATUS_RETRIEVAL_FAILED"));
         }
+    }
+
+    /**
+     * 수동 구독 업데이트 (개발/디버깅용)
+     */
+    @Operation(
+            summary = "수동 구독 업데이트 (개발/디버깅용)",
+            description = "웹훅 처리 실패 시 수동으로 사용자의 구독 정보를 업데이트합니다."
+    )
+    @PostMapping("/subscription/manual-update")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> manualUpdateSubscription(
+            @RequestBody ManualUpdateRequest request) {
+        
+        try {
+            log.info("수동 구독 업데이트 요청 - userId: {}, planType: {}", 
+                    request.getUserId(), request.getPlanType());
+            
+            // 사용자 조회
+            Optional<User> userOptional = userService.getUserById(request.getUserId());
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("사용자를 찾을 수 없습니다: " + request.getUserId(), "USER_NOT_FOUND"));
+            }
+            User user = userOptional.get();
+            
+            // 플랜 조회
+            PlanType planType;
+            try {
+                planType = PlanType.valueOf(request.getPlanType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("지원하지 않는 플랜 타입입니다: " + request.getPlanType(), "INVALID_PLAN_TYPE"));
+            }
+            
+            Optional<Plan> planOptional = planRepository.findByPlanType(planType);
+            if (planOptional.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("플랜을 찾을 수 없습니다: " + planType, "PLAN_NOT_FOUND"));
+            }
+            Plan plan = planOptional.get();
+            
+            // 기존 구독 비활성화
+            Optional<UserSubscription> existingSubscription = 
+                    userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            if (existingSubscription.isPresent()) {
+                UserSubscription existing = existingSubscription.get();
+                existing.setIsActive(false);
+                userSubscriptionRepository.save(existing);
+                log.info("기존 구독 비활성화됨 - subscriptionId: {}", existing.getSubscriptionId());
+            }
+            
+            // 새 구독 생성
+            UserSubscription newSubscription = UserSubscription.builder()
+                    .subscriptionId(java.util.UUID.randomUUID().toString())
+                    .user(user)
+                    .plan(plan)
+                    .planPaymentDate(LocalDateTime.now())
+                    .build();
+            newSubscription.setIsActive(true);
+            if (request.getStripeSubscriptionId() != null) {
+                newSubscription.setStripeSubscriptionId(request.getStripeSubscriptionId());
+            }
+            
+            UserSubscription savedSubscription = userSubscriptionRepository.save(newSubscription);
+            log.info("새 구독 생성됨 - userId: {}, planType: {}, subscriptionId: {}", 
+                user.getUserId(), planType, savedSubscription.getSubscriptionId());
+            
+            // 응답 데이터 생성
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("userId", user.getUserId());
+            responseData.put("subscriptionId", savedSubscription.getSubscriptionId());
+            responseData.put("planType", planType.name());
+            responseData.put("planName", plan.getPlanName());
+            responseData.put("status", "ACTIVE");
+            responseData.put("startDate", savedSubscription.getPlanPaymentDate().toString());
+            responseData.put("message", "구독이 성공적으로 업데이트되었습니다.");
+            
+            return ResponseEntity.ok(ApiResponse.success(responseData));
+            
+        } catch (Exception e) {
+            log.error("수동 구독 업데이트 중 오류 발생 - userId: {}", request.getUserId(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("구독 업데이트에 실패했습니다: " + e.getMessage(), "UPDATE_ERROR"));
+        }
+    }
+
+    /**
+     * 수동 구독 업데이트 요청 DTO
+     */
+    public static class ManualUpdateRequest {
+        private String userId;
+        private String planType;
+        private String stripeSubscriptionId;
+        
+        // Getters and Setters
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        
+        public String getPlanType() { return planType; }
+        public void setPlanType(String planType) { this.planType = planType; }
+        
+        public String getStripeSubscriptionId() { return stripeSubscriptionId; }
+        public void setStripeSubscriptionId(String stripeSubscriptionId) { this.stripeSubscriptionId = stripeSubscriptionId; }
     }
 }

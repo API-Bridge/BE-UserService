@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "userservice.fullname" . }}
+  labels:
+    {{- include "userservice.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "userservice.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "userservice.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "userservice.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            # Spring Boot configuration
+            - name: SPRING_PROFILES_ACTIVE
+              value: "{{ .Values.config.spring.profiles.active }}"
+            - name: SERVER_PORT
+              value: "{{ .Values.config.server.port }}"
+            
+            # Database configuration
+            - name: DB_URL
+              value: "{{ .Values.env.DB_URL }}"
+            - name: DB_USERNAME
+              value: "{{ .Values.env.DB_USERNAME }}"
+            - name: DB_DRIVER
+              value: "{{ .Values.env.DB_DRIVER }}"
+            - name: DDL_AUTO
+              value: "{{ .Values.env.DDL_AUTO }}"
+            {{- if .Values.secrets.database.enabled }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.database.name }}
+                  key: password
+            {{- end }}
+            
+            # Redis configuration
+            - name: REDIS_HOST
+              value: "{{ .Values.env.REDIS_HOST }}"
+            - name: REDIS_PORT
+              value: "{{ .Values.env.REDIS_PORT }}"
+            
+            # Kafka configuration
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "{{ .Values.env.KAFKA_BOOTSTRAP_SERVERS }}"
+            - name: SERVICE_NAME
+              value: "{{ .Values.env.SERVICE_NAME }}"
+            
+            # Auth0 configuration
+            {{- if .Values.secrets.auth0.enabled }}
+            - name: AUTH0_ISSUER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.auth0.name }}
+                  key: issuer-uri
+            - name: AUTH0_AUDIENCE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.auth0.name }}
+                  key: audience
+            - name: AUTH0_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.auth0.name }}
+                  key: client-id
+            {{- end }}
+            
+            # Stripe configuration
+            {{- if .Values.secrets.stripe.enabled }}
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: secret-key
+            - name: STRIPE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: public-key
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: webhook-secret
+            - name: STRIPE_FREE_PRODUCT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: free-product-id
+            - name: STRIPE_PRO_PRODUCT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: pro-product-id
+            - name: STRIPE_PRO_MONTHLY_PRICE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: pro-monthly-price-id
+            - name: STRIPE_PRO_YEARLY_PRICE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.stripe.name }}
+                  key: pro-yearly-price-id
+            {{- end }}
+            
+            # Service Discovery
+            - name: EUREKA_SERVER_URL
+              value: "{{ .Values.env.EUREKA_SERVER_URL }}"
+            
+            # Build information
+            - name: BUILD_VERSION
+              value: "{{ .Values.env.BUILD_VERSION }}"
+            
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

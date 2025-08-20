@@ -12,6 +12,7 @@ import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.PlanRepository;
 import org.example.Usersvc.repository.UserRepository;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
+import org.example.Usersvc.config.StripeProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ public class StripeWebhookService {
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
     private final StripeCustomerService stripeCustomerService;
+    private final StripeProperties stripeProperties;
 
     /**
      * 체크아웃 세션 완료 처리
@@ -41,12 +43,27 @@ public class StripeWebhookService {
             String customerId = session.getCustomer();
             String subscriptionId = session.getSubscription();
             
-            log.info("체크아웃 완료 처리: customer={}, subscription={}", customerId, subscriptionId);
+            log.info("체크아웃 완료 처리: customer={}, subscription={}, metadata={}", 
+                customerId, subscriptionId, session.getMetadata());
             
-            // 고객 정보로 사용자 찾기
-            Optional<User> userOptional = findUserByStripeCustomerId(customerId);
+            // 먼저 메타데이터에서 userId 확인
+            Optional<User> userOptional = Optional.empty();
+            String userIdFromMetadata = session.getMetadata().get("userId");
+            
+            if (userIdFromMetadata != null) {
+                log.info("메타데이터에서 userId 찾음: {}", userIdFromMetadata);
+                userOptional = userRepository.findById(userIdFromMetadata);
+            }
+            
+            // 메타데이터로 찾지 못하면 고객 정보로 사용자 찾기
             if (userOptional.isEmpty()) {
-                log.warn("Stripe 고객 ID로 사용자를 찾을 수 없음: {}", customerId);
+                log.info("메타데이터에서 사용자를 찾지 못함, Stripe 고객 정보로 검색 시도");
+                userOptional = findUserByStripeCustomerId(customerId);
+            }
+            
+            if (userOptional.isEmpty()) {
+                log.error("체크아웃 완료 처리 실패 - 사용자를 찾을 수 없음: customerId={}, sessionId={}, metadata={}", 
+                    customerId, session.getId(), session.getMetadata());
                 return;
             }
             
@@ -82,7 +99,8 @@ public class StripeWebhookService {
             // 사용자 찾기
             Optional<User> userOptional = findUserByStripeCustomerId(customerId);
             if (userOptional.isEmpty()) {
-                log.warn("Stripe 고객 ID로 사용자를 찾을 수 없음: {}", customerId);
+                log.error("구독 생성 처리 실패 - Stripe 고객 ID로 사용자를 찾을 수 없음: customerId={}, subscriptionId={}", 
+                    customerId, subscriptionId);
                 return;
             }
             
@@ -90,9 +108,12 @@ public class StripeWebhookService {
             
             // Price ID로 플랜 결정
             String priceId = stripeSubscription.getItems().getData().get(0).getPrice().getId();
+            log.info("구독에서 추출한 Price ID: {}", priceId);
+            
             Optional<Plan> planOptional = findPlanByPriceId(priceId);
             if (planOptional.isEmpty()) {
-                log.warn("Price ID로 플랜을 찾을 수 없음: {}", priceId);
+                log.error("구독 생성 처리 실패 - Price ID로 플랜을 찾을 수 없음: priceId={}, subscriptionId={}", 
+                    priceId, subscriptionId);
                 return;
             }
             
@@ -261,11 +282,11 @@ public class StripeWebhookService {
      */
     private Optional<Plan> findPlanByPriceId(String priceId) {
         // Pro 플랜 Price ID 확인
-        if ("price_1RwJ5zDefwpzeE1sRhAYJn4b".equals(priceId)) {
-            return planRepository.findByPlanName(PlanType.PRO.getPlanName());
+        if (priceId != null && priceId.equals(stripeProperties.getPrices().getProMonthly())) {
+            return planRepository.findByPlanType(PlanType.PRO);
         }
         // Free 플랜은 기본값
-        return planRepository.findByPlanName(PlanType.FREE.getPlanName());
+        return planRepository.findByPlanType(PlanType.FREE);
     }
 
     /**

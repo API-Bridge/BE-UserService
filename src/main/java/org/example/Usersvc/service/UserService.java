@@ -24,6 +24,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.example.Usersvc.util.UserIdGenerator;
+import org.example.Usersvc.common.logging.UserActionLogger;
+import org.example.Usersvc.common.logging.SecurityAuditLogger;
+import org.example.Usersvc.common.metrics.CustomMetrics;
 
 /**
  * 사용자 관리 서비스
@@ -62,6 +65,10 @@ public class UserService {
     
     @Autowired(required = false)
     private ApiUsageTrackingService apiUsageTrackingService;
+    
+    private final UserActionLogger userActionLogger;
+    private final SecurityAuditLogger securityAuditLogger;
+    private final CustomMetrics customMetrics;
 
     /**
      * 새로운 사용자 생성
@@ -77,6 +84,9 @@ public class UserService {
      */
     public User createUser(String auth0Id, String userEmail) {
         log.info("새로운 사용자 생성 시작 - auth0Id: {}, email: {}", auth0Id, userEmail);
+        
+        // 사용자 생성 시간 측정 시작
+        var creationTimer = customMetrics.startUserCreationTimer();
         
         // 입력 파라미터 유효성 검증
         validateCreateUserParameters(auth0Id, userEmail);
@@ -103,10 +113,19 @@ public class UserService {
             // 사용자 생성 이벤트 발행
             publishUserCreatedEvent(savedUser);
             
+            // 메트릭 기록
+            customMetrics.incrementUserCreated();
+            customMetrics.recordUserCreationTime(creationTimer);
+            
+            // 사용자 액션 로깅
+            userActionLogger.logUserCreation(savedUser.getUserId(), auth0Id, userEmail);
+            
             return savedUser;
             
         } catch (Exception e) {
             log.error("사용자 생성 중 오류 발생 - auth0Id: {}, email: {}", auth0Id, userEmail, e);
+            // 실패한 경우에도 시간 측정 종료
+            customMetrics.recordUserCreationTime(creationTimer);
             throw new RuntimeException("사용자 생성에 실패했습니다.", e);
         }
     }
@@ -325,22 +344,39 @@ public class UserService {
     public UserInfoResponse getUserCompleteInfo(String userId) {
         log.debug("통합 사용자 정보 조회 시작 - userId: {}", userId);
         
-        // 사용자 조회
         User user = getUserById(userId)
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
         
-        // 활성 구독 정보 조회
         Optional<UserSubscription> subscriptionOpt = userSubscriptionRepository.findActiveSubscriptionByUser(user);
         
-        // 플랜 정보 구성
-        PlanInfo planInfo;
-        UsageLimits usageLimits;
+        PlanInfo planInfo = buildPlanInfo(user, subscriptionOpt);
+        UsageLimits usageLimits = buildUsageLimits(subscriptionOpt);
+        CurrentUsage currentUsage = buildCurrentUsage(userId, user);
         
+        UserInfoResponse response = UserInfoResponse.builder()
+            .userId(user.getUserId())
+            .userEmail(user.getUserEmail())
+            .createdAt(user.getCreatedAt())
+            .planInfo(planInfo)
+            .usageLimits(usageLimits)
+            .currentUsage(currentUsage)
+            .build();
+        
+        log.debug("통합 사용자 정보 조회 완료 - userId: {}, planType: {}, customApis: {}, sharedApis: {}", 
+                 userId, planInfo.getPlanType(), currentUsage.getCustomApiCount(), currentUsage.getSharedApiCount());
+        
+        return response;
+    }
+
+    /**
+     * 플랜 정보 구성
+     */
+    private PlanInfo buildPlanInfo(User user, Optional<UserSubscription> subscriptionOpt) {
         if (subscriptionOpt.isPresent()) {
             UserSubscription subscription = subscriptionOpt.get();
             Plan plan = subscription.getPlan();
             
-            planInfo = PlanInfo.builder()
+            return PlanInfo.builder()
                 .planType(plan.getPlanType().name())
                 .planName(plan.getPlanName())
                 .isActive(subscription.getIsActive())
@@ -350,20 +386,10 @@ public class UserService {
                 .price(plan.getPrice() != null ? plan.getPrice().doubleValue() : 0.0)
                 .description(plan.getDescription())
                 .build();
-                
-            usageLimits = UsageLimits.builder()
-                .maxCustomApiCount(plan.getMaxCustomApiCount())
-                .maxSharedApiCount(plan.getMaxSharedApiCount())
-                .maxDataBundleCount(plan.getMaxDataBundleCount())
-                .rateLimitPerMinute(plan.getRateLimitPerMinute())
-                .rateLimitPerHour(plan.getRateLimitPerHour())
-                .rateLimitPerDay(plan.getRateLimitPerDay())
-                .build();
         } else {
             // 활성 구독이 없으면 FREE 플랜 기본값 사용
             PlanType freePlan = PlanType.FREE;
-            
-            planInfo = PlanInfo.builder()
+            return PlanInfo.builder()
                 .planType(freePlan.name())
                 .planName(freePlan.getPlanName())
                 .isActive(true)
@@ -373,8 +399,27 @@ public class UserService {
                 .price(0.0)
                 .description("기본 무료 플랜")
                 .build();
-                
-            usageLimits = UsageLimits.builder()
+        }
+    }
+
+    /**
+     * 사용량 제한 정보 구성
+     */
+    private UsageLimits buildUsageLimits(Optional<UserSubscription> subscriptionOpt) {
+        if (subscriptionOpt.isPresent()) {
+            Plan plan = subscriptionOpt.get().getPlan();
+            return UsageLimits.builder()
+                .maxCustomApiCount(plan.getMaxCustomApiCount())
+                .maxSharedApiCount(plan.getMaxSharedApiCount())
+                .maxDataBundleCount(plan.getMaxDataBundleCount())
+                .rateLimitPerMinute(plan.getRateLimitPerMinute())
+                .rateLimitPerHour(plan.getRateLimitPerHour())
+                .rateLimitPerDay(plan.getRateLimitPerDay())
+                .build();
+        } else {
+            // FREE 플랜 기본값
+            PlanType freePlan = PlanType.FREE;
+            return UsageLimits.builder()
                 .maxCustomApiCount(freePlan.getMaxCustomApiCount())
                 .maxSharedApiCount(freePlan.getMaxSharedApiCount())
                 .maxDataBundleCount(freePlan.getMaxDataBundleCount())
@@ -383,13 +428,33 @@ public class UserService {
                 .rateLimitPerDay(freePlan.getRateLimitPerDay())
                 .build();
         }
-        
-        // 현재 사용량 조회
+    }
+
+    /**
+     * 현재 사용량 정보 구성
+     */
+    private CurrentUsage buildCurrentUsage(String userId, User user) {
         int customApiCount = (int) customApiRepository.countByUserId(userId);
         int sharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(userId);
         int savedApiCount = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId).size();
         
         // 실시간 요청 사용량 조회
+        long[] usageData = getCurrentUsageData(user);
+        
+        return CurrentUsage.builder()
+            .customApiCount(customApiCount)
+            .sharedApiCount(sharedApiCount)
+            .savedApiCount(savedApiCount)
+            .minuteUsage(usageData[0])
+            .hourUsage(usageData[1])
+            .dayUsage(usageData[2])
+            .build();
+    }
+
+    /**
+     * 현재 사용량 데이터 조회 (분/시간/일별)
+     */
+    private long[] getCurrentUsageData(User user) {
         long minuteUsage = 0;
         long hourUsage = 0;
         long dayUsage = 0;
@@ -405,33 +470,11 @@ public class UserService {
                 dayUsage = devRateLimitService.getCurrentDayUsage(user);
             }
         } catch (Exception e) {
-            log.warn("사용량 조회 중 오류 발생 - userId: {}, error: {}", userId, e.getMessage());
+            log.warn("사용량 조회 중 오류 발생 - userId: {}, error: {}", user.getUserId(), e.getMessage());
             // 사용량 조회 실패 시 0으로 설정 (기본값)
         }
         
-        CurrentUsage currentUsage = CurrentUsage.builder()
-            .customApiCount(customApiCount)
-            .sharedApiCount(sharedApiCount)
-            .savedApiCount(savedApiCount)
-            .minuteUsage(minuteUsage)
-            .hourUsage(hourUsage)
-            .dayUsage(dayUsage)
-            .build();
-        
-        // 최종 응답 구성
-        UserInfoResponse response = UserInfoResponse.builder()
-            .userId(user.getUserId())
-            .userEmail(user.getUserEmail())
-            .createdAt(user.getCreatedAt())
-            .planInfo(planInfo)
-            .usageLimits(usageLimits)
-            .currentUsage(currentUsage)
-            .build();
-        
-        log.debug("통합 사용자 정보 조회 완료 - userId: {}, planType: {}, customApis: {}, sharedApis: {}", 
-                 userId, planInfo.getPlanType(), customApiCount, sharedApiCount);
-        
-        return response;
+        return new long[]{minuteUsage, hourUsage, dayUsage};
     }
     
     /**
@@ -623,6 +666,12 @@ public class UserService {
             
             // 데이터베이스에 저장
             UserSubscription savedSubscription = userSubscriptionRepository.save(freeSubscription);
+            
+            // 메트릭 기록
+            customMetrics.incrementSubscriptionCreated("FREE");
+            
+            // 사용자 액션 로깅
+            userActionLogger.logSubscriptionCreation(user.getUserId(), "FREE", "SYSTEM", 0.0);
             
             log.info("사용자 FREE 구독 생성 완료 - userId: {}, subscriptionId: {}", 
                 user.getUserId(), savedSubscription.getSubscriptionId());

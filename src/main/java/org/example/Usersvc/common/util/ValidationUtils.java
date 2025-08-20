@@ -4,7 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.regex.Pattern;
 
 import static org.example.Usersvc.common.util.ValidationConstants.*;
@@ -210,5 +213,37 @@ public final class ValidationUtils {
      */
     public static String maskStripeKeyForLogging(String stripeKey) {
         return StringUtils.hasText(stripeKey) ? CONFIGURED_STATUS : NOT_CONFIGURED_STATUS;
+    }
+
+    /**
+     * 현재 요청의 IP 주소 추출
+     * 
+     * @return IP 주소 또는 "unknown"
+     */
+    public static String getCurrentIpAddress() {
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                HttpServletRequest request = attrs.getRequest();
+                
+                // X-Forwarded-For 헤더 확인 (프록시 환경)
+                String xForwardedFor = request.getHeader("X-Forwarded-For");
+                if (StringUtils.hasText(xForwardedFor)) {
+                    return xForwardedFor.split(",")[0].trim();
+                }
+                
+                // X-Real-IP 헤더 확인
+                String xRealIP = request.getHeader("X-Real-IP");
+                if (StringUtils.hasText(xRealIP)) {
+                    return xRealIP;
+                }
+                
+                // 기본 remote address
+                return request.getRemoteAddr();
+            }
+        } catch (Exception e) {
+            log.debug("IP 주소 추출 실패: {}", e.getMessage());
+        }
+        return "unknown";
     }
 }

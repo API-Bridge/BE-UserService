@@ -13,7 +13,11 @@
       "mcp__ide__getDiagnostics",
       "Bash(git checkout:*)",
       "Bash(mysql:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(grep:*)",
+      "Bash(del:*)",
+      "Bash(\"./gradlew.bat\" compileJava)",
+      "Bash(\"./gradlew.bat\" build -x test)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

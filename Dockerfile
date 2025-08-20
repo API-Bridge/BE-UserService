@@ -36,9 +36,9 @@ USER spring:spring
 
 # Health check for container orchestration (K8s, Docker Swarm)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/health || exit 1
+    CMD curl -f http://localhost:8081/api/health || exit 1
 
-EXPOSE 8080
+EXPOSE 8081
 
 # JVM tuning for container environment
 ENV JAVA_OPTS="-XX:+UseContainerSupport \

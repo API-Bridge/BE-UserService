@@ -7,6 +7,11 @@ import com.stripe.param.SubscriptionUpdateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.example.Usersvc.common.logging.UserActionLogger;
+import org.example.Usersvc.common.metrics.CustomMetrics;
+import org.example.Usersvc.event.model.SubscriptionUpdatedEvent;
+import org.example.Usersvc.event.model.SubscriptionDeactivatedEvent;
+import org.example.Usersvc.event.publisher.EventPublisherService;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +19,9 @@ import org.springframework.stereotype.Service;
 public class StripeSubscriptionService {
     
     private final MockStripeService mockStripeService;
+    private final UserActionLogger userActionLogger;
+    private final CustomMetrics customMetrics;
+    private final EventPublisherService eventPublisher;
 
     public String createSubscription(String customerId, String priceId) {
         // Stripe API 키 유효성 검사
@@ -47,7 +55,7 @@ public class StripeSubscriptionService {
         }
     }
 
-    public String updateSubscription(String subscriptionId, String newPriceId) {
+    public String updateSubscription(String subscriptionId, String newPriceId, String userId, String oldPlanType, String newPlanType) {
         try {
             Subscription subscription = Subscription.retrieve(subscriptionId);
             
@@ -62,6 +70,18 @@ public class StripeSubscriptionService {
                     .build();
 
             Subscription updatedSubscription = subscription.update(params);
+            
+            // 카프카 이벤트 발행
+            if (userId != null) {
+                SubscriptionUpdatedEvent event = SubscriptionUpdatedEvent.createUpgradeEvent(
+                    userId, subscriptionId, null, newPlanType, newPlanType, oldPlanType, 
+                    updatedSubscription.getId(), 0.0, "USD");
+                eventPublisher.publishEvent("subscription.updated", event);
+                
+                // 메트릭 기록
+                customMetrics.recordConversionRate(oldPlanType, newPlanType);
+            }
+            
             log.info("Stripe 구독 업데이트 완료 - subscriptionId: {}, newPriceId: {}", 
                     subscriptionId, newPriceId);
             return updatedSubscription.getId();
@@ -72,7 +92,7 @@ public class StripeSubscriptionService {
         }
     }
 
-    public boolean cancelSubscription(String subscriptionId) {
+    public boolean cancelSubscription(String subscriptionId, String userId, String planType, String reason) {
         // Mock 구독 ID인지 확인 또는 Stripe API 키 유효성 검사
         if (subscriptionId.startsWith("sub_mock_") || !mockStripeService.isValidStripeKey(com.stripe.Stripe.apiKey)) {
             log.warn("Mock 구독 또는 유효하지 않은 Stripe API 키 감지, Mock 서비스 사용");
@@ -84,6 +104,17 @@ public class StripeSubscriptionService {
             Subscription canceledSubscription = subscription.cancel();
             
             boolean isCanceled = "canceled".equals(canceledSubscription.getStatus());
+            
+            // 카프카 이벤트 발행
+            if (userId != null && isCanceled) {
+                SubscriptionDeactivatedEvent event = SubscriptionDeactivatedEvent.createUserCancelledEvent(
+                    userId, subscriptionId, null, planType, planType, subscriptionId, 0L, null);
+                eventPublisher.publishEvent("subscription.deactivated", event);
+                
+                // 메트릭 기록
+                customMetrics.incrementSubscriptionCancelled(planType);
+            }
+            
             log.info("Stripe 구독 취소 완료 - subscriptionId: {}, status: {}", 
                     subscriptionId, canceledSubscription.getStatus());
             return isCanceled;

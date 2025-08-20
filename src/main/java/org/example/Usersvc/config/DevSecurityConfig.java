@@ -61,7 +61,7 @@ public class DevSecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // 공개 엔드포인트
                 .requestMatchers("/actuator/**", "/h2-console/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/v3/api-docs/**", "/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
                 
                 // 정적 리소스 허용 (테스트 페이지)

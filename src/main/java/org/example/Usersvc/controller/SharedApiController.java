@@ -39,8 +39,20 @@ public class SharedApiController {
             @Parameter(description = "공유할 API 이름") @RequestParam(required = false) String apiName,
             @Parameter(description = "공유할 API 설명") @RequestParam(required = false) String apiDescription) {
         
-        SharedApi sharedApi = sharedApiService.shareApi(userId, customApiId, planType, apiName, apiDescription);
-        return ResponseEntity.ok(ApiResponse.success(sharedApi));
+        try {
+            SharedApi sharedApi = sharedApiService.shareApi(userId, customApiId, planType, apiName, apiDescription);
+            return ResponseEntity.ok(ApiResponse.success(sharedApi));
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("API 공유 실패 - userId: {}, customApiId: {}, error: {}", userId, customApiId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage(), "SHARE_API_ERROR"));
+                    
+        } catch (Exception e) {
+            log.error("API 공유 중 예상치 못한 오류 발생 - userId: {}, customApiId: {}", userId, customApiId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("API 공유 처리 중 오류가 발생했습니다.", "INTERNAL_SERVER_ERROR"));
+        }
     }
 
     @DeleteMapping("/unshare/{sharedApiId}")
@@ -49,19 +61,22 @@ public class SharedApiController {
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
             @Parameter(description = "공유 API ID", required = true) @PathVariable String sharedApiId) {
         
-        sharedApiService.unshareApiBySharedId(userId, sharedApiId);
-        return ResponseEntity.ok(ApiResponse.success());
+        try {
+            sharedApiService.unshareApiBySharedId(userId, sharedApiId);
+            return ResponseEntity.ok(ApiResponse.success());
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("API 공유 취소 실패 - userId: {}, sharedApiId: {}, error: {}", userId, sharedApiId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage(), "UNSHARE_API_ERROR"));
+                    
+        } catch (Exception e) {
+            log.error("API 공유 취소 중 예상치 못한 오류 발생 - userId: {}, sharedApiId: {}", userId, sharedApiId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("API 공유 취소 처리 중 오류가 발생했습니다.", "INTERNAL_SERVER_ERROR"));
+        }
     }
 
-    @DeleteMapping("/unshare")
-    @Operation(summary = "API 공유 취소 (Custom API ID로)", description = "Custom API ID로 공유된 API를 취소합니다.")
-    public ResponseEntity<ApiResponse<Void>> unshareApi(
-            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
-            @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId) {
-        
-        sharedApiService.unshareApi(userId, customApiId);
-        return ResponseEntity.ok(ApiResponse.success());
-    }
 
 
 
@@ -80,8 +95,20 @@ public class SharedApiController {
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
             @Parameter(description = "공유 API ID", required = true) @RequestParam String sharedApiId) {
         
-        UserSavedApi savedApi = userSavedApiService.saveSharedApi(userId, sharedApiId);
-        return ResponseEntity.ok(ApiResponse.success(savedApi));
+        try {
+            UserSavedApi savedApi = userSavedApiService.saveSharedApi(userId, sharedApiId);
+            return ResponseEntity.ok(ApiResponse.success(savedApi));
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("공유 API 저장 실패 - userId: {}, sharedApiId: {}, error: {}", userId, sharedApiId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage(), "SAVE_API_ERROR"));
+                    
+        } catch (Exception e) {
+            log.error("공유 API 저장 중 예상치 못한 오류 발생 - userId: {}, sharedApiId: {}", userId, sharedApiId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("공유 API 저장 처리 중 오류가 발생했습니다.", "INTERNAL_SERVER_ERROR"));
+        }
     }
 
     @GetMapping("/saved")
@@ -102,7 +129,19 @@ public class SharedApiController {
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
             @Parameter(description = "사용자 API ID", required = true) @PathVariable String userApiId) {
         
-        userSavedApiService.deleteSavedApi(userId, userApiId);
-        return ResponseEntity.ok(ApiResponse.success());
+        try {
+            userSavedApiService.deleteSavedApi(userId, userApiId);
+            return ResponseEntity.ok(ApiResponse.success());
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("저장된 API 삭제 실패 - userId: {}, userApiId: {}, error: {}", userId, userApiId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage(), "DELETE_SAVED_API_ERROR"));
+                    
+        } catch (Exception e) {
+            log.error("저장된 API 삭제 중 예상치 못한 오류 발생 - userId: {}, userApiId: {}", userId, userApiId, e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("저장된 API 삭제 처리 중 오류가 발생했습니다.", "INTERNAL_SERVER_ERROR"));
+        }
     }
 }
