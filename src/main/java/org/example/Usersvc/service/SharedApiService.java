@@ -43,7 +43,7 @@ public class SharedApiService {
             throw new IllegalArgumentException("본인의 API만 공유할 수 있습니다.");
         }
 
-        if (!apiSharingValidationService.validateApiForSharing(customApi, planType)) {
+        if (!apiSharingValidationService.validateApiForSharing(customApi, planType, userId)) {
             throw new IllegalArgumentException("현재 플랜에서는 이 API를 공유할 수 없습니다.");
         }
 

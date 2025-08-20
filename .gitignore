@@ -100,3 +100,6 @@ node_modules/
 !gradle/wrapper/gradle-wrapper.properties
 
 /build/
+set-env.ps1
+set-env.ps1
+src/main/resources/application.yml

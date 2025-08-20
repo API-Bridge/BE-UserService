@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSecretsArn;
+import org.example.Usersvc.dto.UserInfoResponse;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.UserSecretsArnService;
@@ -403,6 +404,121 @@ public class UserController {
             log.error("플랜 기능 조회 중 오류 발생 - userId: {}", userId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("INTERNAL_ERROR", "플랜 기능 조회에 실패했습니다."));
+        }
+    }
+    
+    /**
+     * 통합 사용자 정보 조회 엔드포인트 (커스텀 API 서비스용)
+     * 
+     * 사용자의 기본 정보, 플랜 정보, 사용량 제한, 현재 사용량을 포함한
+     * 완전한 사용자 정보를 제공합니다.
+     */
+    @Operation(
+        summary = "통합 사용자 정보 조회",
+        description = "커스텀 API 서비스용 사용자 정보 - 기본 정보, 플랜 정보, 사용량 제한, 현재 사용량 포함",
+        security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "통합 사용자 정보 조회 성공",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = UserInfoResponse.class),
+                examples = @ExampleObject(
+                    name = "성공 응답 예시",
+                    value = """
+                    {
+                        "success": true,
+                        "data": {
+                            "userId": "user-001",
+                            "userEmail": "user@example.com",
+                            "createdAt": "2024-01-15T10:00:00",
+                            "planInfo": {
+                                "planType": "FREE",
+                                "planName": "Free Plan",
+                                "isActive": true,
+                                "planPaymentDate": "2024-01-15T10:00:00",
+                                "planUpdateDate": "2024-01-15T10:00:00",
+                                "stripeSubscriptionId": null,
+                                "price": 0.0,
+                                "description": "기본 무료 플랜"
+                            },
+                            "usageLimits": {
+                                "maxCustomApiCount": 5,
+                                "maxSharedApiCount": 3,
+                                "maxDataBundleCount": 10,
+                                "rateLimitPerMinute": 10,
+                                "rateLimitPerHour": 100,
+                                "rateLimitPerDay": 1000
+                            },
+                            "currentUsage": {
+                                "customApiCount": 2,
+                                "sharedApiCount": 1,
+                                "savedApiCount": 3,
+                                "minuteUsage": 5,
+                                "hourUsage": 45,
+                                "dayUsage": 320
+                            }
+                        }
+                    }
+                    """
+                )
+            )
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "사용자를 찾을 수 없음",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class)
+            )
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "잘못된 요청",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class)
+            )
+        )
+    })
+    @GetMapping("/users/info")
+    public ResponseEntity<ApiResponse<UserInfoResponse>> getUserInfo(
+            @Parameter(
+                description = "조회할 사용자의 고유 식별자",
+                required = true,
+                example = "user-001"
+            )
+            @RequestHeader("X-User-Id") String userId) {
+        
+        log.info("통합 사용자 정보 조회 요청 - userId: {}", userId);
+        
+        try {
+            // 입력 검증
+            if (userId == null || userId.trim().isEmpty()) {
+                log.warn("빈 사용자 ID - userId: {}", userId);
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("사용자 ID는 필수입니다.", "INVALID_USER_ID"));
+            }
+            
+            // 통합 사용자 정보 조회
+            UserInfoResponse userInfo = userService.getUserCompleteInfo(userId);
+            
+            log.info("통합 사용자 정보 조회 성공 - userId: {}, planType: {}", 
+                    userId, userInfo.getPlanType());
+            
+            return ResponseEntity.ok(ApiResponse.success(userInfo));
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("통합 사용자 정보 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage(), "USER_NOT_FOUND"));
+                    
+        } catch (Exception e) {
+            log.error("통합 사용자 정보 조회 중 예상치 못한 오류 발생 - userId: {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("사용자 정보 조회에 실패했습니다.", "INTERNAL_ERROR"));
         }
     }
     

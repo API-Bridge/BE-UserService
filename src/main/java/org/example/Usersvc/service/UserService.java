@@ -6,12 +6,17 @@ import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.Plan;
 import org.example.Usersvc.domain.PlanType;
 import org.example.Usersvc.domain.UserSubscription;
+import org.example.Usersvc.dto.*;
 import org.example.Usersvc.event.model.UserCreatedEvent;
 import org.example.Usersvc.event.model.UserDeletedEvent;
 import org.example.Usersvc.event.publisher.EventPublisherService;
 import org.example.Usersvc.repository.UserRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
+import org.example.Usersvc.repository.CustomApiRepository;
+import org.example.Usersvc.repository.SharedApiRepository;
+import org.example.Usersvc.repository.UserSavedApiRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +53,15 @@ public class UserService {
     private final EventPublisherService eventPublisher;
     private final PlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final CustomApiRepository customApiRepository;
+    private final SharedApiRepository sharedApiRepository;
+    private final UserSavedApiRepository userSavedApiRepository;
+    
+    @Autowired(required = false)
+    private DevRateLimitService devRateLimitService;
+    
+    @Autowired(required = false)
+    private ApiUsageTrackingService apiUsageTrackingService;
 
     /**
      * 새로운 사용자 생성
@@ -295,6 +309,129 @@ public class UserService {
         long count = userRepository.countAllUsers();
         log.debug("전체 사용자 수 조회 완료 - count: {}", count);
         return count;
+    }
+    
+    /**
+     * 통합 사용자 정보 조회 (커스텀 API 서비스용)
+     * 
+     * 사용자의 기본 정보, 플랜 정보, 사용량 제한, 현재 사용량을 포함한
+     * 완전한 사용자 정보를 제공합니다.
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 통합 사용자 정보
+     * @throws IllegalArgumentException 사용자 ID가 유효하지 않거나 사용자가 존재하지 않는 경우
+     */
+    @Transactional(readOnly = true)
+    public UserInfoResponse getUserCompleteInfo(String userId) {
+        log.debug("통합 사용자 정보 조회 시작 - userId: {}", userId);
+        
+        // 사용자 조회
+        User user = getUserById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+        
+        // 활성 구독 정보 조회
+        Optional<UserSubscription> subscriptionOpt = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+        
+        // 플랜 정보 구성
+        PlanInfo planInfo;
+        UsageLimits usageLimits;
+        
+        if (subscriptionOpt.isPresent()) {
+            UserSubscription subscription = subscriptionOpt.get();
+            Plan plan = subscription.getPlan();
+            
+            planInfo = PlanInfo.builder()
+                .planType(plan.getPlanType().name())
+                .planName(plan.getPlanName())
+                .isActive(subscription.getIsActive())
+                .planPaymentDate(subscription.getPlanPaymentDate())
+                .planUpdateDate(subscription.getPlanUpdateDate())
+                .stripeSubscriptionId(subscription.getStripeSubscriptionId())
+                .price(plan.getPrice() != null ? plan.getPrice().doubleValue() : 0.0)
+                .description(plan.getDescription())
+                .build();
+                
+            usageLimits = UsageLimits.builder()
+                .maxCustomApiCount(plan.getMaxCustomApiCount())
+                .maxSharedApiCount(plan.getMaxSharedApiCount())
+                .maxDataBundleCount(plan.getMaxDataBundleCount())
+                .rateLimitPerMinute(plan.getRateLimitPerMinute())
+                .rateLimitPerHour(plan.getRateLimitPerHour())
+                .rateLimitPerDay(plan.getRateLimitPerDay())
+                .build();
+        } else {
+            // 활성 구독이 없으면 FREE 플랜 기본값 사용
+            PlanType freePlan = PlanType.FREE;
+            
+            planInfo = PlanInfo.builder()
+                .planType(freePlan.name())
+                .planName(freePlan.getPlanName())
+                .isActive(true)
+                .planPaymentDate(user.getCreatedAt())
+                .planUpdateDate(user.getCreatedAt())
+                .stripeSubscriptionId(null)
+                .price(0.0)
+                .description("기본 무료 플랜")
+                .build();
+                
+            usageLimits = UsageLimits.builder()
+                .maxCustomApiCount(freePlan.getMaxCustomApiCount())
+                .maxSharedApiCount(freePlan.getMaxSharedApiCount())
+                .maxDataBundleCount(freePlan.getMaxDataBundleCount())
+                .rateLimitPerMinute(freePlan.getRateLimitPerMinute())
+                .rateLimitPerHour(freePlan.getRateLimitPerHour())
+                .rateLimitPerDay(freePlan.getRateLimitPerDay())
+                .build();
+        }
+        
+        // 현재 사용량 조회
+        int customApiCount = (int) customApiRepository.countByUserId(userId);
+        int sharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(userId);
+        int savedApiCount = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId).size();
+        
+        // 실시간 요청 사용량 조회
+        long minuteUsage = 0;
+        long hourUsage = 0;
+        long dayUsage = 0;
+        
+        try {
+            if (apiUsageTrackingService != null) {
+                minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
+                hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
+                dayUsage = apiUsageTrackingService.getCurrentDayUsage(user);
+            } else if (devRateLimitService != null) {
+                minuteUsage = devRateLimitService.getCurrentMinuteUsage(user);
+                hourUsage = devRateLimitService.getCurrentHourUsage(user);
+                dayUsage = devRateLimitService.getCurrentDayUsage(user);
+            }
+        } catch (Exception e) {
+            log.warn("사용량 조회 중 오류 발생 - userId: {}, error: {}", userId, e.getMessage());
+            // 사용량 조회 실패 시 0으로 설정 (기본값)
+        }
+        
+        CurrentUsage currentUsage = CurrentUsage.builder()
+            .customApiCount(customApiCount)
+            .sharedApiCount(sharedApiCount)
+            .savedApiCount(savedApiCount)
+            .minuteUsage(minuteUsage)
+            .hourUsage(hourUsage)
+            .dayUsage(dayUsage)
+            .build();
+        
+        // 최종 응답 구성
+        UserInfoResponse response = UserInfoResponse.builder()
+            .userId(user.getUserId())
+            .userEmail(user.getUserEmail())
+            .createdAt(user.getCreatedAt())
+            .planInfo(planInfo)
+            .usageLimits(usageLimits)
+            .currentUsage(currentUsage)
+            .build();
+        
+        log.debug("통합 사용자 정보 조회 완료 - userId: {}, planType: {}, customApis: {}, sharedApis: {}", 
+                 userId, planInfo.getPlanType(), customApiCount, sharedApiCount);
+        
+        return response;
     }
     
     /**

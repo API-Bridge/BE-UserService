@@ -15,7 +15,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * 전역 예외 처리기
  */
 @Slf4j
-// @RestControllerAdvice // SpringDoc 호환성 문제로 임시 비활성화
+@RestControllerAdvice
 public class GlobalExceptionHandler {
     
     /**
@@ -90,6 +90,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(405)
                 .body(ApiResponse.error(message, "METHOD_NOT_SUPPORTED"));
+    }
+    
+    /**
+     * 플랜 제한 초과 예외 처리
+     */
+    @ExceptionHandler(PlanLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePlanLimitExceeded(PlanLimitExceededException e) {
+        log.warn("Plan limit exceeded: {}", e.getMessage());
+        
+        return ResponseEntity
+                .status(403) // HttpStatus.FORBIDDEN
+                .body(ApiResponse.error(e.getMessage(), "PLAN_LIMIT_EXCEEDED"));
     }
     
     /**

@@ -515,17 +515,33 @@ public class SubscriptionController {
             
             // 개발 환경에서는 Mock 응답 반환
             if (isTestMode()) {
-                // 구독 비활성화 처리
+                // 기존 구독 비활성화 처리
                 activeSubscription.cancel();
                 userSubscriptionRepository.save(activeSubscription);
                 
+                // FREE 플랜으로 자동 전환
+                Plan freePlan = planRepository.findByPlanType(PlanType.FREE)
+                    .orElseThrow(() -> new RuntimeException("FREE 플랜을 찾을 수 없습니다"));
+                
+                UserSubscription freeSubscription = UserSubscription.builder()
+                    .subscriptionId(java.util.UUID.randomUUID().toString())
+                    .user(user)
+                    .plan(freePlan)
+                    .planPaymentDate(LocalDateTime.now())
+                    .build();
+                freeSubscription.setIsActive(true);
+                userSubscriptionRepository.save(freeSubscription);
+                
                 Map<String, Object> mockResponse = new HashMap<>();
                 mockResponse.put("status", "CANCELLED");
-                mockResponse.put("message", "구독이 성공적으로 취소되었습니다 (테스트 모드)");
+                mockResponse.put("message", "구독이 성공적으로 취소되어 FREE 플랜으로 전환되었습니다 (테스트 모드)");
                 mockResponse.put("cancelledAt", LocalDateTime.now().toString());
-                mockResponse.put("planType", activeSubscription.getPlan().getPlanType().name());
+                mockResponse.put("previousPlanType", activeSubscription.getPlan().getPlanType().name());
+                mockResponse.put("newPlanType", "FREE");
+                mockResponse.put("newSubscriptionId", freeSubscription.getSubscriptionId());
                 
-                log.info("Mock 구독 취소 완료 - userId: {}, planType: {}", userId, activeSubscription.getPlan().getPlanType());
+                log.info("Mock 구독 취소 및 FREE 플랜 전환 완료 - userId: {}, previousPlan: {}", 
+                        userId, activeSubscription.getPlan().getPlanType());
                 return ResponseEntity.ok(ApiResponse.success(mockResponse));
             }
             
@@ -542,13 +558,29 @@ public class SubscriptionController {
             activeSubscription.cancel();
             userSubscriptionRepository.save(activeSubscription);
             
+            // FREE 플랜으로 자동 전환
+            Plan freePlan = planRepository.findByPlanType(PlanType.FREE)
+                .orElseThrow(() -> new RuntimeException("FREE 플랜을 찾을 수 없습니다"));
+            
+            UserSubscription freeSubscription = UserSubscription.builder()
+                .subscriptionId(java.util.UUID.randomUUID().toString())
+                .user(user)
+                .plan(freePlan)
+                .planPaymentDate(LocalDateTime.now())
+                .build();
+            freeSubscription.setIsActive(true);
+            userSubscriptionRepository.save(freeSubscription);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("status", "CANCELLED");
-            response.put("message", "구독이 성공적으로 취소되었습니다");
+            response.put("message", "구독이 성공적으로 취소되어 FREE 플랜으로 전환되었습니다");
             response.put("cancelledAt", LocalDateTime.now().toString());
-            response.put("planType", activeSubscription.getPlan().getPlanType().name());
+            response.put("previousPlanType", activeSubscription.getPlan().getPlanType().name());
+            response.put("newPlanType", "FREE");
+            response.put("newSubscriptionId", freeSubscription.getSubscriptionId());
             
-            log.info("구독 취소 완료 - userId: {}, planType: {}", userId, activeSubscription.getPlan().getPlanType());
+            log.info("구독 취소 및 FREE 플랜 전환 완료 - userId: {}, previousPlan: {}", 
+                    userId, activeSubscription.getPlan().getPlanType());
             return ResponseEntity.ok(ApiResponse.success(response));
             
         } catch (Exception e) {

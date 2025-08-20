@@ -5,6 +5,11 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
 
 /**
  * 구독 플랜 엔티티 - plan 테이블과 매핑
@@ -13,6 +18,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "plan")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EntityListeners(AuditingEntityListener.class)
 public class Plan {
     
     @Id
@@ -33,12 +39,35 @@ public class Plan {
     @Column(name = "features", columnDefinition = "JSON")
     private String features; // JSON 필드는 String으로 저장
     
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+    
     @Builder
     public Plan(PlanType planType, java.math.BigDecimal price, String description, String features) {
         this.planType = planType;
         this.price = price;
         this.description = description;
         this.features = features;
+    }
+    
+    @PrePersist
+    protected void onCreate() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = LocalDateTime.now();
+        }
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
     
     /**
