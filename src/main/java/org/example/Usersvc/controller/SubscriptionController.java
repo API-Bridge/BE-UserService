@@ -23,6 +23,7 @@ import org.example.Usersvc.service.ApiUsageTrackingService;
 import org.example.Usersvc.service.ProductionRateLimitService;
 
 import org.example.Usersvc.service.UserService;
+import org.example.Usersvc.service.StripeSubscriptionService;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,7 @@ public class SubscriptionController {
     private final UserService userService;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
+    private final StripeSubscriptionService stripeSubscriptionService;
     
     @Autowired(required = false)
     private DevRateLimitService devRateLimitService;
@@ -222,9 +224,17 @@ public class SubscriptionController {
                 return ResponseEntity.notFound().build();
             }
             User user = userOptional.get();
-            UserSubscription subscription = userSubscriptionRepository.findActiveSubscriptionByUser(user)
-                .orElseThrow(() -> new RuntimeException("활성 구독을 찾을 수 없습니다"));
-            Plan plan = subscription.getPlan();
+            
+            // 활성 구독이 없는 경우 기본 FREE 플랜으로 처리
+            Optional<UserSubscription> subscriptionOpt = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            Plan plan;
+            if (subscriptionOpt.isPresent()) {
+                plan = subscriptionOpt.get().getPlan();
+            } else {
+                // 활성 구독이 없으면 데이터베이스에서 FREE 플랜 조회
+                plan = planRepository.findByPlanType(PlanType.FREE)
+                    .orElseThrow(() -> new RuntimeException("FREE 플랜을 찾을 수 없습니다"));
+            }
             
             Map<String, Object> usageInfo = new HashMap<>();
             
@@ -402,7 +412,7 @@ public class SubscriptionController {
             User user = userOptional.get();
             
             // PRO 플랜 조회 (데이터베이스에서)
-            Optional<Plan> proPlanOptional = planRepository.findByPlanName(PlanType.PRO.getPlanName());
+            Optional<Plan> proPlanOptional = planRepository.findByPlanType(PlanType.PRO);
             if (proPlanOptional.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Pro 플랜을 찾을 수 없습니다.", "PLAN_NOT_FOUND"));
@@ -471,29 +481,74 @@ public class SubscriptionController {
      */
     @Operation(
             summary = "구독 취소",
-            description = "현재 사용자의 활성 구독을 취소합니다.",
+            description = "사용자의 활성 구독을 취소합니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @PostMapping("/subscription/cancel")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> cancelSubscription() {
+    @PostMapping("/users/{userId}/subscription/cancel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cancelSubscription(
+            @Parameter(description = "사용자 ID") @PathVariable String userId) {
         try {
+            log.info("구독 취소 요청 - userId: {}", userId);
+            
+            // 사용자 존재 여부 확인
+            Optional<User> userOptional = userService.getUserById(userId);
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.notFound()
+                    .build();
+            }
+            User user = userOptional.get();
+            
+            // 활성 구독 조회
+            Optional<UserSubscription> activeSubscriptionOpt = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            if (activeSubscriptionOpt.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("취소할 활성 구독이 없습니다.", "NO_ACTIVE_SUBSCRIPTION"));
+            }
+            
+            UserSubscription activeSubscription = activeSubscriptionOpt.get();
+            
+            // FREE 플랜은 취소할 수 없음
+            if (activeSubscription.getPlan().getPlanType() == PlanType.FREE) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("FREE 플랜은 취소할 수 없습니다.", "CANNOT_CANCEL_FREE_PLAN"));
+            }
+            
             // 개발 환경에서는 Mock 응답 반환
             if (isTestMode()) {
+                // 구독 비활성화 처리
+                activeSubscription.cancel();
+                userSubscriptionRepository.save(activeSubscription);
+                
                 Map<String, Object> mockResponse = new HashMap<>();
                 mockResponse.put("status", "CANCELLED");
                 mockResponse.put("message", "구독이 성공적으로 취소되었습니다 (테스트 모드)");
                 mockResponse.put("cancelledAt", LocalDateTime.now().toString());
+                mockResponse.put("planType", activeSubscription.getPlan().getPlanType().name());
                 
-                log.info("Mock 구독 취소 완료");
+                log.info("Mock 구독 취소 완료 - userId: {}, planType: {}", userId, activeSubscription.getPlan().getPlanType());
                 return ResponseEntity.ok(ApiResponse.success(mockResponse));
             }
             
-            // 실제 구독 취소 로직 (필요시 구현)
+            // 실제 Stripe 구독 취소 로직
+            if (activeSubscription.getStripeSubscriptionId() != null) {
+                boolean stripeCanceled = stripeSubscriptionService.cancelSubscription(activeSubscription.getStripeSubscriptionId());
+                if (!stripeCanceled) {
+                    return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Stripe 구독 취소에 실패했습니다.", "STRIPE_CANCEL_FAILED"));
+                }
+            }
+            
+            // 로컬 구독 비활성화
+            activeSubscription.cancel();
+            userSubscriptionRepository.save(activeSubscription);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("status", "CANCELLED");
             response.put("message", "구독이 성공적으로 취소되었습니다");
             response.put("cancelledAt", LocalDateTime.now().toString());
+            response.put("planType", activeSubscription.getPlan().getPlanType().name());
             
+            log.info("구독 취소 완료 - userId: {}, planType: {}", userId, activeSubscription.getPlan().getPlanType());
             return ResponseEntity.ok(ApiResponse.success(response));
             
         } catch (Exception e) {
@@ -583,12 +638,11 @@ public class SubscriptionController {
      * 실제 Stripe 테스트 키가 설정되어 있으면 실제 API 사용
      */
     private boolean isTestMode() {
-        // 실제 Stripe 키가 설정되어 있으면 실제 API 사용
+        // Mock 키나 더미 키가 설정된 경우에만 Mock 모드 사용
         return stripeSecretKey == null ||
                stripeSecretKey.contains("mock_key_for_dev") ||
                stripeSecretKey.equals("sk_test_your_test_key_here") ||
-               stripeSecretKey.equals("sk_test_dummy_key") ||
-               (!stripeSecretKey.startsWith("sk_test_") && !stripeSecretKey.startsWith("sk_live_"));
+               stripeSecretKey.equals("sk_test_dummy_key");
     }
 
     /**

@@ -123,7 +123,7 @@ public class ApiUsageTrackingService {
         LocalDate endOfMonth = startOfMonth.plusMonths(1).minusDays(1);
         
         return apiUsageRecordRepository.sumRequestCountByUserIdAndDateRange(
-                user, startOfMonth, endOfMonth);
+                user.getUserId(), startOfMonth, endOfMonth);
     }
 
     /**
@@ -137,7 +137,7 @@ public class ApiUsageTrackingService {
     @Transactional(readOnly = true)
     public long getUsageByDateRange(User user, LocalDate startDate, LocalDate endDate) {
         return apiUsageRecordRepository.sumRequestCountByUserIdAndDateRange(
-                user, startDate, endDate);
+                user.getUserId(), startDate, endDate);
     }
 
     /**

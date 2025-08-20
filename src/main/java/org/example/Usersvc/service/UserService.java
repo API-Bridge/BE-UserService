@@ -3,10 +3,15 @@ package org.example.Usersvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.User;
+import org.example.Usersvc.domain.Plan;
+import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.event.model.UserCreatedEvent;
 import org.example.Usersvc.event.model.UserDeletedEvent;
 import org.example.Usersvc.event.publisher.EventPublisherService;
 import org.example.Usersvc.repository.UserRepository;
+import org.example.Usersvc.repository.PlanRepository;
+import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +46,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final EventPublisherService eventPublisher;
+    private final PlanRepository planRepository;
+    private final UserSubscriptionRepository userSubscriptionRepository;
 
     /**
      * 새로운 사용자 생성
@@ -75,6 +82,9 @@ public class UserService {
             // 데이터베이스에 사용자 저장
             User savedUser = userRepository.save(newUser);
             log.info("사용자 생성 성공 - userId: {}, auth0Id: {}", savedUser.getUserId(), auth0Id);
+            
+            // 자동으로 FREE 구독 생성
+            createDefaultFreeSubscription(savedUser);
             
             // 사용자 생성 이벤트 발행
             publishUserCreatedEvent(savedUser);
@@ -434,6 +444,56 @@ public class UserService {
         } catch (Exception e) {
             log.warn("사용자 삭제 이벤트 발행 실패 - userId: {}", user.getUserId(), e);
             // 이벤트 발행 실패는 전체 트랜잭션을 롤백시키지 않음
+        }
+    }
+    
+    /**
+     * 새로운 사용자에게 기본 FREE 구독 생성
+     * 
+     * @param user 구독을 생성할 사용자
+     */
+    private void createDefaultFreeSubscription(User user) {
+        try {
+            log.info("사용자 FREE 구독 생성 시작 - userId: {}", user.getUserId());
+            
+            // FREE 플랜 조회
+            Optional<Plan> freePlanOpt = planRepository.findByPlanType(PlanType.FREE);
+            if (freePlanOpt.isEmpty()) {
+                log.error("FREE 플랜을 찾을 수 없습니다. data.sql 확인 필요");
+                throw new RuntimeException("FREE 플랜을 찾을 수 없습니다.");
+            }
+            
+            Plan freePlan = freePlanOpt.get();
+            
+            // 이미 구독이 있는지 확인 (중복 방지)
+            Optional<UserSubscription> existingSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            if (existingSubscription.isPresent()) {
+                log.info("사용자에게 이미 활성 구독이 있습니다 - userId: {}, planType: {}", 
+                    user.getUserId(), existingSubscription.get().getPlan().getPlanType());
+                return;
+            }
+            
+            // 새 FREE 구독 생성
+            UserSubscription freeSubscription = UserSubscription.builder()
+                    .subscriptionId(java.util.UUID.randomUUID().toString())
+                    .user(user)
+                    .plan(freePlan)
+                    .planPaymentDate(LocalDateTime.now())
+                    .build();
+            
+            // 구독 활성화
+            freeSubscription.setIsActive(true);
+            
+            // 데이터베이스에 저장
+            UserSubscription savedSubscription = userSubscriptionRepository.save(freeSubscription);
+            
+            log.info("사용자 FREE 구독 생성 완료 - userId: {}, subscriptionId: {}", 
+                user.getUserId(), savedSubscription.getSubscriptionId());
+                
+        } catch (Exception e) {
+            log.error("사용자 FREE 구독 생성 실패 - userId: {}", user.getUserId(), e);
+            // FREE 구독 생성 실패는 사용자 생성을 막지 않도록 예외를 다시 던지지 않음
+            // 이후 로그인 시 구독이 없으면 자동으로 FREE 플랜으로 처리됨
         }
     }
 }

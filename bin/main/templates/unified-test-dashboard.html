@@ -1392,7 +1392,7 @@
                 const result = await response.json();
 
                 if (result.success && result.data.hasActiveSubscription) {
-                    showMessage(`🎉 구독이 성공적으로 활성화되었습니다! 플랜: ${result.data.planName}`, 'success');
+                    showMessage(`🎉 구독이 성공적으로 활성화되었습니다! 플랜: ${result.data.planType}`, 'success');
                     
                     // 대시보드 업데이트
                     updateSubscriptionStatus(result.data);
@@ -1423,7 +1423,7 @@
             if (statusDiv) {
                 statusDiv.innerHTML = `
                     <div style="color: #28a745; font-weight: 600;">
-                        ✅ 활성 구독: ${subscriptionData.planName}
+                        ✅ 활성 구독: ${subscriptionData.planType}
                         <br>
                         <small style="color: #6c757d;">
                             구독 ID: ${subscriptionData.subscriptionId}

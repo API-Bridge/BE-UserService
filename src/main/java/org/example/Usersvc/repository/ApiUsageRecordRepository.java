@@ -74,8 +74,8 @@ public interface ApiUsageRecordRepository extends JpaRepository<ApiUsageRecord, 
      * 사용자의 특정 기간 총 요청 수 합계
      */
     @Query("SELECT COALESCE(SUM(a.requestCount), 0) FROM ApiUsageRecord a " +
-           "WHERE a.user = :user AND a.recordDate >= :startDate AND a.recordDate <= :endDate")
-    long sumRequestCountByUserIdAndDateRange(@Param("user") User user,
+           "WHERE a.user.userId = :userId AND a.recordDate >= :startDate AND a.recordDate <= :endDate")
+    long sumRequestCountByUserIdAndDateRange(@Param("userId") String userId,
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
 }
