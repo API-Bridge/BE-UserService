@@ -300,6 +300,102 @@ public class UserService {
     }
     
     /**
+     * 사용자의 구독 가능 여부 확인
+     * PRO + active = 구독 불가 (이미 PRO 구독자)
+     * FREE + active = 구독 가능 (PRO로 업그레이드 가능)
+     * 
+     * @param userId 확인할 사용자 ID
+     * @return 구독 가능하면 true, 불가능하면 false
+     */
+    @Transactional(readOnly = true)
+    public boolean canSubscribe(String userId) {
+        log.debug("구독 가능 여부 확인 - userId: {}", userId);
+        
+        validateUserId(userId);
+        
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isEmpty()) {
+            log.warn("사용자를 찾을 수 없음 - userId: {}", userId);
+            return false;
+        }
+        
+        User user = userOptional.get();
+        Optional<UserSubscription> activeSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+        
+        if (activeSubscription.isEmpty()) {
+            // 활성 구독이 없으면 구독 가능
+            log.debug("활성 구독이 없음 - 구독 가능 - userId: {}", userId);
+            return true;
+        }
+        
+        UserSubscription subscription = activeSubscription.get();
+        Plan plan = subscription.getPlan();
+        
+        // PRO 플랜이고 활성 상태면 구독 불가 (이미 최고 플랜)
+        if (PlanType.PRO.name().equals(plan.getPlanType().name()) && subscription.getIsActive()) {
+            log.debug("이미 PRO 구독자 - 구독 불가 - userId: {}", userId);
+            return false;
+        }
+        
+        // FREE 플랜이고 활성 상태면 구독 가능 (PRO로 업그레이드)
+        if (PlanType.FREE.name().equals(plan.getPlanType().name()) && subscription.getIsActive()) {
+            log.debug("FREE 구독자 - PRO 구독 가능 - userId: {}", userId);
+            return true;
+        }
+        
+        log.debug("구독 상태 확인 완료 - userId: {}, canSubscribe: true", userId);
+        return true;
+    }
+    
+    /**
+     * 사용자의 구독 취소 가능 여부 확인
+     * PRO + active = 취소 가능
+     * FREE + active = 취소 불가 (무료 구독은 취소할 수 없음)
+     * 
+     * @param userId 확인할 사용자 ID
+     * @return 취소 가능하면 true, 불가능하면 false
+     */
+    @Transactional(readOnly = true)
+    public boolean canCancelSubscription(String userId) {
+        log.debug("구독 취소 가능 여부 확인 - userId: {}", userId);
+        
+        validateUserId(userId);
+        
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isEmpty()) {
+            log.warn("사용자를 찾을 수 없음 - userId: {}", userId);
+            return false;
+        }
+        
+        User user = userOptional.get();
+        Optional<UserSubscription> activeSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
+        
+        if (activeSubscription.isEmpty()) {
+            // 활성 구독이 없으면 취소할 것도 없음
+            log.debug("활성 구독이 없음 - 취소 불가 - userId: {}", userId);
+            return false;
+        }
+        
+        UserSubscription subscription = activeSubscription.get();
+        Plan plan = subscription.getPlan();
+        
+        // PRO 플랜이고 활성 상태면 취소 가능
+        if (PlanType.PRO.name().equals(plan.getPlanType().name()) && subscription.getIsActive()) {
+            log.debug("PRO 구독자 - 취소 가능 - userId: {}", userId);
+            return true;
+        }
+        
+        // FREE 플랜이면 취소 불가 (무료 구독)
+        if (PlanType.FREE.name().equals(plan.getPlanType().name())) {
+            log.debug("FREE 구독자 - 취소 불가 - userId: {}", userId);
+            return false;
+        }
+        
+        log.debug("구독 취소 불가 - userId: {}", userId);
+        return false;
+    }
+    
+    /**
      * 사용자 존재 여부 확인 (이메일 기준)
      * 
      * @param userEmail 확인할 사용자 이메일
@@ -382,7 +478,7 @@ public class UserService {
                 .isActive(subscription.getIsActive())
                 .planPaymentDate(subscription.getPlanPaymentDate())
                 .planUpdateDate(subscription.getPlanUpdateDate())
-                .stripeSubscriptionId(subscription.getStripeSubscriptionId())
+                .paymentProvider(subscription.getPaymentProvider() != null ? subscription.getPaymentProvider().name() : null)
                 .price(plan.getPrice() != null ? plan.getPrice().doubleValue() : 0.0)
                 .description(plan.getDescription())
                 .build();
@@ -395,7 +491,7 @@ public class UserService {
                 .isActive(true)
                 .planPaymentDate(user.getCreatedAt())
                 .planUpdateDate(user.getCreatedAt())
-                .stripeSubscriptionId(null)
+                .paymentProvider("FREE")
                 .price(0.0)
                 .description("기본 무료 플랜")
                 .build();

@@ -1,50 +1,60 @@
 -- ================================
--- 완전한 DB 재생성 스크립트 (테스트 최적화)
+-- MySQL 테스트 데이터 스크립트 (TossPay 전용) - DDL + INSERT
 -- ================================
 
--- 기존 데이터베이스 삭제 후 새로 생성
-DROP DATABASE IF EXISTS userservice;
-CREATE DATABASE userservice;
-USE userservice;
+-- Foreign Key 제약 조건 임시 비활성화
+SET FOREIGN_KEY_CHECKS = 0;
 
--- 1. Plan 테이블 (구독 플랜)
+-- 기존 테이블 삭제 (순서 중요)
+DROP TABLE IF EXISTS api_usage_record;
+DROP TABLE IF EXISTS user_saved_api;
+DROP TABLE IF EXISTS shared_api;
+DROP TABLE IF EXISTS custom_api;
+DROP TABLE IF EXISTS user_secrets_arn;
+DROP TABLE IF EXISTS subscription;
+DROP TABLE IF EXISTS plan;
+DROP TABLE IF EXISTS `user`;
+
+-- 1. Plan 테이블 (구독 플랜) - 먼저 생성
 CREATE TABLE plan (
     plan_id INT AUTO_INCREMENT PRIMARY KEY,
-    plan_type VARCHAR(20) NOT NULL UNIQUE,
+    plan_type ENUM('FREE', 'PRO') NOT NULL UNIQUE,
     price DECIMAL(10, 2) NOT NULL,
     description TEXT,
     features JSON,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_plan_type (plan_type)
-);
+) ENGINE=InnoDB;
 
--- 2. User 테이블 (사용자)
+-- 2. User 테이블 (사용자) - 두 번째 생성
 CREATE TABLE `user` (
     user_id VARCHAR(36) PRIMARY KEY,
-    auth0_id VARCHAR(255) UNIQUE,
+    auth0_id VARCHAR(255) UNIQUE NOT NULL,
     user_email VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user_email (user_email),
     INDEX idx_auth0_id (auth0_id)
-);
+) ENGINE=InnoDB;
 
--- 3. Subscription 테이블 (사용자 구독) - stripe_subscription_id 포함
+-- 3. Subscription 테이블 (사용자 구독) - TossPay 전용
 CREATE TABLE subscription (
     subscription_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     plan_id INT NOT NULL,
-    plan_payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    plan_update_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    plan_payment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    plan_update_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
-    stripe_subscription_id VARCHAR(255) NULL COMMENT 'Stripe에서 생성한 구독 ID (sub_xxx 형태)',
+    billing_key VARCHAR(255) NULL COMMENT 'TossPay 빌링키 (결제 자동화용)',
+    payment_provider ENUM('STRIPE', 'TOSSPAY') DEFAULT 'TOSSPAY' COMMENT '결제 제공자',
     FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     FOREIGN KEY (plan_id) REFERENCES plan(plan_id) ON DELETE RESTRICT,
-    INDEX idx_stripe_subscription_id (stripe_subscription_id),
+    INDEX idx_billing_key (billing_key),
+    INDEX idx_payment_provider (payment_provider),
     INDEX idx_user_id (user_id),
     INDEX idx_plan_id (plan_id),
     INDEX idx_is_active (is_active)
-);
+) ENGINE=InnoDB;
 
 -- 4. User Secrets ARN 테이블
 CREATE TABLE user_secrets_arn (
@@ -52,10 +62,11 @@ CREATE TABLE user_secrets_arn (
     user_id VARCHAR(36) NOT NULL,
     arn VARCHAR(500) NOT NULL,
     arn_description VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id)
-);
+    INDEX idx_user_id (user_id),
+    INDEX idx_arn (arn)
+) ENGINE=InnoDB;
 
 -- 5. Custom API 테이블
 CREATE TABLE custom_api (
@@ -63,12 +74,12 @@ CREATE TABLE custom_api (
     user_id VARCHAR(36) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_name (name)
-);
+) ENGINE=InnoDB;
 
 -- 6. Shared API 테이블 
 CREATE TABLE shared_api (
@@ -79,15 +90,15 @@ CREATE TABLE shared_api (
     description TEXT,
     data_count INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (original_api_id) REFERENCES custom_api(custom_api_id) ON DELETE CASCADE,
     FOREIGN KEY (creator_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_creator_id (creator_id),
     INDEX idx_original_api_id (original_api_id),
     INDEX idx_api_name (api_name),
     INDEX idx_is_active (is_active)
-);
+) ENGINE=InnoDB;
 
 -- 7. User Saved API 테이블
 CREATE TABLE user_saved_api (
@@ -98,14 +109,14 @@ CREATE TABLE user_saved_api (
     description TEXT,
     data_count INT DEFAULT 0,
     is_deleted BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     FOREIGN KEY (shared_api_id) REFERENCES shared_api(shared_api_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_shared_api_id (shared_api_id),
     INDEX idx_is_deleted (is_deleted)
-);
+) ENGINE=InnoDB;
 
 -- 8. API Usage Record 테이블
 CREATE TABLE api_usage_record (
@@ -114,17 +125,13 @@ CREATE TABLE api_usage_record (
     api_endpoint VARCHAR(255) NOT NULL,
     request_count INT DEFAULT 1,
     record_date DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_record_date (record_date),
     INDEX idx_api_endpoint (api_endpoint),
     UNIQUE KEY uk_user_api_date (user_id, api_endpoint, record_date)
-);
-
--- ================================
--- 초기 데이터 삽입 (2025년 1월 기준 최신화)
--- ================================
+) ENGINE=InnoDB;
 
 -- 1. Plan 데이터 (planType enum에 맞게 생성)
 INSERT INTO plan (plan_type, price, description, features) VALUES 
@@ -169,45 +176,45 @@ INSERT INTO `user` (user_id, auth0_id, user_email, created_at) VALUES
 ('power-user-001', 'auth0|poweruser001', 'power@intensive.com', '2024-11-01 07:00:00'),
 ('heavy-user-001', 'google-oauth2|heavyuser001', 'heavy@usage.com', '2024-11-01 07:30:00');
 
--- 3. Subscription 데이터 (현실적이고 테스트하기 좋은 구독 상태)
-INSERT INTO subscription (subscription_id, user_id, plan_id, plan_payment_date, plan_update_date, is_active, stripe_subscription_id) VALUES 
+-- 3. Subscription 데이터 (TossPay 전용으로 수정)
+INSERT INTO subscription (subscription_id, user_id, plan_id, plan_payment_date, plan_update_date, is_active, billing_key, payment_provider) VALUES 
 -- 🧪 기본 테스트 사용자들 (FREE)
-('sub-test-001', 'test-user-001', 1, '2024-12-01 10:00:00', '2024-12-01 10:00:00', true, NULL),
-('sub-demo-001', 'demo-user-001', 1, '2024-12-01 10:30:00', '2024-12-01 10:30:00', true, NULL),
-('sub-apitester-001', 'api-tester-001', 1, '2024-12-01 11:00:00', '2024-12-01 11:00:00', true, NULL),
+('sub-test-001', 'test-user-001', 1, '2024-12-01 10:00:00', '2024-12-01 10:00:00', true, NULL, 'TOSSPAY'),
+('sub-demo-001', 'demo-user-001', 1, '2024-12-01 10:30:00', '2024-12-01 10:30:00', true, NULL, 'TOSSPAY'),
+('sub-apitester-001', 'api-tester-001', 1, '2024-12-01 11:00:00', '2024-12-01 11:00:00', true, NULL, 'TOSSPAY'),
 
 -- 🆓 활성 FREE 구독 사용자들
-('sub-free-001', 'free-user-001', 1, '2024-12-15 09:00:00', '2024-12-15 09:00:00', true, NULL),
-('sub-free-002', 'free-user-002', 1, '2024-12-16 10:30:00', '2024-12-16 10:30:00', true, NULL),
-('sub-free-003', 'free-user-003', 1, '2024-12-17 14:15:00', '2024-12-17 14:15:00', true, NULL),
-('sub-free-004', 'free-user-004', 1, '2024-12-18 16:00:00', '2024-12-18 16:00:00', true, NULL),
-('sub-free-005', 'free-user-005', 1, '2024-12-19 12:30:00', '2024-12-19 12:30:00', true, NULL),
+('sub-free-001', 'free-user-001', 1, '2024-12-15 09:00:00', '2024-12-15 09:00:00', true, NULL, 'TOSSPAY'),
+('sub-free-002', 'free-user-002', 1, '2024-12-16 10:30:00', '2024-12-16 10:30:00', true, NULL, 'TOSSPAY'),
+('sub-free-003', 'free-user-003', 1, '2024-12-17 14:15:00', '2024-12-17 14:15:00', true, NULL, 'TOSSPAY'),
+('sub-free-004', 'free-user-004', 1, '2024-12-18 16:00:00', '2024-12-18 16:00:00', true, NULL, 'TOSSPAY'),
+('sub-free-005', 'free-user-005', 1, '2024-12-19 12:30:00', '2024-12-19 12:30:00', true, NULL, 'TOSSPAY'),
 
--- 💎 활성 PRO 구독 사용자들 (실제 Stripe 구독 ID 패턴)
-('sub-pro-001', 'pro-user-001', 2, '2024-11-01 09:00:00', '2024-11-01 09:00:00', true, 'sub_1QRxyzABCDEF123456'),
-('sub-pro-002', 'pro-user-002', 2, '2024-11-05 10:15:00', '2024-11-05 10:15:00', true, 'sub_1QSabcDEFGHI789012'),
-('sub-pro-003', 'pro-user-003', 2, '2024-11-10 14:30:00', '2024-11-10 14:30:00', true, 'sub_1QTdefGHIJKL345678'),
-('sub-pro-004', 'pro-user-004', 2, '2024-11-15 11:45:00', '2024-11-15 11:45:00', true, 'sub_1QUghiJKLMNO456789'),
+-- 💎 활성 PRO 구독 사용자들 (TossPay 빌링키 포함)
+('sub-pro-001', 'pro-user-001', 2, '2024-11-01 09:00:00', '2024-11-01 09:00:00', true, 'BK_1QRxyzABCDEF123456', 'TOSSPAY'),
+('sub-pro-002', 'pro-user-002', 2, '2024-11-05 10:15:00', '2024-11-05 10:15:00', true, 'BK_1QSabcDEFGHI789012', 'TOSSPAY'),
+('sub-pro-003', 'pro-user-003', 2, '2024-11-10 14:30:00', '2024-11-10 14:30:00', true, 'BK_1QTdefGHIJKL345678', 'TOSSPAY'),
+('sub-pro-004', 'pro-user-004', 2, '2024-11-15 11:45:00', '2024-11-15 11:45:00', true, 'BK_1QUghiJKLMNO456789', 'TOSSPAY'),
 
 -- 🔄 플랜 변경 이력 (PRO로 업그레이드)
-('sub-switch-old-001', 'switcher-001', 1, '2024-10-01 12:00:00', '2024-11-01 10:00:00', false, NULL), -- 이전 FREE
-('sub-switch-new-001', 'switcher-001', 2, '2024-11-01 10:00:00', '2024-11-01 10:00:00', true, 'sub_1QVjklMNOPQR567890'), -- 현재 PRO
-('sub-switch-old-002', 'switcher-002', 1, '2024-10-15 13:30:00', '2024-11-15 15:00:00', false, NULL), -- 이전 FREE  
-('sub-switch-new-002', 'switcher-002', 2, '2024-11-15 15:00:00', '2024-11-15 15:00:00', true, 'sub_1QWmnoPQRSTU678901'), -- 현재 PRO
+('sub-switch-old-001', 'switcher-001', 1, '2024-10-01 12:00:00', '2024-11-01 10:00:00', false, NULL, 'TOSSPAY'), -- 이전 FREE
+('sub-switch-new-001', 'switcher-001', 2, '2024-11-01 10:00:00', '2024-11-01 10:00:00', true, 'BK_1QVjklMNOPQR567890', 'TOSSPAY'), -- 현재 PRO
+('sub-switch-old-002', 'switcher-002', 1, '2024-10-15 13:30:00', '2024-11-15 15:00:00', false, NULL, 'TOSSPAY'), -- 이전 FREE  
+('sub-switch-new-002', 'switcher-002', 2, '2024-11-15 15:00:00', '2024-11-15 15:00:00', true, 'BK_1QWmnoPQRSTU678901', 'TOSSPAY'), -- 현재 PRO
 
 -- 🆕 최근 가입 사용자들 (자동 생성된 FREE 구독)
-('sub-new-001', 'new-user-001', 1, '2025-01-15 10:00:00', '2025-01-15 10:00:00', true, NULL),
-('sub-new-002', 'new-user-002', 1, '2025-01-16 14:20:00', '2025-01-16 14:20:00', true, NULL),
-('sub-new-003', 'new-user-003', 1, '2025-01-17 16:45:00', '2025-01-17 16:45:00', true, NULL),
+('sub-new-001', 'new-user-001', 1, '2025-01-15 10:00:00', '2025-01-15 10:00:00', true, NULL, 'TOSSPAY'),
+('sub-new-002', 'new-user-002', 1, '2025-01-16 14:20:00', '2025-01-16 14:20:00', true, NULL, 'TOSSPAY'),
+('sub-new-003', 'new-user-003', 1, '2025-01-17 16:45:00', '2025-01-17 16:45:00', true, NULL, 'TOSSPAY'),
 
 -- 🔧 개발/QA 테스트용 구독
-('sub-dev-001', 'dev-test-001', 1, '2024-12-01 08:00:00', '2024-12-01 08:00:00', true, NULL),
-('sub-qa-001', 'qa-test-001', 2, '2024-12-01 08:30:00', '2024-12-01 08:30:00', true, 'sub_1QXpqrSTUVWX789012'), -- QA용 PRO
-('sub-load-001', 'load-test-001', 2, '2024-12-01 09:00:00', '2024-12-01 09:00:00', true, 'sub_1QYstUVWXYZ890123'), -- 부하 테스트용 PRO
+('sub-dev-001', 'dev-test-001', 1, '2024-12-01 08:00:00', '2024-12-01 08:00:00', true, NULL, 'TOSSPAY'),
+('sub-qa-001', 'qa-test-001', 2, '2024-12-01 08:30:00', '2024-12-01 08:30:00', true, 'BK_1QXpqrSTUVWX789012', 'TOSSPAY'), -- QA용 PRO
+('sub-load-001', 'load-test-001', 2, '2024-12-01 09:00:00', '2024-12-01 09:00:00', true, 'BK_1QYstUVWXYZ890123', 'TOSSPAY'), -- 부하 테스트용 PRO
 
 -- 🚀 고활용 사용자들
-('sub-power-001', 'power-user-001', 2, '2024-11-01 07:00:00', '2024-11-01 07:00:00', true, 'sub_1QZuvWXYZABC901234'),
-('sub-heavy-001', 'heavy-user-001', 2, '2024-11-01 07:30:00', '2024-11-01 07:30:00', true, 'sub_1QAxyZABCDEF012345');
+('sub-power-001', 'power-user-001', 2, '2024-11-01 07:00:00', '2024-11-01 07:00:00', true, 'BK_1QZuvWXYZABC901234', 'TOSSPAY'),
+('sub-heavy-001', 'heavy-user-001', 2, '2024-11-01 07:30:00', '2024-11-01 07:30:00', true, 'BK_1QAxyZABCDEF012345', 'TOSSPAY');
 
 -- 4. User Secrets ARN 데이터 (API 키 테스트용)
 INSERT INTO user_secrets_arn (arn_id, user_id, arn, arn_description, created_at) VALUES 
@@ -433,3 +440,6 @@ INSERT INTO api_usage_record (record_id, user_id, api_endpoint, request_count, r
 - API 공유/저장 패턴 분석
 - 구독 변경 이벤트 추적
 */
+
+-- Foreign Key 제약 조건 재활성화
+SET FOREIGN_KEY_CHECKS = 1;

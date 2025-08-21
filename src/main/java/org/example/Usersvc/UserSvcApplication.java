@@ -2,6 +2,7 @@ package org.example.Usersvc;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.retry.annotation.EnableRetry;
 
 /**
  * Custom API Service의 메인 애플리케이션 클래스
@@ -13,6 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - 서블릿 컨테이너 내장 및 HTTP 서버 구동
  */
 @SpringBootApplication
+@EnableRetry
 public class UserSvcApplication {
 
     /**

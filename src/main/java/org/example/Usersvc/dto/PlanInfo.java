@@ -35,8 +35,8 @@ public class PlanInfo {
     @Schema(description = "플랜 업데이트일", example = "2024-01-15T10:00:00")
     private LocalDateTime planUpdateDate;
 
-    @Schema(description = "Stripe 구독 ID", example = "sub_1QRxyzABCDEF123456", nullable = true)
-    private String stripeSubscriptionId;
+    @Schema(description = "결제 제공자", example = "TOSSPAY", allowableValues = {"TOSSPAY", "FREE"})
+    private String paymentProvider;
 
     @Schema(description = "플랜 가격", example = "0.00")
     private Double price;
@@ -54,12 +54,12 @@ public class PlanInfo {
     }
 
     /**
-     * Stripe 구독이 있는지 확인
+     * TossPay 결제인지 확인
      * 
-     * @return Stripe 구독 ID가 있는 경우 true
+     * @return TossPay 결제인 경우 true
      */
-    public boolean hasStripeSubscription() {
-        return stripeSubscriptionId != null && !stripeSubscriptionId.trim().isEmpty();
+    public boolean hasTossPaySubscription() {
+        return "TOSSPAY".equals(paymentProvider);
     }
 
     /**

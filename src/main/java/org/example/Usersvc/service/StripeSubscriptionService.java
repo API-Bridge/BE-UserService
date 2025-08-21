@@ -13,7 +13,7 @@ import org.example.Usersvc.event.model.SubscriptionUpdatedEvent;
 import org.example.Usersvc.event.model.SubscriptionDeactivatedEvent;
 import org.example.Usersvc.event.publisher.EventPublisherService;
 
-@Service
+// @Service  // 비활성화 - 토스페이로 대체됨
 @RequiredArgsConstructor
 @Slf4j
 public class StripeSubscriptionService {

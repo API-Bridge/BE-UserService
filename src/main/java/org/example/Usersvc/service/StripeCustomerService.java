@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 
-@Service
+// @Service  // 비활성화 - 토스페이로 대체됨
 @RequiredArgsConstructor
 @Slf4j
 public class StripeCustomerService {

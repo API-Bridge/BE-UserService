@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토스페이 결제 테스트</title>
+    <script src="https://js.tosspayments.com/v1"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 토스페이 결제 테스트</h1>
+    
+    <div class="form-group">
+        <label for="userId">사용자 ID:</label>
+        <input type="text" id="userId" value="test-user-123" placeholder="사용자 ID 입력">
+    </div>
+    
+    <div class="form-group">
+        <label for="planType">플랜 타입:</label>
+        <select id="planType">
+            <option value="PRO">PRO (22원)</option>
+            <option value="FREE">FREE (0원)</option>
+        </select>
+    </div>
+    
+    <button onclick="startPayment()">결제 시작</button>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <script>
+        let tossPayments;
+        let widgets;
+        
+        // 토스페이먼츠 초기화 (테스트 클라이언트 키)
+        async function initTossPayments(clientKey) {
+            tossPayments = TossPayments(clientKey);
+        }
+        
+        async function startPayment() {
+            const userId = document.getElementById('userId').value;
+            const planType = document.getElementById('planType').value;
+            
+            if (!userId) {
+                showResult('사용자 ID를 입력해주세요.', 'error');
+                return;
+            }
+            
+            try {
+                showResult('결제 요청 중...', 'success');
+                
+                // 1. 결제 요청 API 호출
+                const response = await fetch('/api/payments/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: userId,
+                        planType: planType,
+                        provider: 'TOSSPAY'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.message || '결제 요청 실패');
+                }
+                
+                const paymentData = result.data;
+                console.log('결제 데이터:', paymentData);
+                
+                // 2. 토스페이먼츠 초기화
+                await initTossPayments(paymentData.clientKey);
+                
+                // 3. V1 API 사용하여 결제 요청
+                await tossPayments.requestPayment('카드', {
+                    amount: paymentData.amount,
+                    orderId: paymentData.orderId,
+                    orderName: paymentData.orderName,
+                    successUrl: window.location.origin + "/api/payments/success",
+                    failUrl: window.location.origin + "/api/payments/fail",
+                    customerEmail: paymentData.customerEmail,
+                    customerName: paymentData.customerName,
+                });
+                
+            } catch (error) {
+                console.error('결제 오류:', error);
+                showResult('결제 오류: ' + error.message, 'error');
+            }
+        }
+        
+        function showResult(message, type = 'success') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+        
+        // URL 파라미터 확인 (결제 성공/실패 시)
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentKey = urlParams.get('paymentKey');
+            const orderId = urlParams.get('orderId');
+            const amount = urlParams.get('amount');
+            
+            if (paymentKey && orderId && amount) {
+                showResult(`
+                    <h3>🎉 결제 성공!</h3>
+                    <p><strong>결제키:</strong> ${paymentKey}</p>
+                    <p><strong>주문번호:</strong> ${orderId}</p>
+                    <p><strong>결제금액:</strong> ${amount}원</p>
+                    <p>결제 승인이 완료되었습니다!</p>
+                `, 'success');
+            }
+            
+            const code = urlParams.get('code');
+            const message = urlParams.get('message');
+            
+            if (code && message) {
+                showResult(`
+                    <h3>❌ 결제 실패</h3>
+                    <p><strong>오류코드:</strong> ${code}</p>
+                    <p><strong>오류메시지:</strong> ${message}</p>
+                `, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

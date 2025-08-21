@@ -10,7 +10,7 @@ import java.util.UUID;
  * Mock Stripe Service for Development and Testing
  * 실제 Stripe API 키가 설정되지 않은 경우 사용되는 Mock 서비스
  */
-@Service
+// @Service  // 비활성화 - 토스페이로 대체됨
 @Profile("dev")
 @Slf4j
 public class MockStripeService {

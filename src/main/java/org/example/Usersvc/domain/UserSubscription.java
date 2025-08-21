@@ -38,8 +38,12 @@ public class UserSubscription {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = false; // 기본값이 FALSE
     
-    @Column(name = "stripe_subscription_id")
-    private String stripeSubscriptionId; // Stripe 구독 ID
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_provider", length = 20)
+    private PaymentProvider paymentProvider = PaymentProvider.TOSSPAY; // 결제 제공자
+    
+    @Column(name = "billing_key")
+    private String billingKey; // TossPay 빌링키 (정기결제용)
     
     @Builder
     public UserSubscription(String subscriptionId, User user, Plan plan, LocalDateTime planPaymentDate) {
@@ -132,11 +136,19 @@ public class UserSubscription {
         this.user = user;
     }
 
+
     /**
-     * Stripe 구독 ID 설정
+     * 결제 제공자 설정
      */
-    public void setStripeSubscriptionId(String stripeSubscriptionId) {
-        this.stripeSubscriptionId = stripeSubscriptionId;
+    public void setPaymentProvider(PaymentProvider paymentProvider) {
+        this.paymentProvider = paymentProvider;
+    }
+
+    /**
+     * 빌링키 설정 (TossPay)
+     */
+    public void setBillingKey(String billingKey) {
+        this.billingKey = billingKey;
     }
 
 }

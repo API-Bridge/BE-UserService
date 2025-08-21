@@ -68,7 +68,7 @@ public class DevSecurityConfig {
                 .requestMatchers("/", "/index.html", "/*.html").permitAll()
                 .requestMatchers("/static/**", "/public/**").permitAll()
                 .requestMatchers("/payment-test.html", "/payment-success.html", "/payment-cancel.html").permitAll()
-                .requestMatchers("/shared-api-test.html").permitAll()
+                .requestMatchers("/shared-api-test.html", "/tosspay-test.html").permitAll()
                 .requestMatchers("/health", "/api/health").permitAll()
                 
                 // API 엔드포인트 허용
@@ -80,7 +80,14 @@ public class DevSecurityConfig {
                 .requestMatchers("/api/users/*/subscription").permitAll()
                 .requestMatchers("/api/webhooks/**").permitAll()
                 .requestMatchers("/api/webhook/**").permitAll()
+                .requestMatchers("/api/tosspay/webhook/**").permitAll()
+                .requestMatchers("/api/tosspay/**").permitAll()
                 .requestMatchers("/webhook").permitAll()
+                
+                // 통합 결제 엔드포인트 허용
+                .requestMatchers("/api/payments/**").permitAll()
+                .requestMatchers("/payment-test").permitAll()
+                .requestMatchers("/payment-test/**").permitAll()
                 
                 // 공유 API 엔드포인트 허용
                 .requestMatchers("/api/shared-apis/**").permitAll()

@@ -17,7 +17,10 @@
       "Bash(grep:*)",
       "Bash(del:*)",
       "Bash(\"./gradlew.bat\" compileJava)",
-      "Bash(\"./gradlew.bat\" build -x test)"
+      "Bash(\"./gradlew.bat\" build -x test)",
+      "WebSearch",
+      "WebFetch(domain:toss.tech)",
+      "WebFetch(domain:docs.tosspayments.com)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

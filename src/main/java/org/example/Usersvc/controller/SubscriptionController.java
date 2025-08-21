@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
+import org.example.Usersvc.domain.PaymentProvider;
 import org.example.Usersvc.domain.Plan;
 import org.example.Usersvc.domain.PlanType;
 import org.example.Usersvc.domain.User;
@@ -23,7 +24,7 @@ import org.example.Usersvc.service.ApiUsageTrackingService;
 import org.example.Usersvc.service.ProductionRateLimitService;
 
 import org.example.Usersvc.service.UserService;
-import org.example.Usersvc.service.StripeSubscriptionService;
+// import org.example.Usersvc.service.StripeSubscriptionService;  // 비활성화
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +58,7 @@ public class SubscriptionController {
     private final UserService userService;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
-    private final StripeSubscriptionService stripeSubscriptionService;
+    // private final StripeSubscriptionService stripeSubscriptionService;  // 비활성화
     
     @Autowired(required = false)
     private DevRateLimitService devRateLimitService;
@@ -149,7 +150,7 @@ public class SubscriptionController {
                 subscriptionInfo.put("rateLimitPerMinute", plan.getRateLimitPerMinute());
                 subscriptionInfo.put("rateLimitPerHour", plan.getRateLimitPerHour());
                 subscriptionInfo.put("rateLimitPerDay", plan.getRateLimitPerDay());
-                subscriptionInfo.put("stripeSubscriptionId", subscription.getStripeSubscriptionId());
+                subscriptionInfo.put("paymentProvider", subscription.getPaymentProvider() != null ? subscription.getPaymentProvider().name() : "TOSSPAY");
             } else {
                 // 활성 구독이 없으면 기본 FREE 플랜 정보 반환
                 PlanType freePlan = PlanType.FREE;
@@ -613,7 +614,8 @@ public class SubscriptionController {
                 return ResponseEntity.ok(ApiResponse.success(mockResponse));
             }
             
-            // 실제 Stripe 구독 취소 로직
+            // 실제 Stripe 구독 취소 로직 (비활성화 - 토스페이로 대체됨)
+            /*
             if (activeSubscription.getStripeSubscriptionId() != null) {
                 boolean stripeCanceled = stripeSubscriptionService.cancelSubscription(
                     activeSubscription.getStripeSubscriptionId(), 
@@ -625,6 +627,7 @@ public class SubscriptionController {
                         .body(ApiResponse.error("Stripe 구독 취소에 실패했습니다.", "STRIPE_CANCEL_FAILED"));
                 }
             }
+            */
             
             // 로컬 구독 비활성화
             activeSubscription.cancel();
@@ -846,7 +849,7 @@ public class SubscriptionController {
                     "hasActiveSubscription", true,
                     "planType", plan.getPlanType().name(),
                     "planName", plan.getPlanType().getPlanName(),
-                    "subscriptionId", subscription.getStripeSubscriptionId() != null ? subscription.getStripeSubscriptionId() : "N/A",
+                    "subscriptionId", subscription.getSubscriptionId(),
                     "isActive", subscription.getIsActive(),
                     "planPaymentDate", subscription.getPlanPaymentDate(),
                     "planUpdateDate", subscription.getPlanUpdateDate(),
@@ -944,9 +947,8 @@ public class SubscriptionController {
                     .planPaymentDate(LocalDateTime.now())
                     .build();
             newSubscription.setIsActive(true);
-            if (request.getStripeSubscriptionId() != null) {
-                newSubscription.setStripeSubscriptionId(request.getStripeSubscriptionId());
-            }
+            // TossPay 전용으로 변경
+            newSubscription.setPaymentProvider(PaymentProvider.TOSSPAY);
             
             UserSubscription savedSubscription = userSubscriptionRepository.save(newSubscription);
             log.info("새 구독 생성됨 - userId: {}, planType: {}, subscriptionId: {}", 
