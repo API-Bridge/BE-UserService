@@ -234,8 +234,8 @@ public class SubscriptionController {
             SessionCreateParams params = SessionCreateParams.builder()
                     .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .setSuccessUrl("http://localhost:8081/subscription/success?session_id={CHECKOUT_SESSION_ID}")
-                    .setCancelUrl("http://localhost:8081/subscription/cancel")
+                    .setSuccessUrl("http://localhost:8081/api/subscription/success?session_id={CHECKOUT_SESSION_ID}")
+                    .setCancelUrl("http://localhost:8081/api/subscription/cancel")
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
                                     .setQuantity(1L)
@@ -405,9 +405,9 @@ public class SubscriptionController {
                     .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
                     .setSuccessUrl(request.getSuccessUrl() != null ? request.getSuccessUrl() : 
-                            "http://localhost:8081/test/dashboard?success=true")
+                            "http://localhost:8081/api/subscription/success?session_id={CHECKOUT_SESSION_ID}")
                     .setCancelUrl(request.getCancelUrl() != null ? request.getCancelUrl() : 
-                            "http://localhost:8081/test/dashboard?canceled=true")
+                            "http://localhost:8081/api/subscription/cancel")
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
                                     .setQuantity(1L)
@@ -988,5 +988,51 @@ public class SubscriptionController {
         
         public String getStripeSubscriptionId() { return stripeSubscriptionId; }
         public void setStripeSubscriptionId(String stripeSubscriptionId) { this.stripeSubscriptionId = stripeSubscriptionId; }
+    }
+
+    /**
+     * 결제 성공 페이지 핸들러
+     */
+    @GetMapping("/subscription/success")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handlePaymentSuccess(
+            @RequestParam(required = false) String session_id) {
+        
+        log.info("결제 성공 페이지 접근 - session_id: {}", session_id);
+        
+        try {
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "결제가 성공적으로 완료되었습니다.");
+            response.put("sessionId", session_id);
+            response.put("status", "success");
+            
+            if (session_id != null) {
+                // 세션 정보 조회 시도 (실제 환경에서는 Stripe API 호출)
+                log.info("Stripe 세션 정보 조회: {}", session_id);
+                response.put("redirectUrl", "/dashboard");
+            }
+            
+            return ResponseEntity.ok(ApiResponse.success(response, "결제 완료"));
+            
+        } catch (Exception e) {
+            log.error("결제 성공 페이지 처리 중 오류: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("결제 확인 중 오류가 발생했습니다.", "PAYMENT_SUCCESS_ERROR"));
+        }
+    }
+
+    /**
+     * 결제 취소 페이지 핸들러
+     */
+    @GetMapping("/subscription/cancel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handlePaymentCancel() {
+        
+        log.info("결제 취소 페이지 접근");
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "결제가 취소되었습니다.");
+        response.put("status", "cancelled");
+        response.put("redirectUrl", "/pricing");
+        
+        return ResponseEntity.ok(ApiResponse.success(response, "결제 취소"));
     }
 }

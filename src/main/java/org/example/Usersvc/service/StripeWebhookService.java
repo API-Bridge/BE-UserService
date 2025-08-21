@@ -62,7 +62,7 @@ public class StripeWebhookService {
             }
             
             if (userOptional.isEmpty()) {
-                log.error("체크아웃 완료 처리 실패 - 사용자를 찾을 수 없음: customerId={}, sessionId={}, metadata={}", 
+                log.error("❌ 체크아웃 완료 처리 실패 - 사용자를 찾을 수 없음: customerId={}, sessionId={}, metadata={}", 
                     customerId, session.getId(), session.getMetadata());
                 return;
             }
@@ -72,10 +72,12 @@ public class StripeWebhookService {
             // Stripe에서 구독 정보 조회
             if (subscriptionId != null) {
                 try {
+                    log.info("✅ 체크아웃 완료 - Stripe 구독 정보 조회 시작: subscriptionId={}", subscriptionId);
                     Subscription stripeSubscription = Subscription.retrieve(subscriptionId);
                     processSubscriptionCreated(stripeSubscription);
+                    log.info("✅ 체크아웃 완료 - 구독 처리 완료: subscriptionId={}", subscriptionId);
                 } catch (Exception e) {
-                    log.error("Stripe 구독 정보 조회 실패: {}", e.getMessage(), e);
+                    log.error("❌ Stripe 구독 정보 조회 실패: {}", e.getMessage(), e);
                 }
             }
             
@@ -128,10 +130,11 @@ public class StripeWebhookService {
             userSubscription.setIsActive("active".equals(status));
             userSubscription.setPlanUpdateDate(LocalDateTime.now());
             
-            userSubscriptionRepository.save(userSubscription);
+            UserSubscription savedSubscription = userSubscriptionRepository.save(userSubscription);
             
-            log.info("사용자 구독 업데이트 완료: userId={}, planName={}, active={}", 
-                user.getUserId(), plan.getPlanType().getPlanName(), userSubscription.getIsActive());
+            log.info("✅ DB 구독 정보 업데이트 완료: userId={}, planName={}, active={}, subscriptionId={}, stripeSubscriptionId={}", 
+                user.getUserId(), plan.getPlanType().getPlanName(), savedSubscription.getIsActive(), 
+                savedSubscription.getSubscriptionId(), savedSubscription.getStripeSubscriptionId());
             
         } catch (Exception e) {
             log.error("구독 생성 처리 중 오류: {}", e.getMessage(), e);
