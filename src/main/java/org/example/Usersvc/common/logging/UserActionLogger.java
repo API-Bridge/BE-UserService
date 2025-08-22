@@ -98,14 +98,15 @@ public class UserActionLogger {
     /**
      * API 키 삭제 액션 로그
      */
-    public void logApiKeyDeletion(String userId, String secretName) {
+    public void logApiKeyDeletion(String userId, String secretName, boolean deletionSuccess) {
         String ipAddress = getCurrentIpAddress();
         String userAgent = getCurrentUserAgent();
         
         Map<String, Object> actionData = new HashMap<>();
         actionData.put("secretName", secretName);
         actionData.put("keyType", "AI_API_KEY");
-        actionData.put("deletionConfirmed", true);
+        actionData.put("deletionConfirmed", deletionSuccess);
+        actionData.put("deletionResult", deletionSuccess ? "SUCCESS" : "FAILED");
         
         logUserAction("API_KEY_DELETED", userId, ipAddress, userAgent, actionData);
         

@@ -30,9 +30,6 @@ public class OpenApiConfig {
     @Value("${spring.application.name}")
     private String applicationName;
 
-    @Value("${server.servlet.context-path:/}")
-    private String contextPath;
-
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
@@ -47,17 +44,17 @@ public class OpenApiConfig {
                     .name("Apache 2.0")
                     .url("https://www.apache.org/licenses/LICENSE-2.0")))
             .servers(List.of(
-                new Server().url(contextPath).description("Local server"),
-                new Server().url("https://api.dev.yourservice.com" + contextPath).description("Development server"),
-                new Server().url("https://api.yourservice.com" + contextPath).description("Production server")
+                new Server().url("http://localhost:8081").description("Local server"),
+                new Server().url("https://api.dev.yourservice.com").description("Development server"),
+                new Server().url("https://api.yourservice.com").description("Production server")
             ))
-            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+            .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
             .components(new Components()
-                .addSecuritySchemes("bearerAuth", new SecurityScheme()
-                    .name("bearerAuth")
+                .addSecuritySchemes("Bearer Authentication", new SecurityScheme()
+                    .name("Bearer Authentication")
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
                     .bearerFormat("JWT")
-                    .description("JWT Authorization header using the Bearer scheme.")));
+                    .description("JWT Authorization header using the Bearer scheme. Format: 'Bearer {token}'")));
     }
 }

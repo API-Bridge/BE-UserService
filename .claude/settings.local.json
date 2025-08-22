@@ -20,7 +20,15 @@
       "Bash(\"./gradlew.bat\" build -x test)",
       "WebSearch",
       "WebFetch(domain:toss.tech)",
-      "WebFetch(domain:docs.tosspayments.com)"
+      "WebFetch(domain:docs.tosspayments.com)",
+      "Bash(\"./gradlew\" compileJava)",
+      "Bash(\"./gradlew\" bootRun)",
+      "Bash(\"./gradlew.bat\" bootRun)",
+      "Bash(\"./gradlew.bat\" bootRun --args='--server.port=8082')",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)"
     ],
     "defaultMode": "acceptEdits",
     "additionalDirectories": [

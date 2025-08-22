@@ -18,10 +18,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users/{userId}/shared-apis")
+@RequestMapping("/api/shared-apis")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "SharedApi", description = "공유 API 관리")
@@ -30,32 +33,29 @@ public class SharedApiController {
     private final SharedApiService sharedApiService;
     private final UserSavedApiService userSavedApiService;
 
-    @PostMapping("/share")
+    @PostMapping("/{userId}/share")
     @Operation(summary = "API 공유 게시", description = "커스텀 API를 공유 게시판에 게시합니다.")
     public ResponseEntity<ApiResponse<SharedApi>> shareApi(
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
-            @Parameter(description = "Custom API ID", required = true) @RequestParam String customApiId,
-            @Parameter(description = "플랜 타입", required = true, schema = @Schema(allowableValues = {"FREE", "PRO"})) @RequestParam PlanType planType,
-            @Parameter(description = "공유할 API 이름") @RequestParam(required = false) String apiName,
-            @Parameter(description = "공유할 API 설명") @RequestParam(required = false) String apiDescription) {
+            @Parameter(description = "API 공유 요청 정보", required = true) @Valid @RequestBody ShareApiRequest request) {
         
         try {
-            SharedApi sharedApi = sharedApiService.shareApi(userId, customApiId, planType, apiName, apiDescription);
+            SharedApi sharedApi = sharedApiService.shareApi(userId, request.customApiId(), request.planType(), request.apiName(), request.apiDescription());
             return ResponseEntity.ok(ApiResponse.success(sharedApi));
             
         } catch (IllegalArgumentException e) {
-            log.warn("API 공유 실패 - userId: {}, customApiId: {}, error: {}", userId, customApiId, e.getMessage());
+            log.warn("API 공유 실패 - userId: {}, customApiId: {}, error: {}", userId, request.customApiId(), e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage(), "SHARE_API_ERROR"));
                     
         } catch (Exception e) {
-            log.error("API 공유 중 예상치 못한 오류 발생 - userId: {}, customApiId: {}", userId, customApiId, e);
+            log.error("API 공유 중 예상치 못한 오류 발생 - userId: {}, customApiId: {}", userId, request.customApiId(), e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("API 공유 처리 중 오류가 발생했습니다.", "INTERNAL_SERVER_ERROR"));
         }
     }
 
-    @DeleteMapping("/unshare/{sharedApiId}")
+    @DeleteMapping("/{userId}/unshare/{sharedApiId}")
     @Operation(summary = "API 공유 취소", description = "공유된 API를 취소합니다.")
     public ResponseEntity<ApiResponse<Void>> unshareApiBySharedId(
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
@@ -80,7 +80,7 @@ public class SharedApiController {
 
 
 
-    @GetMapping("/my")
+    @GetMapping("/{userId}/my")
     @Operation(summary = "내가 공유한 API 목록", description = "사용자가 공유한 API 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<List<SharedApi>>> getMySharedApis(
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId) {
@@ -89,7 +89,7 @@ public class SharedApiController {
         return ResponseEntity.ok(ApiResponse.success(sharedApis));
     }
 
-    @PostMapping("/save")
+    @PostMapping("/{userId}/save")
     @Operation(summary = "공유 API 저장", description = "공유된 API를 내 계정으로 저장합니다.")
     public ResponseEntity<ApiResponse<UserSavedApi>> saveSharedApi(
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
@@ -111,7 +111,7 @@ public class SharedApiController {
         }
     }
 
-    @GetMapping("/saved")
+    @GetMapping("/{userId}/saved")
     @Operation(summary = "저장된 API 목록", description = "사용자가 저장한 공유 API 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<Page<UserSavedApi>>> getSavedApis(
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
@@ -123,7 +123,7 @@ public class SharedApiController {
         return ResponseEntity.ok(ApiResponse.success(savedApis));
     }
 
-    @DeleteMapping("/saved/{userApiId}")
+    @DeleteMapping("/{userId}/saved/{userApiId}")
     @Operation(summary = "저장된 API 삭제", description = "저장된 공유 API를 삭제합니다.")
     public ResponseEntity<ApiResponse<Void>> deleteSavedApi(
             @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
@@ -144,4 +144,22 @@ public class SharedApiController {
                     .body(ApiResponse.error("저장된 API 삭제 처리 중 오류가 발생했습니다.", "INTERNAL_SERVER_ERROR"));
         }
     }
+    
+    // API 공유 요청 DTO
+    @Schema(description = "API 공유 요청")
+    public record ShareApiRequest(
+            @Schema(description = "커스텀 API ID", example = "custom-api-001", required = true)
+            @NotBlank(message = "커스텀 API ID는 필수입니다")
+            String customApiId,
+            
+            @Schema(description = "플랜 타입", example = "FREE", required = true, allowableValues = {"FREE", "PRO"})
+            @NotNull(message = "플랜 타입은 필수입니다")
+            PlanType planType,
+            
+            @Schema(description = "공유할 API 이름", example = "날씨 조회 API")
+            String apiName,
+            
+            @Schema(description = "공유할 API 설명", example = "현재 날씨 정보를 조회하는 API입니다")
+            String apiDescription
+    ) {}
 }

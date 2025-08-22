@@ -43,7 +43,9 @@ dependencies {
     // Data & Messaging
     implementation 'org.springframework.kafka:spring-kafka'                      // 이벤트 기반 통신
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'     // 캐싱
+    
 
+    
     // Monitoring & Observability
     implementation 'io.micrometer:micrometer-registry-prometheus'
     
@@ -53,16 +55,16 @@ dependencies {
     implementation 'com.auth0:java-jwt:4.2.1'
     
     // Documentation (Swagger/OpenAPI) - Spring Boot 3.4.3 호환 버전
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0' // Spring Boot 3.4.3 호환
-//    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
 
-
+    
     // AWS SDK (AWS Secrets Manager 연동을 위해 추가)
     implementation platform('software.amazon.awssdk:bom:2.20.56')
     implementation 'software.amazon.awssdk:secretsmanager'
     
     // Stripe Payment Integration
     implementation 'com.stripe:stripe-java:24.16.0'
+    
     
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'

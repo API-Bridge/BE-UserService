@@ -102,6 +102,19 @@ public class SecurityAuditLogger {
     }
 
     /**
+     * AI API 키 삭제 실패 로그
+     */
+    public void logApiKeyDeletionFailure(String userId, String arnId, String ipAddress, String reason) {
+        Map<String, Object> logData = createBaseLogData("API_KEY_DELETION_FAILURE", userId, ipAddress);
+        logData.put("arnId", arnId);
+        logData.put("failureReason", reason);
+        logData.put("severity", "MEDIUM");
+        logData.put("keyType", "AI_API_KEY");
+        
+        logSecurityEvent(logData);
+    }
+
+    /**
      * 구독 정보 변경 로그
      */
     public void logSubscriptionChange(String userId, String planType, String paymentMethod, 

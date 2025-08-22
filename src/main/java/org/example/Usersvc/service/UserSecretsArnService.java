@@ -150,6 +150,58 @@ public class UserSecretsArnService {
     }
     
     /**
+     * 사용자 키 삭제 (userId와 arnId로 삭제)
+     * 
+     * 사용자 ID와 ARN ID를 모두 검증하여 해당 사용자의 키를 삭제합니다.
+     * 보안상 다른 사용자의 키를 삭제할 수 없도록 사용자 ID도 함께 검증합니다.
+     * 
+     * @param userId 사용자 ID
+     * @param arnId 삭제할 ARN ID
+     * @throws IllegalArgumentException 사용자 ID나 ARN ID가 유효하지 않은 경우
+     * @throws AWSSecretsManagerException AWS 삭제 실패 시
+     */
+    public void deleteUserSecret(String userId, String arnId) {
+        log.info("사용자 키 삭제 시작 - userId: {}, arnId: {}", userId, arnId);
+        
+        validateUserId(userId);
+        validateArnId(arnId);
+        
+        // ARN 정보 존재 여부 및 소유권 확인
+        Optional<UserSecretsArn> arnOptional = userSecretsArnRepository.findById(arnId);
+        if (arnOptional.isEmpty()) {
+            throw new IllegalArgumentException("요청한 ARN을 찾을 수 없습니다.");
+        }
+        
+        UserSecretsArn userSecretsArn = arnOptional.get();
+        
+        // 사용자 권한 확인
+        if (!userSecretsArn.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("해당 ARN에 접근 권한이 없습니다.");
+        }
+        
+        try {
+            // AWS Secrets Manager에서 시크릿 삭제
+            awsSecretsManagerService.deleteSecret(userSecretsArn.getArn());
+            log.info("AWS Secrets Manager에서 시크릿 삭제 성공 - ARN: {}", userSecretsArn.getArn());
+            
+            // 데이터베이스에서 ARN 정보 삭제
+            userSecretsArnRepository.delete(userSecretsArn);
+            log.info("데이터베이스에서 ARN 정보 삭제 성공 - userId: {}, arnId: {}", userId, arnId);
+            
+            // 삭제 성공 이벤트 발행
+            publishSecretDeletedEvent(userSecretsArn);
+            
+        } catch (AWSSecretsManagerException e) {
+            log.error("AWS Secrets Manager에서 시크릿 삭제 실패 - ARN: {}", 
+                     userSecretsArn.getArn(), e);
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 키 삭제 중 예기치 않은 오류 발생 - userId: {}, arnId: {}", userId, arnId, e);
+            throw new RuntimeException("사용자 키 삭제에 실패했습니다.", e);
+        }
+    }
+    
+    /**
      * ARN 삭제 (데이터베이스 및 AWS에서 모두 삭제)
      * 
      * 지정된 ARN 정보를 데이터베이스에서 삭제하고,

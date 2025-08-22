@@ -487,28 +487,39 @@ public class SubscriptionController {
             }
             Plan proPlan = proPlanOptional.get();
             
-            // 기존 구독 비활성화
+            // 기존 구독을 PRO로 업그레이드 (레코드 업데이트)
             Optional<UserSubscription> existingSubscription = 
                     userSubscriptionRepository.findActiveSubscriptionByUser(user);
+            
+            UserSubscription subscription;
             if (existingSubscription.isPresent()) {
-                UserSubscription existing = existingSubscription.get();
-                existing.setIsActive(false);
-                userSubscriptionRepository.save(existing);
-                log.info("기존 구독 비활성화됨 - subscriptionId: {}", existing.getSubscriptionId());
+                // 기존 구독을 PRO로 업그레이드
+                subscription = existingSubscription.get();
+                Plan previousPlan = subscription.getPlan();
+                
+                subscription.setPlan(proPlan);
+                subscription.setIsActive(true);
+                subscription.setPlanPaymentDate(LocalDateTime.now());
+                subscription.setPlanUpdateDate(LocalDateTime.now());
+                subscription.setBillingKey(request.getSessionId()); // TossPay 세션 ID를 빌링키로 사용
+                
+                log.info("기존 구독 업그레이드: {} -> PRO - subscriptionId: {}", 
+                        previousPlan.getPlanType(), subscription.getSubscriptionId());
+            } else {
+                // 구독이 없는 경우에만 새로 생성 (신규 사용자)
+                subscription = UserSubscription.builder()
+                        .subscriptionId(java.util.UUID.randomUUID().toString())
+                        .user(user)
+                        .plan(proPlan)
+                        .planPaymentDate(LocalDateTime.now())
+                        .build();
+                subscription.setIsActive(true);
+                subscription.setBillingKey(request.getSessionId()); // TossPay 세션 ID를 빌링키로 사용
+                
+                log.info("신규 PRO 구독 생성됨 - subscriptionId: {}", subscription.getSubscriptionId());
             }
             
-            // 새 PRO 구독 생성
-            UserSubscription newSubscription = UserSubscription.builder()
-                    .subscriptionId(java.util.UUID.randomUUID().toString())
-                    .user(user)
-                    .plan(proPlan)
-                    .planPaymentDate(LocalDateTime.now())
-                    .build();
-            newSubscription.setIsActive(true);
-            newSubscription.setStripeSubscriptionId(request.getSessionId());
-            
-            UserSubscription savedSubscription = userSubscriptionRepository.save(newSubscription);
-            log.info("새 PRO 구독 생성됨 - subscriptionId: {}", savedSubscription.getSubscriptionId());
+            UserSubscription savedSubscription = userSubscriptionRepository.save(subscription);
             
             // 응답 데이터 생성
             Map<String, Object> responseData = new HashMap<>();
@@ -584,33 +595,28 @@ public class SubscriptionController {
             
             // 개발 환경에서는 Mock 응답 반환
             if (isTestMode()) {
-                // 기존 구독 비활성화 처리
-                activeSubscription.cancel();
-                userSubscriptionRepository.save(activeSubscription);
-                
-                // FREE 플랜으로 자동 전환
+                // FREE 플랜으로 자동 전환 (기존 구독의 플랜만 변경)
                 Plan freePlan = planRepository.findByPlanType(PlanType.FREE)
                     .orElseThrow(() -> new RuntimeException("FREE 플랜을 찾을 수 없습니다"));
                 
-                UserSubscription freeSubscription = UserSubscription.builder()
-                    .subscriptionId(java.util.UUID.randomUUID().toString())
-                    .user(user)
-                    .plan(freePlan)
-                    .planPaymentDate(LocalDateTime.now())
-                    .build();
-                freeSubscription.setIsActive(true);
-                userSubscriptionRepository.save(freeSubscription);
+                String previousPlanType = activeSubscription.getPlan().getPlanType().name();
+                
+                // 기존 구독의 플랜만 변경 (ID 유지)
+                activeSubscription.setPlan(freePlan);
+                activeSubscription.setIsActive(true);  // FREE 플랜으로 계속 활성화
+                activeSubscription.setPlanUpdateDate(LocalDateTime.now());
+                userSubscriptionRepository.save(activeSubscription);
                 
                 Map<String, Object> mockResponse = new HashMap<>();
                 mockResponse.put("status", "CANCELLED");
                 mockResponse.put("message", "구독이 성공적으로 취소되어 FREE 플랜으로 전환되었습니다 (테스트 모드)");
                 mockResponse.put("cancelledAt", LocalDateTime.now().toString());
-                mockResponse.put("previousPlanType", activeSubscription.getPlan().getPlanType().name());
+                mockResponse.put("previousPlanType", previousPlanType);
                 mockResponse.put("newPlanType", "FREE");
-                mockResponse.put("newSubscriptionId", freeSubscription.getSubscriptionId());
+                mockResponse.put("subscriptionId", activeSubscription.getSubscriptionId()); // 동일한 ID 유지
                 
-                log.info("Mock 구독 취소 및 FREE 플랜 전환 완료 - userId: {}, previousPlan: {}", 
-                        userId, activeSubscription.getPlan().getPlanType());
+                log.info("Mock 구독 취소 및 FREE 플랜 전환 완료 - userId: {}, subscriptionId: {}, previousPlan: {}", 
+                        userId, activeSubscription.getSubscriptionId(), previousPlanType);
                 return ResponseEntity.ok(ApiResponse.success(mockResponse));
             }
             
@@ -629,33 +635,28 @@ public class SubscriptionController {
             }
             */
             
-            // 로컬 구독 비활성화
-            activeSubscription.cancel();
-            userSubscriptionRepository.save(activeSubscription);
-            
-            // FREE 플랜으로 자동 전환
+            // FREE 플랜으로 자동 전환 (기존 구독의 플랜만 변경)
             Plan freePlan = planRepository.findByPlanType(PlanType.FREE)
                 .orElseThrow(() -> new RuntimeException("FREE 플랜을 찾을 수 없습니다"));
             
-            UserSubscription freeSubscription = UserSubscription.builder()
-                .subscriptionId(java.util.UUID.randomUUID().toString())
-                .user(user)
-                .plan(freePlan)
-                .planPaymentDate(LocalDateTime.now())
-                .build();
-            freeSubscription.setIsActive(true);
-            userSubscriptionRepository.save(freeSubscription);
+            String previousPlanType = activeSubscription.getPlan().getPlanType().name();
+            
+            // 기존 구독의 플랜만 변경 (ID 유지)
+            activeSubscription.setPlan(freePlan);
+            activeSubscription.setIsActive(true);  // FREE 플랜으로 계속 활성화
+            activeSubscription.setPlanUpdateDate(LocalDateTime.now());
+            userSubscriptionRepository.save(activeSubscription);
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "CANCELLED");
             response.put("message", "구독이 성공적으로 취소되어 FREE 플랜으로 전환되었습니다");
             response.put("cancelledAt", LocalDateTime.now().toString());
-            response.put("previousPlanType", activeSubscription.getPlan().getPlanType().name());
+            response.put("previousPlanType", previousPlanType);
             response.put("newPlanType", "FREE");
-            response.put("newSubscriptionId", freeSubscription.getSubscriptionId());
+            response.put("subscriptionId", activeSubscription.getSubscriptionId()); // 동일한 ID 유지
             
-            log.info("구독 취소 및 FREE 플랜 전환 완료 - userId: {}, previousPlan: {}", 
-                    userId, activeSubscription.getPlan().getPlanType());
+            log.info("구독 취소 및 FREE 플랜 전환 완료 - userId: {}, subscriptionId: {}, previousPlan: {}", 
+                    userId, activeSubscription.getSubscriptionId(), previousPlanType);
             return ResponseEntity.ok(ApiResponse.success(response));
             
         } catch (Exception e) {

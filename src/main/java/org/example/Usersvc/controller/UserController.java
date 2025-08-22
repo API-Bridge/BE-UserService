@@ -415,6 +415,88 @@ public class UserController {
                     .body(ApiResponse.error("INTERNAL_ERROR", "키 목록 조회에 실패했습니다."));
         }
     }
+    
+    // 개인 키 삭제 엔드포인트
+    // 사용자가 등록한 개인 키를 AWS Secrets Manager에서 삭제합니다.
+    // BYOK(Bring Your Own Key) 기능의 삭제 엔드포인트입니다.
+    //
+    // 요청: DELETE /api/users/{userId}/secrets/{arnId}
+    // 응답: 200 OK, 삭제 성공 메시지
+    @Operation(
+            summary = "개인 키 삭제",
+            description = "사용자가 등록한 개인 키를 AWS Secrets Manager에서 삭제합니다. (BYOK - Bring Your Own Key)",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @DeleteMapping("/users/{userId}/secrets/{arnId}")
+    // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
+    public ResponseEntity<ApiResponse<Void>> deleteUserSecret(
+            @Parameter(description = "사용자 UUID") @PathVariable String userId,
+            @Parameter(description = "삭제할 ARN ID") @PathVariable String arnId) {
+        log.info("개인 키 삭제 요청 - userId: {}, arnId: {}", userId, arnId);
+        
+        try {
+            // 사용자 ID 유효성 검사 (ValidationUtils 사용)
+            ResponseEntity<ApiResponse<Void>> userIdValidationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            if (userIdValidationError != null) {
+                return ResponseEntity.status(userIdValidationError.getStatusCode())
+                        .body(ApiResponse.error(userIdValidationError.getBody().getMessage(), userIdValidationError.getBody().getErrorCode()));
+            }
+            
+            // 사용자 존재 여부 확인
+            if (!userService.getUserById(userId).isPresent()) {
+                log.warn("키 삭제 실패 - 사용자를 찾을 수 없음: {}", userId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+            }
+            
+            // ARN 정보 조회 및 권한 확인
+            Optional<UserSecretsArn> arnInfo = userSecretsArnService.getSecretsArnById(arnId);
+            
+            if (arnInfo.isEmpty()) {
+                log.warn("ARN을 찾을 수 없음 - arnId: {}", arnId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("ARN_NOT_FOUND", "요청한 ARN을 찾을 수 없습니다."));
+            }
+            
+            // 사용자 권한 확인 (ARN이 해당 사용자의 것인지 확인)
+            if (!arnInfo.get().getUserId().equals(userId)) {
+                log.warn("권한 없는 ARN 삭제 시도 - userId: {}, arnOwner: {}", userId, arnInfo.get().getUserId());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("ACCESS_DENIED", "해당 ARN에 접근 권한이 없습니다."));
+            }
+            
+            // AWS Secrets Manager에서 키 삭제 및 DB에서 ARN 정보 삭제
+            userSecretsArnService.deleteUserSecret(userId, arnId);
+            
+            // 사용자 액션 로깅
+            userActionLogger.logApiKeyDeletion(userId, arnInfo.get().getArnDescription() != null ? 
+                arnInfo.get().getArnDescription() : arnId, true);
+            
+            log.info("개인 키 삭제 성공 - userId: {}, arnId: {}", userId, arnId);
+            
+            return ResponseEntity.ok(ApiResponse.success());
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("키 삭제 실패 - 잘못된 요청: {}", e.getMessage());
+            
+            // 보안 로그
+            securityAuditLogger.logApiKeyDeletionFailure(userId, arnId, 
+                ValidationUtils.getCurrentIpAddress(), "INVALID_REQUEST: " + e.getMessage());
+            
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_REQUEST", e.getMessage()));
+                    
+        } catch (Exception e) {
+            log.error("개인 키 삭제 중 오류 발생 - userId: {}, arnId: {}", userId, arnId, e);
+            
+            // 보안 로그
+            securityAuditLogger.logApiKeyDeletionFailure(userId, arnId, 
+                ValidationUtils.getCurrentIpAddress(), "INTERNAL_ERROR: " + e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("INTERNAL_ERROR", "개인 키 삭제에 실패했습니다."));
+        }
+    }
 
     /**
      * 플랜별 기능 조회
