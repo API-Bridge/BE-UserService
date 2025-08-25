@@ -20,8 +20,6 @@ import java.time.LocalDateTime;
 @Schema(description = "사용자 플랜 정보")
 public class PlanInfo {
 
-    @Schema(description = "플랜 타입", example = "FREE", allowableValues = {"FREE", "PRO"})
-    private String planType;
 
     @Schema(description = "플랜 이름", example = "Free Plan")
     private String planName;
@@ -50,7 +48,7 @@ public class PlanInfo {
      * @return PRO 플랜인 경우 true
      */
     public boolean isPaidPlan() {
-        return "PRO".equals(planType);
+        return "PRO".equals(planName);
     }
 
     /**
@@ -68,8 +66,7 @@ public class PlanInfo {
      * @return 필수 정보가 모두 있는 경우 true
      */
     public boolean isValid() {
-        return planType != null && !planType.trim().isEmpty() &&
-               planName != null && !planName.trim().isEmpty() &&
+        return planName != null && !planName.trim().isEmpty() &&
                planPaymentDate != null;
     }
 }

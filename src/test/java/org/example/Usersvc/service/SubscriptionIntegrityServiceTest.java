@@ -1,7 +1,7 @@
 package org.example.Usersvc.service;
 
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.planName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
@@ -43,13 +43,13 @@ class SubscriptionIntegrityServiceTest {
         testUser = new User("test-user-001", "auth0|testuser", "test@example.com");
         
         freePlan = Plan.builder()
-                .planType(PlanType.FREE)
+                .planName(planName.FREE)
                 .price(BigDecimal.ZERO)
                 .description("Free Plan")
                 .build();
                 
         proPlan = Plan.builder()
-                .planType(PlanType.PRO)
+                .planName(planName.PRO)
                 .price(BigDecimal.valueOf(22.00))
                 .description("Pro Plan")
                 .build();
@@ -60,7 +60,6 @@ class SubscriptionIntegrityServiceTest {
                 .plan(freePlan)
                 .planPaymentDate(LocalDateTime.now().minusDays(10))
                 .build();
-        activeSubscription1.setIsActive(true);
 
         activeSubscription2 = UserSubscription.builder()
                 .subscriptionId("sub-002")
@@ -68,7 +67,6 @@ class SubscriptionIntegrityServiceTest {
                 .plan(proPlan)
                 .planPaymentDate(LocalDateTime.now().minusDays(5))
                 .build();
-        activeSubscription2.setIsActive(true);
     }
 
     @Test
@@ -196,8 +194,8 @@ class SubscriptionIntegrityServiceTest {
         // Then
         assertThat(repairedCount).isEqualTo(1);
         verify(userSubscriptionRepository, times(1)).save(activeSubscription1);
-        assertThat(activeSubscription1.getIsActive()).isFalse(); // 첫 번째가 아니므로 비활성화
-        assertThat(activeSubscription2.getIsActive()).isTrue();  // 첫 번째(최신)는 활성 유지
+        assertThat(activeSubscription1.isActive()).isFalse(); // 첫 번째가 아니므로 비활성화
+        assertThat(activeSubscription2.isActive()).isTrue();  // 첫 번째(최신)는 활성 유지
     }
 
     @Test

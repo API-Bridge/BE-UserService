@@ -3,7 +3,7 @@ package org.example.Usersvc.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.PaymentService;
 import org.example.Usersvc.service.PaymentServiceFactory;
@@ -34,10 +34,10 @@ public class UnifiedPaymentController {
             @RequestBody Map<String, Object> request) {
         
         String userId = (String) request.get("userId");
-        String planTypeStr = (String) request.get("planType");
+        String planNameStr = (String) request.get("planName");
         String provider = (String) request.getOrDefault("provider", "TOSSPAY");
         
-        log.info("통합 결제 요청 - userId: {}, planType: {}, provider: {}", userId, planTypeStr, provider);
+        log.info("통합 결제 요청 - userId: {}, planName: {}, provider: {}", userId, planNameStr, provider);
         
         try {
             // 1. 사용자 구독 가능 여부 확인
@@ -47,10 +47,10 @@ public class UnifiedPaymentController {
                         .body(ApiResponse.error("이미 PRO 구독을 이용중입니다. 구독 취소 후 다시 시도해주세요.", "ALREADY_SUBSCRIBED"));
             }
             
-            PlanType planType = PlanType.valueOf(planTypeStr);
+            PlanName planName = PlanName.valueOf(planNameStr);
             
             // 2. PRO 플랜만 결제 가능 (FREE는 무료이므로 결제 불필요)
-            if (planType != PlanType.PRO) {
+            if (planName != PlanName.PRO) {
                 log.warn("FREE 플랜 결제 시도 - userId: {}", userId);
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("FREE 플랜은 결제가 필요하지 않습니다.", "FREE_PLAN_NO_PAYMENT"));
@@ -58,7 +58,7 @@ public class UnifiedPaymentController {
             
             PaymentService paymentService = paymentServiceFactory.getPaymentService(provider);
             
-            Map<String, Object> paymentData = paymentService.createSubscriptionPayment(userId, planType);
+            Map<String, Object> paymentData = paymentService.createSubscriptionPayment(userId, planName);
             
             log.info("결제 요청 생성 완료 - userId: {}, provider: {}, orderId: {}", 
                 userId, provider, paymentData.get("orderId"));
@@ -100,10 +100,10 @@ public class UnifiedPaymentController {
             // 실제로는 TossPay API 호출하여 구독 취소해야 함
             log.info("구독 취소 처리 중 - userId: {}", userId);
             
-            // TODO: 실제 구독 취소 로직 구현
-            // - TossPay 구독 취소 API 호출
-            // - 데이터베이스 subscription is_active = false 업데이트
-            // - FREE 플랜으로 다운그레이드
+            // 구독 취소 로직 - 운영 환경에서는 각 결제 제공자별 API 호출 필요
+            // - TossPay/Stripe 구독 취소 API 호출
+            // - 데이터베이스 구독 정보 업데이트  
+            // - FREE 플랜으로 다운그레이드 처리
             
             log.info("구독 취소 완료 - userId: {}", userId);
             

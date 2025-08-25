@@ -2,7 +2,7 @@ package org.example.Usersvc.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.CustomApiRepository;
@@ -38,14 +38,14 @@ public class PlanLimitValidationService {
      * @return 생성 가능하면 true, 제한 초과 시 false
      */
     public boolean canCreateCustomApi(User user) {
-        PlanType planType = getUserPlanType(user);
+        PlanName planName = getUserPlanName(user);
         int currentCount = (int) customApiRepository.countByUserId(user.getUserId());
-        int maxAllowed = planType.getMaxCustomApiCount();
+        int maxAllowed = planName.getMaxCustomApiCount();
         
         boolean canCreate = currentCount < maxAllowed;
         
         log.debug("Custom API 생성 가능 여부 - userId: {}, plan: {}, current: {}, max: {}, canCreate: {}", 
-                user.getUserId(), planType, currentCount, maxAllowed, canCreate);
+                user.getUserId(), planName, currentCount, maxAllowed, canCreate);
                 
         return canCreate;
     }
@@ -57,14 +57,14 @@ public class PlanLimitValidationService {
      * @return 공유 가능하면 true, 제한 초과 시 false
      */
     public boolean canShareApi(User user) {
-        PlanType planType = getUserPlanType(user);
+        PlanName planName = getUserPlanName(user);
         int currentCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(user.getUserId());
-        int maxAllowed = planType.getMaxSharedApiCount();
+        int maxAllowed = planName.getMaxSharedApiCount();
         
         boolean canShare = currentCount < maxAllowed;
         
         log.debug("API 공유 가능 여부 - userId: {}, plan: {}, current: {}, max: {}, canShare: {}", 
-                user.getUserId(), planType, currentCount, maxAllowed, canShare);
+                user.getUserId(), planName, currentCount, maxAllowed, canShare);
                 
         return canShare;
     }
@@ -76,8 +76,8 @@ public class PlanLimitValidationService {
      * @return 플랜별 최대 데이터 묶음 개수
      */
     public int getMaxDataBundleCount(User user) {
-        PlanType planType = getUserPlanType(user);
-        return planType.getMaxDataBundleCount();
+        PlanName planName = getUserPlanName(user);
+        return planName.getMaxDataBundleCount();
     }
 
     /**
@@ -87,23 +87,23 @@ public class PlanLimitValidationService {
      * @return 플랜 제한사항 정보
      */
     public PlanLimitsInfo getPlanLimits(User user) {
-        PlanType planType = getUserPlanType(user);
+        PlanName planName = getUserPlanName(user);
         
         // 현재 사용량 조회
         int currentCustomApiCount = (int) customApiRepository.countByUserId(user.getUserId());
         int currentSharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(user.getUserId());
         
         return PlanLimitsInfo.builder()
-                .planType(planType)
-                .maxCustomApiCount(planType.getMaxCustomApiCount())
+                .planName(planName)
+                .maxCustomApiCount(planName.getMaxCustomApiCount())
                 .currentCustomApiCount(currentCustomApiCount)
-                .maxSharedApiCount(planType.getMaxSharedApiCount())
+                .maxSharedApiCount(planName.getMaxSharedApiCount())
                 .currentSharedApiCount(currentSharedApiCount)
-                .maxDataBundleCount(planType.getMaxDataBundleCount())
-                .maxApiCallsPerMonth(planType.getMaxApiCount())
-                .rateLimitPerMinute(planType.getRateLimitPerMinute())
-                .rateLimitPerHour(planType.getRateLimitPerHour())
-                .rateLimitPerDay(planType.getRateLimitPerDay())
+                .maxDataBundleCount(planName.getMaxDataBundleCount())
+                .maxApiCallsPerMonth(planName.getMaxApiCount())
+                .rateLimitPerMinute(planName.getRateLimitPerMinute())
+                .rateLimitPerHour(planName.getRateLimitPerHour())
+                .rateLimitPerDay(planName.getRateLimitPerDay())
                 .build();
     }
 
@@ -115,10 +115,10 @@ public class PlanLimitValidationService {
      * @return 업그레이드 필요 시 true
      */
     public boolean needsPlanUpgrade(User user, String requestType) {
-        PlanType currentPlan = getUserPlanType(user);
+        PlanName currentPlan = getUserPlanName(user);
         
         // 이미 PRO 플랜이면 업그레이드 불필요
-        if (currentPlan == PlanType.PRO) {
+        if (currentPlan == PlanName.PRO) {
             return false;
         }
         
@@ -140,22 +140,22 @@ public class PlanLimitValidationService {
      * @param user 조회할 사용자
      * @return 사용자의 플랜 타입
      */
-    private PlanType getUserPlanType(User user) {
+    private PlanName getUserPlanName(User user) {
         Optional<UserSubscription> activeSubscription = 
                 userSubscriptionRepository.findActiveSubscriptionByUser(user);
         
         if (activeSubscription.isPresent()) {
-            PlanType planType = activeSubscription.get().getPlan().getPlanType();
-            if (planType != null) {
-                return planType;
+            PlanName planName = activeSubscription.get().getPlan().getPlanName();
+            if (planName != null) {
+                return planName;
             } else {
                 log.warn("플랜 타입이 null, FREE로 처리 - userId: {}", user.getUserId());
-                return PlanType.FREE;
+                return PlanName.FREE;
             }
         }
         
         // 활성 구독이 없는 경우 FREE 플랜
-        return PlanType.FREE;
+        return PlanName.FREE;
     }
 
     /**
@@ -164,7 +164,7 @@ public class PlanLimitValidationService {
     @lombok.Builder
     @lombok.Getter
     public static class PlanLimitsInfo {
-        private final PlanType planType;
+        private final PlanName planName;
         private final int maxCustomApiCount;
         private final int currentCustomApiCount;
         private final int maxSharedApiCount;

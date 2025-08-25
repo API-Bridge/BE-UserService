@@ -102,13 +102,12 @@ public class SubscriptionIntegrityService {
                 UserSubscription sub = userSubs.get(i);
                 boolean shouldBeActive = (i == 0); // 첫 번째(최신)만 활성화
                 
-                if (sub.getIsActive() != shouldBeActive) {
+                if (sub.isActive() != shouldBeActive) {
                     log.info("구독 상태 변경: userId={}, subscriptionId={}, {} -> {}", 
                             user.getUserId(), sub.getSubscriptionId(), 
-                            sub.getIsActive(), shouldBeActive);
+                            sub.isActive(), shouldBeActive);
                     
                     if (!dryRun) {
-                        sub.setIsActive(shouldBeActive);
                         userSubscriptionRepository.save(sub);
                     }
                     repairedCount++;

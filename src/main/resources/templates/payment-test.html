@@ -61,8 +61,8 @@
     </div>
     
     <div class="form-group">
-        <label for="planType">플랜 타입:</label>
-        <select id="planType">
+        <label for="planName">플랜 타입:</label>
+        <select id="planName">
             <option value="PRO">PRO (22원)</option>
             <option value="FREE">FREE (0원)</option>
         </select>
@@ -83,7 +83,7 @@
         
         async function startPayment() {
             const userId = document.getElementById('userId').value;
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             
             if (!userId) {
                 showResult('사용자 ID를 입력해주세요.', 'error');
@@ -101,7 +101,7 @@
                     },
                     body: JSON.stringify({
                         userId: userId,
-                        planType: planType,
+                        planName: planName,
                         provider: 'TOSSPAY'
                     })
                 });

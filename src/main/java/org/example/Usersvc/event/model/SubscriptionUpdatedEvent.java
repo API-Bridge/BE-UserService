@@ -36,12 +36,7 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
     private Long planId;
 
     /**
-     * 플랜 타입 (FREE, PRO)
-     */
-    private String planType;
-
-    /**
-     * 플랜 이름
+     * 플랜 이름 (FREE, PRO)
      */
     private String planName;
 
@@ -53,7 +48,7 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
     /**
      * 이전 플랜 타입 (변경 전)
      */
-    private String previousPlanType;
+    private String previousplanName;
 
     /**
      * Stripe 구독 ID
@@ -84,7 +79,7 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
      * 팩토리 메서드: 플랜 업그레이드 이벤트 생성
      */
     public static SubscriptionUpdatedEvent createUpgradeEvent(String userId, String subscriptionId, 
-            Long planId, String planType, String planName, String previousPlanType, 
+            Long planId, String planName, String previousplanName, 
             String stripeSubscriptionId, Double amount, String currency) {
         
         return SubscriptionUpdatedEvent.builder()
@@ -93,10 +88,9 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
-                .planType(planType)
                 .planName(planName)
                 .isActive(true)
-                .previousPlanType(previousPlanType)
+                .previousplanName(previousplanName)
                 .stripeSubscriptionId(stripeSubscriptionId)
                 .updatedAt(LocalDateTime.now())
                 .amount(amount)
@@ -109,7 +103,7 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
      * 팩토리 메서드: 구독 갱신 이벤트 생성
      */
     public static SubscriptionUpdatedEvent createRenewalEvent(String userId, String subscriptionId, 
-            Long planId, String planType, String planName, String stripeSubscriptionId, 
+            Long planId, String planName, String stripeSubscriptionId, 
             Double amount, String currency) {
         
         return SubscriptionUpdatedEvent.builder()
@@ -118,10 +112,9 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
-                .planType(planType)
                 .planName(planName)
                 .isActive(true)
-                .previousPlanType(planType) // 갱신의 경우 이전 플랜과 동일
+                .previousplanName(planName) // 갱신의 경우 이전 플랜과 동일
                 .stripeSubscriptionId(stripeSubscriptionId)
                 .updatedAt(LocalDateTime.now())
                 .amount(amount)
@@ -134,7 +127,7 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
      * 팩토리 메서드: FREE 플랜 전환 이벤트 생성 (구독 취소 후)
      */
     public static SubscriptionUpdatedEvent createFreePlanConversionEvent(String userId, 
-            String subscriptionId, Long planId, String previousPlanType) {
+            String subscriptionId, Long planId, String previousplanName) {
         
         return SubscriptionUpdatedEvent.builder()
                 .eventType("SUBSCRIPTION_UPDATED")
@@ -142,10 +135,10 @@ public class SubscriptionUpdatedEvent extends BaseEvent {
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
-                .planType("FREE")
+                .planName("FREE")
                 .planName("Free Plan")
                 .isActive(true)
-                .previousPlanType(previousPlanType)
+                .previousplanName(previousplanName)
                 .stripeSubscriptionId(null)
                 .updatedAt(LocalDateTime.now())
                 .amount(0.0)

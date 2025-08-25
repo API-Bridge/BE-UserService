@@ -138,8 +138,8 @@ public class TestController {
                 </div>
                 
                 <div class="form-group">
-                    <label for="planType">📋 구독 플랜</label>
-                    <select id="planType" onchange="updatePrice()">
+                    <label for="planName">📋 구독 플랜</label>
+                    <select id="planName" onchange="updatePrice()">
                         <option value="PRO">PRO 플랜 - 모든 기능 무제한</option>
                     </select>
                 </div>
@@ -175,10 +175,10 @@ public class TestController {
         let paymentWidget = null;
         
         function updatePrice() {
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             const priceDisplay = document.getElementById('priceDisplay');
             
-            switch(planType) {
+            switch(planName) {
                 case 'PRO':
                     priceDisplay.textContent = '₩9,900';
                     break;
@@ -189,7 +189,7 @@ public class TestController {
         
         async function loadPaymentWidget() {
             const userId = document.getElementById('userId').value;
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             
             if (!userId) {
                 alert('사용자 ID를 입력해주세요.');
@@ -204,7 +204,7 @@ public class TestController {
                 const response = await fetch('/api/tosspay/widget/prepare', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userId, planType: planType })
+                    body: JSON.stringify({ userId: userId, planName: planName })
                 });
                 
                 const data = await response.json();
@@ -868,8 +868,8 @@ public class TestController {
             </div>
             
             <div class="form-group">
-                <label for="planType">구독 플랜</label>
-                <select id="planType" onchange="updatePrice()">
+                <label for="planName">구독 플랜</label>
+                <select id="planName" onchange="updatePrice()">
                     <option value="PRO">PRO 플랜</option>
                 </select>
             </div>
@@ -921,10 +921,10 @@ public class TestController {
         let isModalOpen = false;
         
         function updatePrice() {
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             const priceDisplay = document.getElementById('priceDisplay');
             
-            switch(planType) {
+            switch(planName) {
                 case 'PRO':
                     priceDisplay.textContent = '💰 월 29,000원';
                     break;
@@ -985,7 +985,7 @@ public class TestController {
             if (!isModalOpen) return;
             
             const userId = document.getElementById('userId').value.trim();
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             
             try {
                 showModalStatus('loading', '🔄 결제위젯 초기화 중...');
@@ -994,7 +994,7 @@ public class TestController {
                 const response = await fetch('/api/tosspay/widget/prepare', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userId, planType: planType })
+                    body: JSON.stringify({ userId: userId, planName: planName })
                 });
                 
                 if (!response.ok) {

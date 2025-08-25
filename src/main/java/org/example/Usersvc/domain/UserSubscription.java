@@ -35,8 +35,6 @@ public class UserSubscription {
     @Column(name = "plan_update_date", nullable = false)
     private LocalDateTime planUpdateDate; // updated_at -> plan_update_date
     
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = false; // 기본값이 FALSE
     
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_provider", length = 20)
@@ -52,7 +50,6 @@ public class UserSubscription {
         this.plan = plan;
         this.planPaymentDate = planPaymentDate != null ? planPaymentDate : LocalDateTime.now();
         this.planUpdateDate = LocalDateTime.now();
-        this.isActive = false; // 기본값은 false
     }
     
     @PreUpdate
@@ -61,18 +58,12 @@ public class UserSubscription {
     }
     
     /**
-     * 구독 만료 확인 - 새 스키마에서는 단순히 is_active 체크
+     * 구독이 활성 상태인지 확인 - plan_id로 판단
      */
-    public boolean isExpired() {
-        return !isActive;
+    public boolean isActive() {
+        return this.plan != null;
     }
     
-    /**
-     * 구독 취소
-     */
-    public void cancel() {
-        this.isActive = false;
-    }
     
     /**
      * 구독 갱신
@@ -80,32 +71,10 @@ public class UserSubscription {
     public void renew() {
         this.planPaymentDate = LocalDateTime.now();
         this.planUpdateDate = LocalDateTime.now();
-        this.isActive = true;
     }
 
-    /**
-     * 구독 활성화
-     */
-    public void activate() {
-        this.isActive = true;
-        this.planUpdateDate = LocalDateTime.now();
-    }
 
-    /**
-     * 결제 연체 상태로 표시
-     */
-    public void markOverdue() {
-        this.isActive = false;
-        this.planUpdateDate = LocalDateTime.now();
-    }
 
-    /**
-     * 결제 실패 상태로 표시
-     */
-    public void markPaymentFailed() {
-        this.isActive = false;
-        this.planUpdateDate = LocalDateTime.now();
-    }
 
     /**
      * 결제일 업데이트
@@ -116,12 +85,10 @@ public class UserSubscription {
     }
 
     // Setter 메소드들 (웹훅 처리용)
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
 
     public void setPlan(Plan plan) {
         this.plan = plan;
+        this.planUpdateDate = LocalDateTime.now();
     }
 
     public void setPlanPaymentDate(LocalDateTime planPaymentDate) {

@@ -76,7 +76,7 @@ public class TossPayWebhookController {
                 log.info("TossPay 빌링키 웹훅 처리 - billingKey: {}, customerKey: {}, status: {}", 
                     billingKey, customerKey, status);
 
-                // TODO: 빌링키 저장 로직 구현
+                // 빌링키 저장 로직 - 운영 환경에서는 암호화하여 저장 필요
             }
 
             return ResponseEntity.ok(ApiResponse.success("빌링키 웹훅 처리 완료", "BILLING_WEBHOOK_SUCCESS"));

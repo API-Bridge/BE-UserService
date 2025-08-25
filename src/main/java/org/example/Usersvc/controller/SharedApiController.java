@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
@@ -40,7 +40,7 @@ public class SharedApiController {
             @Parameter(description = "API 공유 요청 정보", required = true) @Valid @RequestBody ShareApiRequest request) {
         
         try {
-            SharedApi sharedApi = sharedApiService.shareApi(userId, request.customApiId(), request.planType(), request.apiName(), request.apiDescription());
+            SharedApi sharedApi = sharedApiService.shareApi(userId, request.customApiId(), request.planName(), request.apiName(), request.apiDescription());
             return ResponseEntity.ok(ApiResponse.success(sharedApi));
             
         } catch (IllegalArgumentException e) {
@@ -152,9 +152,9 @@ public class SharedApiController {
             @NotBlank(message = "커스텀 API ID는 필수입니다")
             String customApiId,
             
-            @Schema(description = "플랜 타입", example = "FREE", required = true, allowableValues = {"FREE", "PRO"})
-            @NotNull(message = "플랜 타입은 필수입니다")
-            PlanType planType,
+            @Schema(description = "플랜 이름", example = "FREE", required = true, allowableValues = {"FREE", "PRO"})
+            @NotNull(message = "플랜 이름은 필수입니다")
+            PlanName planName,
             
             @Schema(description = "공유할 API 이름", example = "날씨 조회 API")
             String apiName,

@@ -3,7 +3,7 @@ package org.example.Usersvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.CustomApi;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.SharedApi;
 import org.example.Usersvc.repository.CustomApiRepository;
 import org.example.Usersvc.repository.SharedApiRepository;
@@ -27,14 +27,14 @@ public class SharedApiService {
     private final ApiSharingValidationService apiSharingValidationService;
 
     @Transactional
-    public SharedApi shareApi(String userId, String customApiId, PlanType planType) {
-        return shareApi(userId, customApiId, planType, null, null);
+    public SharedApi shareApi(String userId, String customApiId, PlanName planName) {
+        return shareApi(userId, customApiId, planName, null, null);
     }
 
     @Transactional
-    public SharedApi shareApi(String userId, String customApiId, PlanType planType, String apiName, String apiDescription) {
-        log.debug("API 공유 시작 - userId: {}, customApiId: {}, planType: {}, apiName: {}, apiDescription: {}", 
-                userId, customApiId, planType, apiName, apiDescription);
+    public SharedApi shareApi(String userId, String customApiId, PlanName planName, String apiName, String apiDescription) {
+        log.debug("API 공유 시작 - userId: {}, customApiId: {}, planName: {}, apiName: {}, apiDescription: {}", 
+                userId, customApiId, planName, apiName, apiDescription);
 
         CustomApi customApi = customApiRepository.findByCustomApiId(customApiId)
                 .orElseThrow(() -> new IllegalArgumentException("API를 찾을 수 없습니다."));
@@ -43,7 +43,7 @@ public class SharedApiService {
             throw new IllegalArgumentException("본인의 API만 공유할 수 있습니다.");
         }
 
-        if (!apiSharingValidationService.validateApiForSharing(customApi, planType, userId)) {
+        if (!apiSharingValidationService.validateApiForSharing(customApi, planName, userId)) {
             throw new IllegalArgumentException("현재 플랜에서는 이 API를 공유할 수 없습니다.");
         }
 

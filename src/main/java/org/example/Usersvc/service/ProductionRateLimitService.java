@@ -2,7 +2,7 @@ package org.example.Usersvc.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.User;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -36,14 +36,14 @@ public class ProductionRateLimitService {
      */
     public boolean isAllowedPerMinute(User user) {
         try {
-            PlanType planType = getPlanType(user);
+            PlanName planName = getPlanName(user);
             long currentUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
-            int limit = planType.getRateLimitPerMinute();
+            int limit = planName.getRateLimitPerMinute();
             
             boolean allowed = currentUsage < limit;
             
             log.debug("분당 제한 확인 - userId: {}, plan: {}, usage: {}/{}, allowed: {}", 
-                    user.getUserId(), planType, currentUsage, limit, allowed);
+                    user.getUserId(), planName, currentUsage, limit, allowed);
                     
             return allowed;
         } catch (Exception e) {
@@ -61,14 +61,14 @@ public class ProductionRateLimitService {
      */
     public boolean isAllowedPerHour(User user) {
         try {
-            PlanType planType = getPlanType(user);
+            PlanName planName = getPlanName(user);
             long currentUsage = apiUsageTrackingService.getCurrentHourUsage(user);
-            int limit = planType.getRateLimitPerHour();
+            int limit = planName.getRateLimitPerHour();
             
             boolean allowed = currentUsage < limit;
             
             log.debug("시간당 제한 확인 - userId: {}, plan: {}, usage: {}/{}, allowed: {}", 
-                    user.getUserId(), planType, currentUsage, limit, allowed);
+                    user.getUserId(), planName, currentUsage, limit, allowed);
                     
             return allowed;
         } catch (Exception e) {
@@ -85,14 +85,14 @@ public class ProductionRateLimitService {
      */
     public boolean isAllowedPerDay(User user) {
         try {
-            PlanType planType = getPlanType(user);
+            PlanName planName = getPlanName(user);
             long currentUsage = apiUsageTrackingService.getCurrentDayUsage(user);
-            int limit = planType.getRateLimitPerDay();
+            int limit = planName.getRateLimitPerDay();
             
             boolean allowed = currentUsage < limit;
             
             log.debug("일일 제한 확인 - userId: {}, plan: {}, usage: {}/{}, allowed: {}", 
-                    user.getUserId(), planType, currentUsage, limit, allowed);
+                    user.getUserId(), planName, currentUsage, limit, allowed);
                     
             return allowed;
         } catch (Exception e) {
@@ -109,14 +109,14 @@ public class ProductionRateLimitService {
      */
     public boolean isAllowedPerMonth(User user) {
         try {
-            PlanType planType = getPlanType(user);
+            PlanName planName = getPlanName(user);
             long currentUsage = apiUsageTrackingService.getMonthlyUsage(user);
-            int limit = planType.getMaxApiCount();
+            int limit = planName.getMaxApiCount();
             
             boolean allowed = currentUsage < limit;
             
             log.debug("월별 제한 확인 - userId: {}, plan: {}, usage: {}/{}, allowed: {}", 
-                    user.getUserId(), planType, currentUsage, limit, allowed);
+                    user.getUserId(), planName, currentUsage, limit, allowed);
                     
             return allowed;
         } catch (Exception e) {
@@ -147,7 +147,7 @@ public class ProductionRateLimitService {
      */
     public RateLimitStatus getRateLimitStatus(User user) {
         try {
-            PlanType planType = getPlanType(user);
+            PlanName planName = getPlanName(user);
             
             long minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
             long hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
@@ -156,15 +156,15 @@ public class ProductionRateLimitService {
             
             return RateLimitStatus.builder()
                     .userId(user.getUserId())
-                    .planType(planType)
+                    .planName(planName)
                     .minuteUsage(minuteUsage)
-                    .minuteLimit(planType.getRateLimitPerMinute())
+                    .minuteLimit(planName.getRateLimitPerMinute())
                     .hourUsage(hourUsage)
-                    .hourLimit(planType.getRateLimitPerHour())
+                    .hourLimit(planName.getRateLimitPerHour())
                     .dayUsage(dayUsage)
-                    .dayLimit(planType.getRateLimitPerDay())
+                    .dayLimit(planName.getRateLimitPerDay())
                     .monthUsage(monthUsage)
-                    .monthLimit(planType.getMaxApiCount())
+                    .monthLimit(planName.getMaxApiCount())
                     .isAllowed(isAllowed(user))
                     .checkedAt(LocalDateTime.now())
                     .build();
@@ -175,7 +175,7 @@ public class ProductionRateLimitService {
             // 에러 시 기본값 반환
             return RateLimitStatus.builder()
                     .userId(user.getUserId())
-                    .planType(PlanType.FREE)
+                    .planName(PlanName.FREE)
                     .isAllowed(true)
                     .checkedAt(LocalDateTime.now())
                     .build();
@@ -190,7 +190,7 @@ public class ProductionRateLimitService {
      */
     public RemainingLimits getRemainingLimits(User user) {
         try {
-            PlanType planType = getPlanType(user);
+            PlanName planName = getPlanName(user);
             
             long minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
             long hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
@@ -198,10 +198,10 @@ public class ProductionRateLimitService {
             long monthUsage = apiUsageTrackingService.getMonthlyUsage(user);
             
             return RemainingLimits.builder()
-                    .minuteRemaining(Math.max(0, planType.getRateLimitPerMinute() - minuteUsage))
-                    .hourRemaining(Math.max(0, planType.getRateLimitPerHour() - hourUsage))
-                    .dayRemaining(Math.max(0, planType.getRateLimitPerDay() - dayUsage))
-                    .monthRemaining(Math.max(0, planType.getMaxApiCount() - monthUsage))
+                    .minuteRemaining(Math.max(0, planName.getRateLimitPerMinute() - minuteUsage))
+                    .hourRemaining(Math.max(0, planName.getRateLimitPerHour() - hourUsage))
+                    .dayRemaining(Math.max(0, planName.getRateLimitPerDay() - dayUsage))
+                    .monthRemaining(Math.max(0, planName.getMaxApiCount() - monthUsage))
                     .build();
                     
         } catch (Exception e) {
@@ -213,8 +213,8 @@ public class ProductionRateLimitService {
     /**
      * 사용자의 현재 플랜 타입 조회
      */
-    private PlanType getPlanType(User user) {
-        return planLimitValidationService.getPlanLimits(user).getPlanType();
+    private PlanName getPlanName(User user) {
+        return planLimitValidationService.getPlanLimits(user).getPlanName();
     }
 
     /**
@@ -224,7 +224,7 @@ public class ProductionRateLimitService {
     @lombok.Getter
     public static class RateLimitStatus {
         private final String userId;
-        private final PlanType planType;
+        private final PlanName planName;
         private final long minuteUsage;
         private final int minuteLimit;
         private final long hourUsage;

@@ -21,21 +21,26 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
      */
     @Query("SELECT us FROM UserSubscription us " +
            "JOIN FETCH us.plan " +
-           "WHERE us.user = :user AND us.isActive = true")
+           "WHERE us.user = :user " +
+           "ORDER BY us.subscriptionId DESC " +
+           "LIMIT 1")
     Optional<UserSubscription> findActiveSubscriptionByUser(@Param("user") User user);
     
     /**
      * 비활성 구독 목록 조회 (만료된 구독 대신)
      */
-    @Query("SELECT us FROM UserSubscription us " +
-           "WHERE us.isActive = false")
+    @Query("SELECT us1 FROM UserSubscription us1 " +
+           "WHERE NOT EXISTS (" +
+           "  SELECT 1 FROM UserSubscription us2 " +
+           "  WHERE us2.user = us1.user " +
+           "  AND us2.subscriptionId > us1.subscriptionId" +
+           ")")
     java.util.List<UserSubscription> findInactiveSubscriptions();
     
     /**
      * 데이터 무결성 검증: 다중 활성 구독을 가진 사용자 조회
      */
     @Query("SELECT us.user FROM UserSubscription us " +
-           "WHERE us.isActive = true " +
            "GROUP BY us.user " +
            "HAVING COUNT(us) > 1")
     java.util.List<User> findUsersWithMultipleActiveSubscriptions();
@@ -58,7 +63,7 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     /**
      * 특정 사용자의 활성 구독 개수 조회
      */
-    @Query("SELECT COUNT(us) FROM UserSubscription us WHERE us.user = :user AND us.isActive = true")
+    @Query("SELECT COUNT(us) FROM UserSubscription us WHERE us.user = :user")
     long countActiveSubscriptionsByUser(@Param("user") User user);
     
     /**
@@ -67,9 +72,15 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     @Query("SELECT " +
            "COUNT(DISTINCT us.user) as totalUsers, " +
            "COUNT(us) as totalSubscriptions, " +
-           "SUM(CASE WHEN us.isActive = true THEN 1 ELSE 0 END) as activeSubscriptions, " +
-           "SUM(CASE WHEN us.isActive = false THEN 1 ELSE 0 END) as inactiveSubscriptions " +
+           "COUNT(us) as activeSubscriptions, " +
+           "0 as inactiveSubscriptions " +
            "FROM UserSubscription us")
     Object[] getSubscriptionStatistics();
+    
+    /**
+     * 플랜별 구독 수 조회
+     */
+    @Query("SELECT COUNT(us) FROM UserSubscription us WHERE us.plan = :plan")
+    long countByPlan(@Param("plan") org.example.Usersvc.domain.Plan plan);
     
 }

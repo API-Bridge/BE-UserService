@@ -25,7 +25,7 @@ import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -534,7 +534,7 @@ public class UserController {
             if (currentSubscription.isPresent()) {
                 Plan plan = currentSubscription.get().getPlan();
                 features = Map.of(
-                    "planType", plan.getPlanType().name(),
+                    "planName", plan.getPlanName().name(),
                     "planName", plan.getPlanName(),
                     "price", plan.getPrice(),
                     "description", plan.getDescription() != null ? plan.getDescription() : "",
@@ -550,9 +550,9 @@ public class UserController {
                 );
             } else {
                 // 활성 구독이 없으면 FREE 플랜 기능 표시
-                PlanType freePlan = PlanType.FREE;
+                PlanName freePlan = PlanName.FREE;
                 features = Map.of(
-                    "planType", freePlan.name(),
+                    "planName", freePlan.name(),
                     "planName", freePlan.getPlanName(),
                     "price", freePlan.getPrice(),
                     "description", "기본 무료 플랜",
@@ -568,8 +568,8 @@ public class UserController {
                 );
             }
             
-            log.debug("플랜 기능 조회 완료 - userId: {}, planType: {}", userId, 
-                     currentSubscription.isPresent() ? currentSubscription.get().getPlan().getPlanType() : "FREE");
+            log.debug("플랜 기능 조회 완료 - userId: {}, planName: {}", userId, 
+                     currentSubscription.isPresent() ? currentSubscription.get().getPlan().getPlanName() : "FREE");
             return ResponseEntity.ok(ApiResponse.success(features));
             
         } catch (Exception e) {
@@ -607,7 +607,7 @@ public class UserController {
                             "userEmail": "user@example.com",
                             "createdAt": "2024-01-15T10:00:00",
                             "planInfo": {
-                                "planType": "FREE",
+                                "planName": "FREE",
                                 "planName": "Free Plan",
                                 "isActive": true,
                                 "planPaymentDate": "2024-01-15T10:00:00",
@@ -677,8 +677,8 @@ public class UserController {
             // 통합 사용자 정보 조회
             UserInfoResponse userInfo = userService.getUserCompleteInfo(userId);
             
-            log.info("통합 사용자 정보 조회 성공 - userId: {}, planType: {}", 
-                    userId, userInfo.getPlanType());
+            log.info("통합 사용자 정보 조회 성공 - userId: {}, planName: {}", 
+                    userId, userInfo.getPlanName());
             
             return ResponseEntity.ok(ApiResponse.success(userInfo));
             

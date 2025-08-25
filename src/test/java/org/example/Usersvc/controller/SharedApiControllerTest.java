@@ -1,7 +1,7 @@
 package org.example.Usersvc.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.planName;
 import org.example.Usersvc.domain.SharedApi;
 import org.example.Usersvc.domain.UserSavedApi;
 import org.example.Usersvc.service.SharedApiService;
@@ -83,14 +83,14 @@ class SharedApiControllerTest {
     @WithMockUser
     void shareApi_Success() throws Exception {
         // given
-        when(sharedApiService.shareApi(eq(testUserId), eq(testCustomApiId), eq(PlanType.PRO), 
+        when(sharedApiService.shareApi(eq(testUserId), eq(testCustomApiId), eq(planName.PRO), 
                 eq("Test API"), eq("Test description")))
                 .thenReturn(testSharedApi);
 
         // when & then
         mockMvc.perform(post("/api/users/{userId}/shared-apis/share", testUserId)
                         .param("customApiId", testCustomApiId)
-                        .param("planType", "PRO")
+                        .param("planName", "PRO")
                         .param("apiName", "Test API")
                         .param("apiDescription", "Test description")
                         .with(csrf()))
@@ -100,7 +100,7 @@ class SharedApiControllerTest {
                 .andExpect(jsonPath("$.data.originalApiId").value(testSharedApi.getOriginalApiId()))
                 .andExpect(jsonPath("$.data.apiName").value(testSharedApi.getApiName()));
 
-        verify(sharedApiService).shareApi(testUserId, testCustomApiId, PlanType.PRO, "Test API", "Test description");
+        verify(sharedApiService).shareApi(testUserId, testCustomApiId, planName.PRO, "Test API", "Test description");
     }
 
     @Test
@@ -108,14 +108,14 @@ class SharedApiControllerTest {
     @WithMockUser
     void shareApi_AlreadyShared() throws Exception {
         // given
-        when(sharedApiService.shareApi(eq(testUserId), eq(testCustomApiId), eq(PlanType.FREE), 
+        when(sharedApiService.shareApi(eq(testUserId), eq(testCustomApiId), eq(planName.FREE), 
                 anyString(), anyString()))
                 .thenThrow(new IllegalArgumentException("이미 공유된 API입니다."));
 
         // when & then
         mockMvc.perform(post("/api/users/{userId}/shared-apis/share", testUserId)
                         .param("customApiId", testCustomApiId)
-                        .param("planType", "FREE")
+                        .param("planName", "FREE")
                         .param("apiName", "Test API")
                         .param("apiDescription", "Test description")
                         .with(csrf()))
@@ -124,7 +124,7 @@ class SharedApiControllerTest {
                 .andExpect(jsonPath("$.message").value("이미 공유된 API입니다."))
                 .andExpect(jsonPath("$.errorCode").value("SHARE_API_ERROR"));
 
-        verify(sharedApiService).shareApi(testUserId, testCustomApiId, PlanType.FREE, "Test API", "Test description");
+        verify(sharedApiService).shareApi(testUserId, testCustomApiId, planName.FREE, "Test API", "Test description");
     }
 
     @Test

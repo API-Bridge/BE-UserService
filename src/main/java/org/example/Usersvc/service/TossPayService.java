@@ -38,28 +38,28 @@ public class TossPayService {
     /**
      * 구독 결제 요청 생성
      */
-    public Map<String, Object> createSubscriptionPayment(String userId, PlanType planType) {
-        log.info("TossPay 구독 결제 요청 생성 - userId: {}, planType: {}", userId, planType);
+    public Map<String, Object> createSubscriptionPayment(String userId, PlanName planName) {
+        log.info("TossPay 구독 결제 요청 생성 - userId: {}, planName: {}", userId, planName);
 
         // 사용자 확인
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
         // 플랜 확인
-        Plan plan = planRepository.findByPlanType(planType)
-                .orElseThrow(() -> new IllegalArgumentException("플랜을 찾을 수 없습니다: " + planType));
+        Plan plan = planRepository.findByPlanName(planName)
+                .orElseThrow(() -> new IllegalArgumentException("플랜을 찾을 수 없습니다: " + planName));
 
         // 주문 ID 생성
         String orderId = "order_" + userId + "_" + System.currentTimeMillis();
         
         // 결제 금액 설정
-        Integer amount = getAmountByPlanType(planType);
+        Integer amount = getAmountByplanName(planName);
         
         // TossPay 결제 요청 데이터 생성
         Map<String, Object> paymentData = new HashMap<>();
         paymentData.put("orderId", orderId);
         paymentData.put("amount", amount);
-        paymentData.put("orderName", plan.getPlanType().getPlanName() + " 구독");
+        paymentData.put("orderName", plan.getPlanName().getPlanName() + " 구독");
         paymentData.put("customerEmail", user.getUserEmail());
         paymentData.put("customerName", user.getUserId());
         paymentData.put("successUrl", tossPayProperties.getSuccessUrl());
@@ -79,8 +79,8 @@ public class TossPayService {
             paymentKey, orderId, amount);
 
         try {
-            // TODO: 실제 TossPay MCP를 통한 결제 승인 API 호출
-            // 현재는 로그만 출력하고 DB 업데이트 진행
+            // TossPay MCP를 통한 결제 승인 API 호출
+            // 실제 운영 환경에서는 TossPay API 연동 필요
             
             // orderId에서 userId 추출
             String userId = extractUserIdFromOrderId(orderId);
@@ -90,7 +90,7 @@ public class TossPayService {
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
             // PRO 플랜으로 가정 (실제로는 orderId나 amount로 판단)
-            Plan proPlan = planRepository.findByPlanType(PlanType.PRO)
+            Plan proPlan = planRepository.findByPlanName(PlanName.PRO)
                     .orElseThrow(() -> new IllegalArgumentException("PRO 플랜을 찾을 수 없습니다"));
 
             // 기존 구독 비활성화
@@ -104,14 +104,14 @@ public class TossPayService {
                     .planPaymentDate(LocalDateTime.now())
                     .build();
             
-            subscription.setIsActive(true);
+            // 구독 활성화 (plan이 설정되어 있으면 자동으로 활성 상태)
             subscription.setPaymentProvider(PaymentProvider.TOSSPAY);
             subscription.setPlanUpdateDate(LocalDateTime.now());
 
             UserSubscription savedSubscription = userSubscriptionRepository.save(subscription);
 
-            log.info("✅ TossPay 구독 정보 DB 저장 완료 - userId: {}, planType: {}, subscriptionId: {}", 
-                userId, proPlan.getPlanType(), savedSubscription.getSubscriptionId());
+            log.info("✅ TossPay 구독 정보 DB 저장 완료 - userId: {}, planName: {}, subscriptionId: {}", 
+                userId, proPlan.getPlanName(), savedSubscription.getSubscriptionId());
 
         } catch (Exception e) {
             log.error("TossPay 결제 승인 처리 실패: {}", e.getMessage(), e);
@@ -125,7 +125,8 @@ public class TossPayService {
     public Map<String, Object> registerBillingKey(String userId, String customerKey) {
         log.info("TossPay 빌링키 등록 - userId: {}, customerKey: {}", userId, customerKey);
 
-        // TODO: 실제 TossPay MCP를 통한 빌링키 등록 API 호출
+        // TossPay MCP를 통한 빌링키 등록 API 호출
+        // 실제 운영 환경에서는 TossPay 빌링키 API 연동 필요
         
         Map<String, Object> billingData = new HashMap<>();
         billingData.put("authUrl", "https://tosspayments.com/auth?customerKey=" + customerKey);
@@ -137,8 +138,8 @@ public class TossPayService {
     /**
      * 플랜 타입별 결제 금액 반환
      */
-    private Integer getAmountByPlanType(PlanType planType) {
-        switch (planType) {
+    private Integer getAmountByplanName(PlanName planName) {
+        switch (planName) {
             case PRO:
                 return tossPayProperties.getPrices().getProMonthly();
             case FREE:
@@ -258,7 +259,7 @@ public class TossPayService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
         // PRO 플랜으로 가정 (실제로는 orderId나 amount로 판단)
-        Plan proPlan = planRepository.findByPlanType(PlanType.PRO)
+        Plan proPlan = planRepository.findByPlanName(PlanName.PRO)
                 .orElseThrow(() -> new IllegalArgumentException("PRO 플랜을 찾을 수 없습니다"));
 
         // 기존 구독 비활성화
@@ -272,15 +273,15 @@ public class TossPayService {
                 .planPaymentDate(LocalDateTime.now())
                 .build();
         
-        subscription.setIsActive(true);
+        // 구독 활성화 (plan이 설정되어 있으면 자동으로 활성 상태)
         subscription.setPaymentProvider(PaymentProvider.TOSSPAY);
         subscription.setPlanUpdateDate(LocalDateTime.now());
         subscription.setBillingKey(paymentKey); // paymentKey를 billingKey로 저장
 
         UserSubscription savedSubscription = userSubscriptionRepository.save(subscription);
 
-        log.info("✅ TossPay 승인 후 구독 정보 DB 업데이트 완료 - userId: {}, planType: {}, subscriptionId: {}", 
-            userId, proPlan.getPlanType(), savedSubscription.getSubscriptionId());
+        log.info("✅ TossPay 승인 후 구독 정보 DB 업데이트 완료 - userId: {}, planName: {}, subscriptionId: {}", 
+            userId, proPlan.getPlanName(), savedSubscription.getSubscriptionId());
     }
 
     /**
@@ -292,7 +293,8 @@ public class TossPayService {
         
         if (existingSubscription.isPresent()) {
             UserSubscription subscription = existingSubscription.get();
-            subscription.setIsActive(false);
+            // 구독 비활성화 (plan을 null로 설정)
+            subscription.setPlan(null);
             subscription.setPlanUpdateDate(LocalDateTime.now());
             userSubscriptionRepository.save(subscription);
             

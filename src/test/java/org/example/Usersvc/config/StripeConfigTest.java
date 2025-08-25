@@ -49,17 +49,17 @@ class StripeConfigTest {
 
     @Test
     @DisplayName("가격 ID로 플랜 타입을 올바르게 결정해야 한다")
-    void getPlanTypeByPriceId() {
+    void getPlanNameByPriceId() {
         String proMonthlyPriceId = stripeProperties.getPrices().getProMonthly();
         String proYearlyPriceId = stripeProperties.getPrices().getProYearly();
         String enterpriseMonthlyPriceId = stripeProperties.getPrices().getEnterpriseMonthly();
         String enterpriseYearlyPriceId = stripeProperties.getPrices().getEnterpriseYearly();
 
-        assertThat(stripeProperties.getPlanTypeByPriceId(proMonthlyPriceId)).isEqualTo("PRO");
-        assertThat(stripeProperties.getPlanTypeByPriceId(proYearlyPriceId)).isEqualTo("PRO");
-        assertThat(stripeProperties.getPlanTypeByPriceId(enterpriseMonthlyPriceId)).isEqualTo("ENTERPRISE");
-        assertThat(stripeProperties.getPlanTypeByPriceId(enterpriseYearlyPriceId)).isEqualTo("ENTERPRISE");
-        assertThat(stripeProperties.getPlanTypeByPriceId("unknown-price-id")).isEqualTo("FREE");
+        assertThat(stripeProperties.getPlanNameByPriceId(proMonthlyPriceId)).isEqualTo("PRO");
+        assertThat(stripeProperties.getPlanNameByPriceId(proYearlyPriceId)).isEqualTo("PRO");
+        assertThat(stripeProperties.getPlanNameByPriceId(enterpriseMonthlyPriceId)).isEqualTo("ENTERPRISE");
+        assertThat(stripeProperties.getPlanNameByPriceId(enterpriseYearlyPriceId)).isEqualTo("ENTERPRISE");
+        assertThat(stripeProperties.getPlanNameByPriceId("unknown-price-id")).isEqualTo("FREE");
     }
 
     @Test

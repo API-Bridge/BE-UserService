@@ -5,7 +5,7 @@ import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSecretsArn;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.planName;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.UserSecretsArnService;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
@@ -108,7 +108,7 @@ class UserControllerTest {
                 .build();
 
         testPlan = Plan.builder()
-                .planType(PlanType.PRO)
+                .planName(planName.PRO)
                 .price(java.math.BigDecimal.valueOf(22.00))
                 .description("Pro plan for testing")
                 .features("{\"maxApiCount\":10000}")
@@ -120,7 +120,6 @@ class UserControllerTest {
                 .plan(testPlan)
                 .planPaymentDate(LocalDateTime.now())
                 .build();
-        testSubscription.setIsActive(true);
     }
 
     // 사용자 생성 API 성공 테스트
@@ -412,7 +411,7 @@ class UserControllerTest {
                         .header("X-User-Id", testUserId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.planType").value("PRO"))
+                .andExpect(jsonPath("$.data.planName").value("PRO"))
                 .andExpect(jsonPath("$.data.planName").value("Pro"))
                 .andExpect(jsonPath("$.data.price").exists())
                 .andExpect(jsonPath("$.data.features.maxCustomApiCount").exists())
@@ -438,7 +437,7 @@ class UserControllerTest {
                         .header("X-User-Id", testUserId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.planType").value("FREE"))
+                .andExpect(jsonPath("$.data.planName").value("FREE"))
                 .andExpect(jsonPath("$.data.planName").value("Free"))
                 .andExpect(jsonPath("$.data.price").value(0.0))
                 .andExpect(jsonPath("$.data.description").value("기본 무료 플랜"))

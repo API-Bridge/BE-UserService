@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Optional;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.ApiUsageTrackingService;
-import org.example.Usersvc.util.JwtUtils;
 import org.example.Usersvc.service.UserService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -22,7 +21,6 @@ public class ApiUsageTrackingInterceptor implements HandlerInterceptor {
     
     private final UserService userService;
     private final ApiUsageTrackingService apiUsageTrackingService;
-    private final JwtUtils jwtUtils;
     
     private static final String START_TIME_ATTRIBUTE = "startTime";
     
@@ -59,26 +57,14 @@ public class ApiUsageTrackingInterceptor implements HandlerInterceptor {
     
     /**
      * 사용자 정보 추출
-     * API Gateway에서 전달된 X-User-Id 헤더 또는 JWT 토큰에서 사용자 정보를 추출합니다.
+     * API Gateway에서 전달된 X-User-Id 헤더에서 사용자 정보를 추출합니다.
      */
     private Optional<User> extractUser(HttpServletRequest request) {
         try {
-            // 1. X-User-Id 헤더에서 추출 (API Gateway에서 처리된 경우)
+            // X-User-Id 헤더에서 추출 (API Gateway에서 처리된 경우)
             String userIdHeader = request.getHeader("X-User-Id");
             if (userIdHeader != null && !userIdHeader.trim().isEmpty()) {
                 return userService.getUserById(userIdHeader.trim());
-            }
-            
-            // 2. JWT 토큰에서 추출 (직접 요청인 경우)
-            Optional<String> userIdOpt = jwtUtils.getCurrentUserId();
-            if (userIdOpt.isPresent()) {
-                return userService.getUserById(userIdOpt.get().trim());
-            }
-            
-            // 3. Auth0 ID로 시도
-            Optional<String> auth0IdOpt = jwtUtils.getCurrentAuth0Id();
-            if (auth0IdOpt.isPresent()) {
-                return userService.getUserByAuth0Id(auth0IdOpt.get().trim());
             }
             
         } catch (Exception e) {

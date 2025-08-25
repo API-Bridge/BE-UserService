@@ -117,10 +117,10 @@ public class SecurityAuditLogger {
     /**
      * 구독 정보 변경 로그
      */
-    public void logSubscriptionChange(String userId, String planType, String paymentMethod, 
+    public void logSubscriptionChange(String userId, String planName, String paymentMethod, 
                                     Double amount, String currency, String ipAddress) {
         Map<String, Object> logData = createBaseLogData("SUBSCRIPTION_CHANGE", userId, ipAddress);
-        logData.put("planType", planType);
+        logData.put("planName", planName);
         logData.put("paymentMethod", maskPaymentMethod(paymentMethod));
         logData.put("amount", amount);
         logData.put("currency", currency);

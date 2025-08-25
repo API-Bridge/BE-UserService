@@ -1,6 +1,6 @@
 package org.example.Usersvc.service;
 
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import java.util.Map;
 
 /**
@@ -11,7 +11,7 @@ public interface PaymentService {
     /**
      * 구독 결제 요청 생성
      */
-    Map<String, Object> createSubscriptionPayment(String userId, PlanType planType);
+    Map<String, Object> createSubscriptionPayment(String userId, PlanName planName);
     
     /**
      * 결제 승인 처리

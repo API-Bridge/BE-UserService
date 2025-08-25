@@ -3,7 +3,7 @@ package org.example.Usersvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.PlanRepository;
@@ -42,7 +42,7 @@ public class UserSubscriptionMigrationService {
         
         try {
             // FREE 플랜 조회
-            Optional<Plan> freePlanOpt = planRepository.findByPlanType(PlanType.FREE);
+            Optional<Plan> freePlanOpt = planRepository.findByPlanName(PlanName.FREE);
             if (freePlanOpt.isEmpty()) {
                 log.error("FREE 플랜을 찾을 수 없습니다. data.sql 확인 필요");
                 throw new RuntimeException("FREE 플랜을 찾을 수 없습니다.");
@@ -67,7 +67,7 @@ public class UserSubscriptionMigrationService {
                     processedCount++;
                 } else {
                     log.debug("사용자 {}는 이미 활성 구독이 있습니다: {}", 
-                        user.getUserId(), existingSubscription.get().getPlan().getPlanType());
+                        user.getUserId(), existingSubscription.get().getPlan().getPlanName());
                 }
             }
             
@@ -96,7 +96,6 @@ public class UserSubscriptionMigrationService {
                     .build();
             
             // 구독 활성화
-            freeSubscription.setIsActive(true);
             
             // 데이터베이스에 저장
             UserSubscription savedSubscription = userSubscriptionRepository.save(freeSubscription);

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.Usersvc.common.logging.UserActionLogger;
 import org.example.Usersvc.common.metrics.CustomMetrics;
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.planName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.event.publisher.EventPublisherService;
@@ -93,14 +93,14 @@ class SubscriptionControllerTest {
                 .build();
 
         testFreePlan = Plan.builder()
-                .planType(PlanType.FREE)
+                .planName(planName.FREE)
                 .price(java.math.BigDecimal.ZERO)
                 .description("Free plan")
                 .features("{}")
                 .build();
 
         testProPlan = Plan.builder()
-                .planType(PlanType.PRO)
+                .planName(planName.PRO)
                 .price(java.math.BigDecimal.valueOf(22.00))
                 .description("Pro plan")
                 .features("{}")
@@ -112,7 +112,6 @@ class SubscriptionControllerTest {
                 .plan(testProPlan)
                 .planPaymentDate(LocalDateTime.now())
                 .build();
-        testSubscription.setIsActive(true);
     }
 
     @Test
@@ -237,7 +236,7 @@ class SubscriptionControllerTest {
 
         String requestBody = objectMapper.writeValueAsString(Map.of(
                 "userId", testUserId,
-                "planType", "PRO"
+                "planName", "PRO"
         ));
 
         // when & then (테스트 모드에서는 Mock URL 반환)
@@ -249,7 +248,7 @@ class SubscriptionControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.checkoutUrl").exists())
                 .andExpect(jsonPath("$.data.sessionId").exists())
-                .andExpect(jsonPath("$.data.planType").value("PRO"))
+                .andExpect(jsonPath("$.data.planName").value("PRO"))
                 .andExpect(jsonPath("$.data.userId").value(testUserId));
 
         verify(userService).getUserById(testUserId);
@@ -267,7 +266,7 @@ class SubscriptionControllerTest {
 
         String requestBody = objectMapper.writeValueAsString(Map.of(
                 "userId", testUserId,
-                "planType", "PRO"
+                "planName", "PRO"
         ));
 
         // when & then
@@ -292,7 +291,7 @@ class SubscriptionControllerTest {
         when(userService.getUserById(testUserId)).thenReturn(Optional.of(testUser));
         when(userSubscriptionRepository.findActiveSubscriptionByUser(testUser))
                 .thenReturn(Optional.of(testSubscription));
-        when(planRepository.findByPlanType(PlanType.FREE)).thenReturn(Optional.of(testFreePlan));
+        when(planRepository.findByplanName(planName.FREE)).thenReturn(Optional.of(testFreePlan));
 
         // when & then
         mockMvc.perform(post("/api/users/{userId}/subscription/cancel", testUserId)
@@ -301,12 +300,12 @@ class SubscriptionControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.data.message").exists())
-                .andExpect(jsonPath("$.data.previousPlanType").value("PRO"))
-                .andExpect(jsonPath("$.data.newPlanType").value("FREE"));
+                .andExpect(jsonPath("$.data.previousplanName").value("PRO"))
+                .andExpect(jsonPath("$.data.newplanName").value("FREE"));
 
         verify(userService).getUserById(testUserId);
         verify(userSubscriptionRepository).findActiveSubscriptionByUser(testUser);
-        verify(planRepository).findByPlanType(PlanType.FREE);
+        verify(planRepository).findByplanName(planName.FREE);
     }
 
     @Test
@@ -366,7 +365,7 @@ class SubscriptionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.hasActiveSubscription").value(true))
-                .andExpect(jsonPath("$.data.planType").value("PRO"))
+                .andExpect(jsonPath("$.data.planName").value("PRO"))
                 .andExpect(jsonPath("$.data.planName").value("Pro"))
                 .andExpect(jsonPath("$.data.features.maxCustomApiCount").exists())
                 .andExpect(jsonPath("$.data.features.rateLimitPerMinute").exists());

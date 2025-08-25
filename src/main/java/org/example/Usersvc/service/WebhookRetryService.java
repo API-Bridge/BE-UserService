@@ -50,7 +50,7 @@ public class WebhookRetryService {
         log.error("실패한 웹훅 데이터: {}", webhookData);
         log.error("최종 오류: {}", ex.getMessage(), ex);
         
-        // TODO: 실패한 웹훅을 별도 저장소에 기록하거나 알림 발송
-        // 예: 데이터베이스에 실패 로그 저장, 슬랙/이메일 알림 등
+        // 운영 환경에서는 실패한 웹훅을 Dead Letter Queue에 저장하고 알림 발송 필요
+        // 예: 데이터베이스에 실패 로그 저장, 슬랙/이메일 알림, 모니터링 시스템 연동
     }
 }

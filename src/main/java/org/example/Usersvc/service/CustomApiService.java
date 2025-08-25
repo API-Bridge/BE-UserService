@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.exception.PlanLimitExceededException;
 import org.example.Usersvc.domain.CustomApi;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.repository.CustomApiRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,12 +53,12 @@ public class CustomApiService {
      * 커스텀 API 생성 전 제한 검증
      * 
      * @param userId 사용자 ID
-     * @param planType 사용자 플랜 타입
+     * @param planName 사용자 플랜 타입
      * @throws PlanLimitExceededException 제한 초과 시
      */
-    public void validateCustomApiCreation(String userId, PlanType planType) {
+    public void validateCustomApiCreation(String userId, PlanName planName) {
         int currentCount = (int) customApiRepository.countByUserId(userId);
-        int maxAllowed = planType.getMaxCustomApiCount();
+        int maxAllowed = planName.getMaxCustomApiCount();
 
         log.debug("커스텀 API 생성 제한 확인 - userId: {}, 현재: {}, 최대: {}", userId, currentCount, maxAllowed);
 
@@ -74,12 +74,12 @@ public class CustomApiService {
      * 사용자의 커스텀 API 생성 가능 개수 조회
      * 
      * @param userId 사용자 ID
-     * @param planType 플랜 타입
+     * @param planName 플랜 타입
      * @return 생성 가능한 커스텀 API 개수
      */
-    public int getRemainingCustomApiCount(String userId, PlanType planType) {
+    public int getRemainingCustomApiCount(String userId, PlanName planName) {
         int currentCount = (int) customApiRepository.countByUserId(userId);
-        int maxAllowed = planType.getMaxCustomApiCount();
+        int maxAllowed = planName.getMaxCustomApiCount();
         return Math.max(0, maxAllowed - currentCount);
     }
 
@@ -87,12 +87,12 @@ public class CustomApiService {
      * 커스텀 API 제한 초과 여부 확인
      * 
      * @param userId 사용자 ID
-     * @param planType 플랜 타입
+     * @param planName 플랜 타입
      * @return 제한 초과 시 true
      */
-    public boolean isCustomApiLimitExceeded(String userId, PlanType planType) {
+    public boolean isCustomApiLimitExceeded(String userId, PlanName planName) {
         int currentCount = (int) customApiRepository.countByUserId(userId);
-        int maxAllowed = planType.getMaxCustomApiCount();
+        int maxAllowed = planName.getMaxCustomApiCount();
         return currentCount >= maxAllowed;
     }
 }

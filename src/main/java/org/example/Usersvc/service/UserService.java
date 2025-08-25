@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.dto.*;
 import org.example.Usersvc.event.model.UserCreatedEvent;
@@ -17,6 +17,8 @@ import org.example.Usersvc.repository.CustomApiRepository;
 import org.example.Usersvc.repository.SharedApiRepository;
 import org.example.Usersvc.repository.UserSavedApiRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -207,6 +209,24 @@ public class UserService {
     }
     
     /**
+     * 모든 사용자 조회 (페이징)
+     * 
+     * @param pageable 페이징 정보
+     * @return 페이징된 사용자 목록
+     */
+    @Transactional(readOnly = true)
+    public Page<User> getAllUsersWithPagination(Pageable pageable) {
+        log.debug("전체 사용자 조회 (페이징) 시작 - page: {}, size: {}", 
+                pageable.getPageNumber(), pageable.getPageSize());
+        
+        Page<User> users = userRepository.findAll(pageable);
+        log.debug("전체 사용자 조회 (페이징) 완료 - totalElements: {}, totalPages: {}", 
+                users.getTotalElements(), users.getTotalPages());
+        
+        return users;
+    }
+    
+    /**
      * 사용자 이메일 업데이트
      * 
      * @param userId 업데이트할 사용자의 ID
@@ -332,13 +352,13 @@ public class UserService {
         Plan plan = subscription.getPlan();
         
         // PRO 플랜이고 활성 상태면 구독 불가 (이미 최고 플랜)
-        if (PlanType.PRO.name().equals(plan.getPlanType().name()) && subscription.getIsActive()) {
+        if (PlanName.PRO.name().equals(plan.getPlanName().name()) && subscription.isActive()) {
             log.debug("이미 PRO 구독자 - 구독 불가 - userId: {}", userId);
             return false;
         }
         
         // FREE 플랜이고 활성 상태면 구독 가능 (PRO로 업그레이드)
-        if (PlanType.FREE.name().equals(plan.getPlanType().name()) && subscription.getIsActive()) {
+        if (PlanName.FREE.name().equals(plan.getPlanName().name()) && subscription.isActive()) {
             log.debug("FREE 구독자 - PRO 구독 가능 - userId: {}", userId);
             return true;
         }
@@ -380,13 +400,13 @@ public class UserService {
         Plan plan = subscription.getPlan();
         
         // PRO 플랜이고 활성 상태면 취소 가능
-        if (PlanType.PRO.name().equals(plan.getPlanType().name()) && subscription.getIsActive()) {
+        if (PlanName.PRO.name().equals(plan.getPlanName().name()) && subscription.isActive()) {
             log.debug("PRO 구독자 - 취소 가능 - userId: {}", userId);
             return true;
         }
         
         // FREE 플랜이면 취소 불가 (무료 구독)
-        if (PlanType.FREE.name().equals(plan.getPlanType().name())) {
+        if (PlanName.FREE.name().equals(plan.getPlanName().name())) {
             log.debug("FREE 구독자 - 취소 불가 - userId: {}", userId);
             return false;
         }
@@ -458,8 +478,8 @@ public class UserService {
             .currentUsage(currentUsage)
             .build();
         
-        log.debug("통합 사용자 정보 조회 완료 - userId: {}, planType: {}, customApis: {}, sharedApis: {}", 
-                 userId, planInfo.getPlanType(), currentUsage.getCustomApiCount(), currentUsage.getSharedApiCount());
+        log.debug("통합 사용자 정보 조회 완료 - userId: {}, planName: {}, customApis: {}, sharedApis: {}", 
+                 userId, planInfo.getPlanName(), currentUsage.getCustomApiCount(), currentUsage.getSharedApiCount());
         
         return response;
     }
@@ -473,9 +493,8 @@ public class UserService {
             Plan plan = subscription.getPlan();
             
             return PlanInfo.builder()
-                .planType(plan.getPlanType().name())
-                .planName(plan.getPlanName())
-                .isActive(subscription.getIsActive())
+                .planName(plan.getPlanName().name())
+                .isActive(subscription.isActive())
                 .planPaymentDate(subscription.getPlanPaymentDate())
                 .planUpdateDate(subscription.getPlanUpdateDate())
                 .paymentProvider(subscription.getPaymentProvider() != null ? subscription.getPaymentProvider().name() : null)
@@ -484,9 +503,9 @@ public class UserService {
                 .build();
         } else {
             // 활성 구독이 없으면 FREE 플랜 기본값 사용
-            PlanType freePlan = PlanType.FREE;
+            PlanName freePlan = PlanName.FREE;
             return PlanInfo.builder()
-                .planType(freePlan.name())
+                .planName(freePlan.name())
                 .planName(freePlan.getPlanName())
                 .isActive(true)
                 .planPaymentDate(user.getCreatedAt())
@@ -514,7 +533,7 @@ public class UserService {
                 .build();
         } else {
             // FREE 플랜 기본값
-            PlanType freePlan = PlanType.FREE;
+            PlanName freePlan = PlanName.FREE;
             return UsageLimits.builder()
                 .maxCustomApiCount(freePlan.getMaxCustomApiCount())
                 .maxSharedApiCount(freePlan.getMaxSharedApiCount())
@@ -733,7 +752,7 @@ public class UserService {
             log.info("사용자 FREE 구독 생성 시작 - userId: {}", user.getUserId());
             
             // FREE 플랜 조회
-            Optional<Plan> freePlanOpt = planRepository.findByPlanType(PlanType.FREE);
+            Optional<Plan> freePlanOpt = planRepository.findByPlanName(PlanName.FREE);
             if (freePlanOpt.isEmpty()) {
                 log.error("FREE 플랜을 찾을 수 없습니다. data.sql 확인 필요");
                 throw new RuntimeException("FREE 플랜을 찾을 수 없습니다.");
@@ -744,8 +763,8 @@ public class UserService {
             // 이미 구독이 있는지 확인 (중복 방지)
             Optional<UserSubscription> existingSubscription = userSubscriptionRepository.findActiveSubscriptionByUser(user);
             if (existingSubscription.isPresent()) {
-                log.info("사용자에게 이미 활성 구독이 있습니다 - userId: {}, planType: {}", 
-                    user.getUserId(), existingSubscription.get().getPlan().getPlanType());
+                log.info("사용자에게 이미 활성 구독이 있습니다 - userId: {}, planName: {}", 
+                    user.getUserId(), existingSubscription.get().getPlan().getPlanName());
                 return;
             }
             
@@ -757,8 +776,7 @@ public class UserService {
                     .planPaymentDate(LocalDateTime.now())
                     .build();
             
-            // 구독 활성화
-            freeSubscription.setIsActive(true);
+            // 구독 활성화 (plan이 설정되어 있으면 자동으로 활성 상태)
             
             // 데이터베이스에 저장
             UserSubscription savedSubscription = userSubscriptionRepository.save(freeSubscription);

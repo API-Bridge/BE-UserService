@@ -287,7 +287,7 @@
                         </div>
                         <div class="form-group">
                             <label>플랜 타입:</label>
-                            <select id="planType">
+                            <select id="planName">
                                 <option value="FREE">FREE</option>
                                 <option value="PRO" selected>PRO</option>
                             </select>
@@ -404,7 +404,7 @@
             const apiName = document.getElementById('apiName').value.trim();
             const description = document.getElementById('apiDescription').value.trim();
             const originalApiId = document.getElementById('originalApiId').value.trim();
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             const userId = document.getElementById('userId').value;
             
             if (!apiName || !description || !originalApiId) {
@@ -425,7 +425,7 @@
                         apiId: originalApiId,
                         apiName: apiName,
                         description: description,
-                        planType: planType
+                        planName: planName
                     })
                 });
                 
@@ -456,7 +456,7 @@
             const apiName = document.getElementById('apiName').value.trim();
             const description = document.getElementById('apiDescription').value.trim();
             const originalApiId = document.getElementById('originalApiId').value.trim();
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             const userId = document.getElementById('userId').value;
             
             if (!apiName || !description || !originalApiId) {
@@ -469,7 +469,7 @@
             try {
                 const requestBody = new URLSearchParams({
                     customApiId: originalApiId,
-                    planType: planType,
+                    planName: planName,
                     apiName: apiName,
                     apiDescription: description
                 });

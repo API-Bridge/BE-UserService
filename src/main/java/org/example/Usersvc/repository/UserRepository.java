@@ -186,6 +186,12 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt BETWEEN :startDate AND :endDate")
     long countByCreatedAtBetween(@Param("startDate") LocalDateTime startDate, 
                                 @Param("endDate") LocalDateTime endDate);
-
-
+    
+    /**
+     * 이메일 또는 Auth0 ID로 사용자 검색 (관리자용)
+     * 
+     * 관리자가 사용자를 검색할 때 이메일이나 Auth0 ID 중 하나라도 매치되는 사용자를 조회합니다.
+     * 대소문자를 구분하지 않고 부분 매치로 검색합니다.
+     */
+    List<User> findByUserEmailContainingIgnoreCaseOrAuth0IdContainingIgnoreCase(String email, String auth0Id);
 }

@@ -590,7 +590,7 @@
                         </div>
                         <div class="form-group">
                             <label>플랜 타입:</label>
-                            <select id="planType">
+                            <select id="planName">
                                 <option value="FREE">FREE</option>
                                 <option value="PRO" selected>PRO</option>
                             </select>
@@ -779,7 +779,7 @@
             const apiName = document.getElementById('apiName').value.trim();
             const description = document.getElementById('apiDescription').value.trim();
             const originalApiId = document.getElementById('originalApiId').value.trim();
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             
             if (!apiName || !description || !originalApiId) {
                 showMessage('모든 필드를 입력해주세요.', 'error');
@@ -800,7 +800,7 @@
                         apiId: originalApiId,
                         apiName: apiName,
                         description: description,
-                        planType: planType
+                        planName: planName
                     })
                 });
                 
@@ -819,24 +819,24 @@
                 } else {
                     // 완전한 테스트가 실패하면 기존 방식 시도
                     showMessage('완전한 테스트 실패, 기존 방식 시도 중...', 'info');
-                    await fallbackShareApi(apiName, description, originalApiId, planType);
+                    await fallbackShareApi(apiName, description, originalApiId, planName);
                 }
             } catch (error) {
                 console.error('API 공유 오류:', error);
                 // 오류 발생 시 기존 방식 시도
                 showMessage('완전한 테스트 오류, 기존 방식 시도 중...', 'info');
-                await fallbackShareApi(apiName, description, originalApiId, planType);
+                await fallbackShareApi(apiName, description, originalApiId, planName);
             } finally {
                 showLoading('shareLoading', false);
             }
         }
 
         // 기존 방식의 API 공유 (CustomApi가 이미 존재하는 경우)
-        async function fallbackShareApi(apiName, description, originalApiId, planType) {
+        async function fallbackShareApi(apiName, description, originalApiId, planName) {
             try {
                 const requestBody = new URLSearchParams({
                     customApiId: originalApiId,
-                    planType: planType,
+                    planName: planName,
                     apiName: apiName,
                     apiDescription: description
                 });
@@ -875,7 +875,7 @@
             const apiName = document.getElementById('apiName').value.trim();
             const description = document.getElementById('apiDescription').value.trim();
             const originalApiId = document.getElementById('originalApiId').value.trim();
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             
             if (!apiName || !description || !originalApiId) {
                 showMessage('모든 필드를 입력해주세요.', 'error');
@@ -885,7 +885,7 @@
             showLoading('fallbackLoading', true);
             
             try {
-                await fallbackShareApi(apiName, description, originalApiId, planType);
+                await fallbackShareApi(apiName, description, originalApiId, planName);
             } finally {
                 showLoading('fallbackLoading', false);
             }
@@ -896,7 +896,7 @@
             const apiName = document.getElementById('apiName').value.trim();
             const description = document.getElementById('apiDescription').value.trim();
             const originalApiId = document.getElementById('originalApiId').value.trim();
-            const planType = document.getElementById('planType').value;
+            const planName = document.getElementById('planName').value;
             
             if (!apiName || !description || !originalApiId) {
                 showMessage('모든 필드를 입력해주세요.', 'error');
@@ -916,7 +916,7 @@
                         apiId: originalApiId,
                         apiName: apiName,
                         description: description,
-                        planType: planType
+                        planName: planName
                     })
                 });
                 
@@ -1392,7 +1392,7 @@
                 const result = await response.json();
 
                 if (result.success && result.data.hasActiveSubscription) {
-                    showMessage(`🎉 구독이 성공적으로 활성화되었습니다! 플랜: ${result.data.planType}`, 'success');
+                    showMessage(`🎉 구독이 성공적으로 활성화되었습니다! 플랜: ${result.data.planName}`, 'success');
                     
                     // 대시보드 업데이트
                     updateSubscriptionStatus(result.data);
@@ -1423,7 +1423,7 @@
             if (statusDiv) {
                 statusDiv.innerHTML = `
                     <div style="color: #28a745; font-weight: 600;">
-                        ✅ 활성 구독: ${subscriptionData.planType}
+                        ✅ 활성 구독: ${subscriptionData.planName}
                         <br>
                         <small style="color: #6c757d;">
                             구독 ID: ${subscriptionData.subscriptionId}

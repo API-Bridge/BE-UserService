@@ -79,7 +79,6 @@ public class User {
     @Column(name = "user_email", length = 255, nullable = false, unique = true)
     private String userEmail;
     
-
     
     /**
      * 사용자 생성 시간
@@ -178,6 +177,7 @@ public class User {
         }
         return createdAt.isAfter(LocalDateTime.now().minusDays(days));
     }
+    
     
 
     

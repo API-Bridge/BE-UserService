@@ -34,13 +34,13 @@ class StripePropertiesTest {
 
     @Test
     @DisplayName("가격 ID로 플랜 타입을 올바르게 결정해야 한다")
-    void getPlanTypeByPriceId() {
-        assertThat(stripeProperties.getPlanTypeByPriceId("price_fake_pro_monthly")).isEqualTo("PRO");
-        assertThat(stripeProperties.getPlanTypeByPriceId("price_fake_pro_yearly")).isEqualTo("PRO");
-        assertThat(stripeProperties.getPlanTypeByPriceId("price_fake_enterprise_monthly")).isEqualTo("ENTERPRISE");
-        assertThat(stripeProperties.getPlanTypeByPriceId("price_fake_enterprise_yearly")).isEqualTo("ENTERPRISE");
-        assertThat(stripeProperties.getPlanTypeByPriceId("unknown-price-id")).isEqualTo("FREE");
-        assertThat(stripeProperties.getPlanTypeByPriceId(null)).isEqualTo("FREE");
+    void getPlanNameByPriceId() {
+        assertThat(stripeProperties.getPlanNameByPriceId("price_fake_pro_monthly")).isEqualTo("PRO");
+        assertThat(stripeProperties.getPlanNameByPriceId("price_fake_pro_yearly")).isEqualTo("PRO");
+        assertThat(stripeProperties.getPlanNameByPriceId("price_fake_enterprise_monthly")).isEqualTo("ENTERPRISE");
+        assertThat(stripeProperties.getPlanNameByPriceId("price_fake_enterprise_yearly")).isEqualTo("ENTERPRISE");
+        assertThat(stripeProperties.getPlanNameByPriceId("unknown-price-id")).isEqualTo("FREE");
+        assertThat(stripeProperties.getPlanNameByPriceId(null)).isEqualTo("FREE");
     }
 
     @Test
@@ -56,28 +56,28 @@ class StripePropertiesTest {
 
     @Test
     @DisplayName("플랜 타입으로 Product ID를 올바르게 반환해야 한다")
-    void getProductIdByPlanType() {
-        assertThat(stripeProperties.getProductIdByPlanType("FREE")).isEqualTo("prod_fake_free");
-        assertThat(stripeProperties.getProductIdByPlanType("PRO")).isEqualTo("prod_fake_pro");
-        assertThat(stripeProperties.getProductIdByPlanType("ENTERPRISE")).isEqualTo("prod_fake_enterprise");
-        assertThat(stripeProperties.getProductIdByPlanType("unknown")).isEqualTo("prod_fake_free");
+    void getProductIdByplanName() {
+        assertThat(stripeProperties.getProductIdByplanName("FREE")).isEqualTo("prod_fake_free");
+        assertThat(stripeProperties.getProductIdByplanName("PRO")).isEqualTo("prod_fake_pro");
+        assertThat(stripeProperties.getProductIdByplanName("ENTERPRISE")).isEqualTo("prod_fake_enterprise");
+        assertThat(stripeProperties.getProductIdByplanName("unknown")).isEqualTo("prod_fake_free");
     }
 
     @Test
     @DisplayName("플랜 타입으로 월간 Price ID를 올바르게 반환해야 한다")
-    void getMonthlyPriceIdByPlanType() {
-        assertThat(stripeProperties.getMonthlyPriceIdByPlanType("PRO")).isEqualTo("price_fake_pro_monthly");
-        assertThat(stripeProperties.getMonthlyPriceIdByPlanType("ENTERPRISE")).isEqualTo("price_fake_enterprise_monthly");
-        assertThat(stripeProperties.getMonthlyPriceIdByPlanType("FREE")).isNull();
-        assertThat(stripeProperties.getMonthlyPriceIdByPlanType("unknown")).isNull();
+    void getMonthlyPriceIdByplanName() {
+        assertThat(stripeProperties.getMonthlyPriceIdByplanName("PRO")).isEqualTo("price_fake_pro_monthly");
+        assertThat(stripeProperties.getMonthlyPriceIdByplanName("ENTERPRISE")).isEqualTo("price_fake_enterprise_monthly");
+        assertThat(stripeProperties.getMonthlyPriceIdByplanName("FREE")).isNull();
+        assertThat(stripeProperties.getMonthlyPriceIdByplanName("unknown")).isNull();
     }
 
     @Test
     @DisplayName("플랜 타입으로 연간 Price ID를 올바르게 반환해야 한다")
-    void getYearlyPriceIdByPlanType() {
-        assertThat(stripeProperties.getYearlyPriceIdByPlanType("PRO")).isEqualTo("price_fake_pro_yearly");
-        assertThat(stripeProperties.getYearlyPriceIdByPlanType("ENTERPRISE")).isEqualTo("price_fake_enterprise_yearly");
-        assertThat(stripeProperties.getYearlyPriceIdByPlanType("FREE")).isNull();
-        assertThat(stripeProperties.getYearlyPriceIdByPlanType("unknown")).isNull();
+    void getYearlyPriceIdByplanName() {
+        assertThat(stripeProperties.getYearlyPriceIdByplanName("PRO")).isEqualTo("price_fake_pro_yearly");
+        assertThat(stripeProperties.getYearlyPriceIdByplanName("ENTERPRISE")).isEqualTo("price_fake_enterprise_yearly");
+        assertThat(stripeProperties.getYearlyPriceIdByplanName("FREE")).isNull();
+        assertThat(stripeProperties.getYearlyPriceIdByplanName("unknown")).isNull();
     }
 }

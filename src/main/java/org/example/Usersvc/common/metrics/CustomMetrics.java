@@ -168,16 +168,16 @@ public class CustomMetrics {
         activeUsersCount.decrementAndGet();
     }
 
-    public void incrementSubscriptionCreated(String planType) {
+    public void incrementSubscriptionCreated(String planName) {
         subscriptionCreatedCounter.increment();
         activeSubscriptionsCount.incrementAndGet();
-        incrementPlanUserCount(planType);
+        incrementPlanUserCount(planName);
     }
 
-    public void incrementSubscriptionCancelled(String planType) {
+    public void incrementSubscriptionCancelled(String planName) {
         subscriptionCancelledCounter.increment();
         activeSubscriptionsCount.decrementAndGet();
-        decrementPlanUserCount(planType);
+        decrementPlanUserCount(planName);
     }
 
     public void incrementApiKeyRegistered() {
@@ -303,31 +303,31 @@ public class CustomMetrics {
     // === 플랜별 사용자 수 관리 ===
 
     private void initializePlanGauges() {
-        for (String planType : new String[]{"FREE", "PRO"}) {
+        for (String planName : new String[]{"FREE", "PRO"}) {
             AtomicInteger planCount = new AtomicInteger(0);
-            planUserCounts.put(planType, planCount);
+            planUserCounts.put(planName, planCount);
             
             Gauge.builder("userservice.users.by.plan.count", planCount, AtomicInteger::doubleValue)
                     .description("Number of users by plan type")
-                    .tag("plan_type", planType)
+                    .tag("plan_type", planName)
                     .register(meterRegistry);
         }
     }
 
-    private void incrementPlanUserCount(String planType) {
-        planUserCounts.computeIfAbsent(planType, k -> new AtomicInteger(0))
+    private void incrementPlanUserCount(String planName) {
+        planUserCounts.computeIfAbsent(planName, k -> new AtomicInteger(0))
                 .incrementAndGet();
     }
 
-    private void decrementPlanUserCount(String planType) {
-        AtomicInteger count = planUserCounts.get(planType);
+    private void decrementPlanUserCount(String planName) {
+        AtomicInteger count = planUserCounts.get(planName);
         if (count != null && count.get() > 0) {
             count.decrementAndGet();
         }
     }
 
-    public void updatePlanUserCount(String planType, int count) {
-        planUserCounts.computeIfAbsent(planType, k -> new AtomicInteger(0))
+    public void updatePlanUserCount(String planName, int count) {
+        planUserCounts.computeIfAbsent(planName, k -> new AtomicInteger(0))
                 .set(count);
     }
 
@@ -348,11 +348,11 @@ public class CustomMetrics {
     /**
      * API 사용량 분포 기록
      */
-    public void recordApiUsageDistribution(String planType, int apiCount, int usageLevel) {
+    public void recordApiUsageDistribution(String planName, int apiCount, int usageLevel) {
         AtomicInteger apiCountGauge = new AtomicInteger(apiCount);
         Gauge.builder("userservice.api.usage.distribution", apiCountGauge, AtomicInteger::doubleValue)
                 .description("API usage distribution by plan")
-                .tag("plan_type", planType)
+                .tag("plan_type", planName)
                 .tag("usage_level", String.valueOf(usageLevel))
                 .register(meterRegistry);
     }

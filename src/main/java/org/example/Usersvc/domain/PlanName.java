@@ -4,13 +4,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * 구독 플랜 타입 Enum
+ * 구독 플랜 이름 Enum
  * 
  * Free와 Pro 두 가지 플랜을 지원합니다.
  * - FREE: 무료 플랜 (월 100회 API 호출, 기본 지원)
  * - PRO: 유료 플랜 (월 10,000회 API 호출, 우선 지원, 고급 분석)
  */
-public enum PlanType {
+public enum PlanName {
     FREE("Free", 0.00, 100, 10, 100, 1000, 5, 3, 3),
     PRO("Pro", 22.00, 10000, 60, 3600, 86400, 50, 20, 20);
 
@@ -24,7 +24,7 @@ public enum PlanType {
     private final int maxSharedApiCount;
     private final int maxDataBundleCount;
 
-    PlanType(String planName, double price, int maxApiCount, 
+    PlanName(String planName, double price, int maxApiCount, 
              int rateLimitPerMinute, int rateLimitPerHour, int rateLimitPerDay,
              int maxCustomApiCount, int maxSharedApiCount, int maxDataBundleCount) {
         this.planName = planName;
@@ -76,19 +76,19 @@ public enum PlanType {
     }
 
     /**
-     * 플랜명으로부터 PlanType을 찾습니다.
+     * 플랜명으로부터 PlanName을 찾습니다.
      * 
      * @param planName 플랜명 ("Free" 또는 "Pro")
-     * @return 해당하는 PlanType
+     * @return 해당하는 PlanName
      * @throws IllegalArgumentException 지원하지 않는 플랜명인 경우
      */
     @JsonCreator
-    public static PlanType fromString(String planName) {
+    public static PlanName fromString(String planName) {
         if (planName == null) {
             throw new IllegalArgumentException("플랜명은 null일 수 없습니다.");
         }
         
-        for (PlanType type : PlanType.values()) {
+        for (PlanName type : PlanName.values()) {
             if (type.planName.equalsIgnoreCase(planName)) {
                 return type;
             }

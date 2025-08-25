@@ -117,12 +117,12 @@ public class UserActionLogger {
     /**
      * 구독 생성 액션 로그
      */
-    public void logSubscriptionCreation(String userId, String planType, String paymentMethod, Double amount) {
+    public void logSubscriptionCreation(String userId, String planName, String paymentMethod, Double amount) {
         String ipAddress = getCurrentIpAddress();
         String userAgent = getCurrentUserAgent();
         
         Map<String, Object> actionData = new HashMap<>();
-        actionData.put("planType", planType);
+        actionData.put("planName", planName);
         actionData.put("paymentMethod", paymentMethod);
         actionData.put("amount", amount);
         actionData.put("currency", "USD");
@@ -131,19 +131,19 @@ public class UserActionLogger {
         logUserAction("SUBSCRIPTION_CREATED", userId, ipAddress, userAgent, actionData);
         
         // 보안 로그도 함께 기록
-        securityAuditLogger.logSubscriptionChange(userId, planType, paymentMethod, amount, "USD", ipAddress);
+        securityAuditLogger.logSubscriptionChange(userId, planName, paymentMethod, amount, "USD", ipAddress);
     }
 
     /**
      * 구독 취소 액션 로그
      */
-    public void logSubscriptionCancellation(String userId, String planType, String reason) {
+    public void logSubscriptionCancellation(String userId, String planName, String reason) {
         String ipAddress = getCurrentIpAddress();
         String userAgent = getCurrentUserAgent();
         
         Map<String, Object> actionData = new HashMap<>();
-        actionData.put("previousPlanType", planType);
-        actionData.put("newPlanType", "FREE");
+        actionData.put("previousPlanName", planName);
+        actionData.put("newPlanName", "FREE");
         actionData.put("cancellationReason", reason);
         actionData.put("autoDowngrade", true);
         

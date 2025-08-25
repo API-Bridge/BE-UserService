@@ -27,8 +27,8 @@ public class Plan {
     private Integer planId;
     
     @Enumerated(EnumType.STRING)
-    @Column(name = "plan_type", nullable = false, unique = true)
-    private PlanType planType;
+    @Column(name = "plan_name", nullable = false, unique = true)
+    private PlanName planName;
     
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private java.math.BigDecimal price;
@@ -48,8 +48,8 @@ public class Plan {
     private LocalDateTime updatedAt;
     
     @Builder
-    public Plan(PlanType planType, java.math.BigDecimal price, String description, String features) {
-        this.planType = planType;
+    public Plan(PlanName planName, java.math.BigDecimal price, String description, String features) {
+        this.planName = planName;
         this.price = price;
         this.description = description;
         this.features = features;
@@ -73,8 +73,8 @@ public class Plan {
     /**
      * 플랜 정보 업데이트
      */
-    public void updatePlan(PlanType planType, java.math.BigDecimal price, String description, String features) {
-        this.planType = planType;
+    public void updatePlan(PlanName planName, java.math.BigDecimal price, String description, String features) {
+        this.planName = planName;
         this.price = price;
         this.description = description;
         this.features = features;
@@ -84,35 +84,39 @@ public class Plan {
      * JSON features에서 값을 파싱하는 헬퍼 메서드들
      */
     public int getMaxApiCount() {
-        return planType != null ? planType.getMaxApiCount() : 100;
+        return planName != null ? planName.getMaxApiCount() : 100;
     }
     
     public int getRateLimitPerMinute() {
-        return planType != null ? planType.getRateLimitPerMinute() : 10;
+        return planName != null ? planName.getRateLimitPerMinute() : 10;
     }
     
     public int getRateLimitPerHour() {
-        return planType != null ? planType.getRateLimitPerHour() : 100;
+        return planName != null ? planName.getRateLimitPerHour() : 100;
     }
     
     public int getRateLimitPerDay() {
-        return planType != null ? planType.getRateLimitPerDay() : 1000;
+        return planName != null ? planName.getRateLimitPerDay() : 1000;
     }
     
     public int getMaxCustomApiCount() {
-        return planType != null ? planType.getMaxCustomApiCount() : 5;
+        return planName != null ? planName.getMaxCustomApiCount() : 5;
     }
     
     public int getMaxSharedApiCount() {
-        return planType != null ? planType.getMaxSharedApiCount() : 3;
+        return planName != null ? planName.getMaxSharedApiCount() : 3;
     }
     
     public int getMaxDataBundleCount() {
-        return planType != null ? planType.getMaxDataBundleCount() : 3;
+        return planName != null ? planName.getMaxDataBundleCount() : 3;
     }
     
-    public String getPlanName() {
-        return planType != null ? planType.getPlanName() : "Unknown";
+    public String getPlanNameString() {
+        return planName != null ? planName.getPlanName() : "Unknown";
+    }
+    
+    public PlanName getPlanName() {
+        return this.planName;
     }
     
     public java.math.BigDecimal getMonthlyPrice() {

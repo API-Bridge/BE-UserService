@@ -66,7 +66,7 @@ public class UserInfoResponse {
      * 
      * @return 플랜 타입 문자열 (FREE, PRO 등)
      */
-    public String getPlanType() {
-        return planInfo != null ? planInfo.getPlanType() : "FREE";
+    public String getPlanName() {
+        return planInfo != null ? planInfo.getPlanName() : "FREE";
     }
 }

@@ -1,7 +1,7 @@
 package org.example.Usersvc.controller;
 
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.planName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.PlanRepository;
@@ -52,14 +52,14 @@ class SubscriptionControllerIntegrationTest {
 
         // 테스트 플랜 생성
         freePlan = Plan.builder()
-                .planType(PlanType.FREE)
+                .planName(planName.FREE)
                 .price(BigDecimal.ZERO)
                 .description("Free Plan for Integration Test")
                 .build();
         planRepository.save(freePlan);
 
         proPlan = Plan.builder()
-                .planType(PlanType.PRO)
+                .planName(planName.PRO)
                 .price(BigDecimal.valueOf(22.00))
                 .description("Pro Plan for Integration Test")
                 .build();
@@ -76,7 +76,6 @@ class SubscriptionControllerIntegrationTest {
                 .plan(proPlan)
                 .planPaymentDate(LocalDateTime.now())
                 .build();
-        newSubscription.setIsActive(true);
         newSubscription.setBillingKey("test-billing-key");
         
         userSubscriptionRepository.save(newSubscription);
@@ -84,8 +83,8 @@ class SubscriptionControllerIntegrationTest {
         // Then: 새 구독 레코드가 생성되고 활성화됨
         Optional<UserSubscription> savedSub = userSubscriptionRepository.findActiveSubscriptionByUser(testUser);
         assertThat(savedSub).isPresent();
-        assertThat(savedSub.get().getPlan().getPlanType()).isEqualTo(PlanType.PRO);
-        assertThat(savedSub.get().getIsActive()).isTrue();
+        assertThat(savedSub.get().getPlan().getPlanName()).isEqualTo(planName.PRO);
+        assertThat(savedSub.get().isActive()).isTrue();
         assertThat(savedSub.get().getBillingKey()).isEqualTo("test-billing-key");
         
         // 전체 구독 레코드 수 확인
@@ -103,7 +102,6 @@ class SubscriptionControllerIntegrationTest {
                 .plan(freePlan)
                 .planPaymentDate(LocalDateTime.now().minusDays(10))
                 .build();
-        freeSubscription.setIsActive(true);
         userSubscriptionRepository.save(freeSubscription);
 
         String originalSubscriptionId = freeSubscription.getSubscriptionId();
@@ -118,9 +116,9 @@ class SubscriptionControllerIntegrationTest {
         Optional<UserSubscription> updatedSub = userSubscriptionRepository.findActiveSubscriptionByUser(testUser);
         assertThat(updatedSub).isPresent();
         assertThat(updatedSub.get().getSubscriptionId()).isEqualTo(originalSubscriptionId); // 같은 ID
-        assertThat(updatedSub.get().getPlan().getPlanType()).isEqualTo(PlanType.PRO);
+        assertThat(updatedSub.get().getPlan().getPlanName()).isEqualTo(planName.PRO);
         assertThat(updatedSub.get().getBillingKey()).isEqualTo("pro-billing-key");
-        assertThat(updatedSub.get().getIsActive()).isTrue();
+        assertThat(updatedSub.get().isActive()).isTrue();
         
         // 전체 구독 레코드 수 확인 (증가하지 않음)
         long totalSubs = userSubscriptionRepository.countSubscriptionsByUser(testUser);
@@ -137,7 +135,6 @@ class SubscriptionControllerIntegrationTest {
                 .plan(proPlan)
                 .planPaymentDate(LocalDateTime.now().minusDays(5))
                 .build();
-        proSubscription.setIsActive(true);
         proSubscription.setBillingKey("pro-billing-key");
         userSubscriptionRepository.save(proSubscription);
 
@@ -153,9 +150,9 @@ class SubscriptionControllerIntegrationTest {
         Optional<UserSubscription> downgradedSub = userSubscriptionRepository.findActiveSubscriptionByUser(testUser);
         assertThat(downgradedSub).isPresent();
         assertThat(downgradedSub.get().getSubscriptionId()).isEqualTo(originalSubscriptionId); // 같은 ID
-        assertThat(downgradedSub.get().getPlan().getPlanType()).isEqualTo(PlanType.FREE);
+        assertThat(downgradedSub.get().getPlan().getPlanName()).isEqualTo(planName.FREE);
         assertThat(downgradedSub.get().getBillingKey()).isNull();
-        assertThat(downgradedSub.get().getIsActive()).isTrue(); // 여전히 활성 (FREE 서비스 제공)
+        assertThat(downgradedSub.get().isActive()).isTrue(); // 여전히 활성 (FREE 서비스 제공)
         
         // 전체 구독 레코드 수 확인 (증가하지 않음)
         long totalSubs = userSubscriptionRepository.countSubscriptionsByUser(testUser);
@@ -172,7 +169,6 @@ class SubscriptionControllerIntegrationTest {
                 .plan(freePlan)
                 .planPaymentDate(LocalDateTime.now())
                 .build();
-        subscription.setIsActive(true);
         userSubscriptionRepository.save(subscription);
 
         // When: 여러 번의 플랜 변경 (FREE -> PRO -> FREE)
@@ -204,7 +200,7 @@ class SubscriptionControllerIntegrationTest {
         
         Optional<UserSubscription> finalSub = userSubscriptionRepository.findActiveSubscriptionByUser(testUser);
         assertThat(finalSub).isPresent();
-        assertThat(finalSub.get().getPlan().getPlanType()).isEqualTo(PlanType.PRO);
+        assertThat(finalSub.get().getPlan().getPlanName()).isEqualTo(planName.PRO);
         assertThat(finalSub.get().getBillingKey()).isEqualTo("billing-key-2");
     }
 
@@ -241,7 +237,6 @@ class SubscriptionControllerIntegrationTest {
                 .plan(plan)
                 .planPaymentDate(LocalDateTime.now())
                 .build();
-        subscription.setIsActive(true);
         return subscription;
     }
 }

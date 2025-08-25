@@ -26,7 +26,7 @@ public class StripeProperties {
         private String proMonthly;
     }
 
-    public String getPlanTypeByPriceId(String priceId) {
+    public String getPlanNameByPriceId(String priceId) {
         if (priceId == null) {
             return "FREE";
         }
@@ -43,8 +43,8 @@ public class StripeProperties {
         return "MONTHLY";
     }
 
-    public String getProductIdByPlanType(String planType) {
-        switch (planType.toUpperCase()) {
+    public String getProductIdByPlanName(String planName) {
+        switch (planName.toUpperCase()) {
             case "PRO":
                 return products.getPro();
             case "FREE":
@@ -53,8 +53,8 @@ public class StripeProperties {
         }
     }
 
-    public String getMonthlyPriceIdByPlanType(String planType) {
-        switch (planType.toUpperCase()) {
+    public String getMonthlyPriceIdByPlanName(String planName) {
+        switch (planName.toUpperCase()) {
             case "PRO":
                 return prices.getProMonthly();
             default:

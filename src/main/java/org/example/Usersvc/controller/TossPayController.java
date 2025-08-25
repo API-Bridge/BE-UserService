@@ -3,7 +3,7 @@ package org.example.Usersvc.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
-import org.example.Usersvc.domain.PlanType;
+import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.service.TossPayService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,14 +32,14 @@ public class TossPayController {
             @RequestBody Map<String, Object> request) {
         
         String userId = (String) request.get("userId");
-        String planTypeStr = (String) request.get("planType");
+        String planNameStr = (String) request.get("planName");
         String provider = (String) request.getOrDefault("provider", "TOSSPAY");
         
-        log.info("결제 요청 - userId: {}, planType: {}, provider: {}", userId, planTypeStr, provider);
+        log.info("결제 요청 - userId: {}, planName: {}, provider: {}", userId, planNameStr, provider);
         
         try {
-            PlanType planType = PlanType.valueOf(planTypeStr);
-            Map<String, Object> paymentData = tossPayService.createSubscriptionPayment(userId, planType);
+            PlanName planName = PlanName.valueOf(planNameStr);
+            Map<String, Object> paymentData = tossPayService.createSubscriptionPayment(userId, planName);
             
             log.info("TossPay 결제 요청 생성 완료 - userId: {}, orderId: {}", 
                 userId, paymentData.get("orderId"));

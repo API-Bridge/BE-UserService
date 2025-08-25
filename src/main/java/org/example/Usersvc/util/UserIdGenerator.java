@@ -1,6 +1,7 @@
 package org.example.Usersvc.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.Usersvc.common.constants.BusinessConstants;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -18,12 +19,17 @@ import java.util.concurrent.atomic.AtomicLong;
  * 예: user-20240101-001-a7b2c
  */
 @Slf4j
-public class UserIdGenerator {
+public final class UserIdGenerator {
 
-    private static final String USER_PREFIX = "user-";
+    private static final String USER_PREFIX = BusinessConstants.USER_ID_PREFIX;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final AtomicLong SEQUENCE = new AtomicLong(1);
+    
+    private UserIdGenerator() {
+        // 유틸리티 클래스 - 인스턴스 생성 방지
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     /**
      * 새로운 사용자 ID 생성
