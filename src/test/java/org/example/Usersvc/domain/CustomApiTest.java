@@ -1,3 +1,4 @@
+/* CustomAPI 기능 분리 - Custom API Service로 이관
 package org.example.Usersvc.domain;
 
 import org.junit.jupiter.api.Test;
@@ -140,4 +141,4 @@ class CustomApiTest {
         assertThat(api1).isEqualTo(api2);
         assertThat(api1.hashCode()).isEqualTo(api2.hashCode());
     }
-}
+}*/

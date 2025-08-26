@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화 - 테스트 주석 처리
 package org.example.Usersvc.domain;
 
 import org.junit.jupiter.api.Test;
@@ -159,4 +160,4 @@ class UserSavedApiTest {
         assertThat(api1).isEqualTo(api2);
         assertThat(api1.hashCode()).isEqualTo(api2.hashCode());
     }
-}
+}*/
