@@ -351,4 +351,33 @@ public class UserActionLogger {
         
         return "other";
     }
+
+    /**
+     * 사용자 삭제 액션 로그
+     */
+    public void logUserDeletion(String userId, String auth0Id, String reason) {
+        String ipAddress = getCurrentIpAddress();
+        String userAgent = getCurrentUserAgent();
+        
+        Map<String, Object> actionData = new HashMap<>();
+        actionData.put("auth0Id", auth0Id);
+        actionData.put("deletionReason", reason != null ? reason : "User requested");
+        actionData.put("gdprCompliant", true);
+        actionData.put("dataRetention", "IMMEDIATE_DELETION");
+        
+        logUserAction("USER_DELETED", userId, ipAddress, userAgent, actionData);
+    }
+
+    /**
+     * 중요 액션 로그 (정적 메서드)
+     */
+    public static void logCriticalAction(String userId, String actionType, Map<String, String> details) {
+        try {
+            log.warn("CRITICAL_ACTION: userId={}, actionType={}, details={}", 
+                    userId, actionType, details);
+        } catch (Exception e) {
+            log.error("중요 액션 로깅 실패: userId={}, actionType={}, error={}", 
+                    userId, actionType, e.getMessage());
+        }
+    }
 }

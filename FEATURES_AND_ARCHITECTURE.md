@@ -690,7 +690,7 @@ public class StripeProperties {
     private Prices prices = new Prices();
     
     // 자동으로 플랜 타입 결정
-    public String getPlanTypeByPriceId(String priceId) {
+    public String getplanNameByPriceId(String priceId) {
         if (priceId.equals(prices.getProMonthly()) || priceId.equals(prices.getProYearly())) {
             return "PRO";
         }
@@ -739,8 +739,8 @@ public class SubscriptionManagementService {
         
         // 2. 가격 ID 자동 결정
         String priceId = "YEARLY".equals(billingPeriod) 
-            ? stripeProperties.getYearlyPriceIdByPlanType(plan.getPlanName())
-            : stripeProperties.getMonthlyPriceIdByPlanType(plan.getPlanName());
+            ? stripeProperties.getYearlyPriceIdByplanName(plan.getPlanName())
+            : stripeProperties.getMonthlyPriceIdByplanName(plan.getPlanName());
             
         // 3. Stripe 구독 자동 생성
         String stripeSubscriptionId = stripeSubscriptionService.createSubscription(customerId, priceId);

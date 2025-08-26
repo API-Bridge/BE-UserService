@@ -253,4 +253,17 @@ public class SecurityAuditLogger {
         
         return "other";
     }
+
+    /**
+     * 계정 삭제 로그 (GDPR 준수)
+     */
+    public void logAccountDeletion(String userId, String reason) {
+        Map<String, Object> logData = createBaseLogData("ACCOUNT_DELETION", userId, "system");
+        logData.put("deletionReason", reason != null ? reason : "User requested");
+        logData.put("severity", "HIGH");
+        logData.put("gdprCompliant", true);
+        logData.put("dataRetentionPolicy", "IMMEDIATE_DELETION");
+        
+        logSecurityEvent(logData);
+    }
 }

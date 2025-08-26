@@ -697,6 +697,97 @@ public class UserController {
         }
     }
     
+    /**
+     * 회원 계정 완전 삭제 (GDPR 요구사항)
+     * 복구 불가능한 완전 삭제
+     */
+    @Operation(
+        summary = "회원 계정 완전 삭제",
+        description = "사용자 계정을 영구적으로 삭제합니다. 복구 불가능합니다.",
+        security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "204", 
+            description = "계정 삭제 성공"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400", 
+            description = "삭제 실패 - 확인 정보 불일치"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401", 
+            description = "인증 필요"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404", 
+            description = "사용자를 찾을 수 없음"
+        )
+    })
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<ApiResponse<Object>> deleteAccount(
+            @Parameter(description = "사용자 ID") @PathVariable String userId,
+            @Parameter(description = "사용자 ID (헤더)") @RequestHeader("X-User-Id") String headerUserId,
+            @Parameter(description = "삭제 사유", example = "계정이 더 이상 필요하지 않습니다")
+            @RequestParam(required = false) String reason,
+            @Parameter(description = "삭제 확인 텍스트 (DELETE 입력 필요)", example = "DELETE")
+            @RequestParam String confirmationText,
+            @Parameter(description = "삭제 확인", example = "true")
+            @RequestParam boolean confirmed) {
+        
+        log.info("회원 탈퇴 요청 시작 - userId: {}, headerUserId: {}", userId, headerUserId);
+        
+        // 사용자 ID 검증 (경로와 헤더 일치 확인)
+        String actualUserId = HeaderUtils.extractUserId(headerUserId);
+        if (!userId.equals(actualUserId)) {
+            log.warn("사용자 ID 불일치 - pathUserId: {}, headerUserId: {}", userId, actualUserId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("USER_ID_MISMATCH", "권한이 없습니다."));
+        }
+        
+        // 강화된 확인 절차
+        if (!confirmed || !"DELETE".equals(confirmationText)) {
+            log.warn("삭제 확인 정보 부족 - userId: {}, confirmed: {}, confirmationText: {}", 
+                     userId, confirmed, confirmationText);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_CONFIRMATION", 
+                        "계정 삭제를 위해서는 'DELETE' 텍스트 입력과 확인이 필요합니다."));
+        }
+        
+        try {
+            // 사용자 존재 확인
+            Optional<User> userOpt = userService.getUserById(userId);
+            if (userOpt.isEmpty()) {
+                log.warn("삭제 대상 사용자를 찾을 수 없음 - userId: {}", userId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
+            }
+            
+            User user = userOpt.get();
+            
+            // 사용자 관련 데이터 완전 삭제
+            userService.deleteUserCompletely(user, reason);
+            
+            // 보안 감사 로그는 UserService.deleteUserCompletely에서 처리됨
+            
+            // 사용자 액션 로깅
+            UserActionLogger.logCriticalAction(userId, "ACCOUNT_DELETED", 
+                Map.of(
+                    "reason", reason != null ? reason : "Not provided",
+                    "timestamp", java.time.Instant.now().toString()
+                ));
+            
+            log.info("회원 탈퇴 완료 - userId: {}", userId);
+            
+            return ResponseEntity.noContent().build();
+            
+        } catch (Exception e) {
+            log.error("회원 탈퇴 중 오류 발생 - userId: {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("DELETION_FAILED", "계정 삭제에 실패했습니다."));
+        }
+    }
+    
     // 사용자 생성 요청 유효성 검증 (ValidationUtils 사용)
     private void validateCreateUserRequest(CreateUserRequest request) {
         if (!ValidationUtils.isValidAuth0IdFormat(request.auth0Id())) {

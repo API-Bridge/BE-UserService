@@ -2,6 +2,8 @@ package org.example.Usersvc.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -32,6 +34,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Builder
 @ToString(exclude = {})
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class User {
     
     /**
@@ -109,6 +112,7 @@ public class User {
      */
     @Column(name = "created_at", nullable = false, updatable = false, 
             columnDefinition = "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
     
     /**

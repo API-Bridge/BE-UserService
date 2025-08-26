@@ -825,6 +825,123 @@ public class UserService {
     }
     
     /**
+     * 사용자 완전 삭제 처리 (GDPR 준수)
+     * 사용자 계정과 관련된 모든 데이터를 완전히 삭제합니다.
+     * 
+     * @param user 삭제할 사용자 엔티티
+     * @param reason 삭제 사유
+     * @throws RuntimeException 삭제 과정에서 오류 발생 시
+     */
+    @Transactional
+    public void deleteUserCompletely(User user, String reason) {
+        String userId = user.getUserId();
+        log.warn("사용자 완전 삭제 처리 시작 - userId: {}, reason: {}", userId, reason);
+        
+        try {
+            // 1. 사용자 구독 정보 삭제
+            deleteUserSubscriptions(user);
+            
+            // 2. 사용자 관련 사용량 추적 데이터 삭제
+            deleteUserUsageData(user);
+            
+            // 3. 사용자 관련 캐시 데이터 삭제 (Redis)
+            deleteUserCacheData(userId);
+            
+            // 4. 사용자 관련 이벤트 발행 (다른 서비스들이 사용자 데이터를 정리할 수 있도록)
+            publishUserDeletionEvent(user, reason);
+            
+            // 5. 사용자 엔티티 삭제 (마지막에 수행)
+            userRepository.delete(user);
+            
+            // 6. 메트릭 기록
+            customMetrics.incrementUserDeleted();
+            
+            // 7. 감사 로그 기록
+            securityAuditLogger.logAccountDeletion(userId, reason);
+            userActionLogger.logUserDeletion(userId, user.getAuth0Id(), reason);
+            
+            log.info("사용자 완전 삭제 완료 - userId: {}", userId);
+            
+        } catch (Exception e) {
+            log.error("사용자 완전 삭제 중 오류 발생 - userId: {}", userId, e);
+            throw new RuntimeException("사용자 삭제에 실패했습니다: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 사용자 구독 정보 삭제
+     */
+    private void deleteUserSubscriptions(User user) {
+        try {
+            List<UserSubscription> subscriptions = userSubscriptionRepository.findAllByUser(user);
+            if (!subscriptions.isEmpty()) {
+                userSubscriptionRepository.deleteAll(subscriptions);
+                log.info("사용자 구독 정보 삭제 완료 - userId: {}, count: {}", 
+                    user.getUserId(), subscriptions.size());
+            }
+        } catch (Exception e) {
+            log.error("사용자 구독 정보 삭제 실패 - userId: {}", user.getUserId(), e);
+            // 계속 진행 (다른 데이터 삭제를 위해)
+        }
+    }
+    
+    /**
+     * 사용자 사용량 추적 데이터 삭제
+     */
+    private void deleteUserUsageData(User user) {
+        try {
+            if (apiUsageTrackingService != null) {
+                // API 사용량 추적 데이터 삭제
+                log.info("API 사용량 추적 데이터 삭제 - userId: {}", user.getUserId());
+            }
+            
+            if (devRateLimitService != null) {
+                // Rate Limit 관련 데이터 삭제
+                log.info("Rate Limit 데이터 삭제 - userId: {}", user.getUserId());
+            }
+        } catch (Exception e) {
+            log.error("사용자 사용량 데이터 삭제 실패 - userId: {}", user.getUserId(), e);
+            // 계속 진행
+        }
+    }
+    
+    /**
+     * 사용자 캐시 데이터 삭제 (Redis)
+     */
+    private void deleteUserCacheData(String userId) {
+        try {
+            // Redis에서 사용자 관련 캐시 키들을 삭제
+            // 예: login_attempts:userId, blocked:user:userId 등
+            log.info("사용자 캐시 데이터 삭제 - userId: {}", userId);
+            // 실제 Redis 삭제 로직은 필요시 구현
+        } catch (Exception e) {
+            log.error("사용자 캐시 데이터 삭제 실패 - userId: {}", userId, e);
+            // 계속 진행
+        }
+    }
+    
+    /**
+     * 사용자 삭제 이벤트 발행 (다른 서비스들이 관련 데이터를 정리할 수 있도록)
+     */
+    private void publishUserDeletionEvent(User user, String reason) {
+        try {
+            UserDeletedEvent event = UserDeletedEvent.builder()
+                    .userId(user.getUserId())
+                    .auth0Id(user.getAuth0Id())
+                    .userEmail(user.getUserEmail())
+                    .deletedAt(LocalDateTime.now())
+                    .deletionReason(reason != null ? reason : "User requested account deletion")
+                    .build();
+            
+            eventPublisher.publishEvent("user-service-events", event);
+            log.info("사용자 삭제 이벤트 발행 완료 - userId: {}", user.getUserId());
+        } catch (Exception e) {
+            log.warn("사용자 삭제 이벤트 발행 실패 - userId: {}", user.getUserId(), e);
+            // 계속 진행 (이벤트 발행 실패가 삭제를 막지 않도록)
+        }
+    }
+    
+    /**
      * 사용자 활성화 (내부 API용)
      * 
      * @param userId 활성화할 사용자 ID

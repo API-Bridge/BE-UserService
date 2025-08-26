@@ -83,4 +83,9 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
     @Query("SELECT COUNT(us) FROM UserSubscription us WHERE us.plan = :plan")
     long countByPlan(@Param("plan") org.example.Usersvc.domain.Plan plan);
     
+    /**
+     * 특정 사용자의 모든 구독 조회 (삭제용)
+     */
+    java.util.List<UserSubscription> findAllByUser(@Param("user") User user);
+    
 }

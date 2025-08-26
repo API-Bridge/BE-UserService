@@ -1,9 +1,9 @@
 package org.example.Usersvc.controller;
 
-import com.stripe.Stripe;
-import com.stripe.exception.StripeException;
-import com.stripe.model.checkout.Session;
-import com.stripe.param.checkout.SessionCreateParams;
+// import com.stripe.Stripe;
+// import com.stripe.exception.StripeException;
+// import com.stripe.model.checkout.Session;
+// import com.stripe.param.checkout.SessionCreateParams;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -43,13 +43,13 @@ import org.example.Usersvc.common.metrics.CustomMetrics;
 import org.example.Usersvc.event.model.SubscriptionUpdatedEvent;
 import org.example.Usersvc.event.model.SubscriptionDeactivatedEvent;
 import org.example.Usersvc.event.publisher.EventPublisherService;
-import org.example.Usersvc.config.StripeProperties;
+// import org.example.Usersvc.config.StripeProperties;
 
 /**
  * 구독 및 API 사용량 관리 컨트롤러
  */
 @Slf4j
-@RestController
+// @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Subscription & Usage", description = "구독 관리 및 API 사용량 조회 API")
@@ -72,22 +72,22 @@ public class SubscriptionController {
     private final UserActionLogger userActionLogger;
     private final CustomMetrics customMetrics;
     private final EventPublisherService eventPublisher;
-    private final StripeProperties stripeProperties;
+    // private final StripeProperties stripeProperties;
     
-    @Value("${stripe.secret-key:sk_test_dummy_key}")
-    private String stripeSecretKey;
+    // @Value("${stripe.secret-key:sk_test_dummy_key}")
+    // private String stripeSecretKey;
     
-    @Value("${stripe.products.free:prod_Ss3CAEwmeB1QuU}")
-    private String freeProductId;
+    // @Value("${stripe.products.free:prod_Ss3CAEwmeB1QuU}")
+    // private String freeProductId;
     
-    @Value("${stripe.products.pro:prod_Ss3ChLEOuz3Km9}")
-    private String proProductId;
+    // @Value("${stripe.products.pro:prod_Ss3ChLEOuz3Km9}")
+    // private String proProductId;
     
-    @PostConstruct
-    public void init() {
-        Stripe.apiKey = stripeSecretKey;
-        log.info("Stripe API 초기화 완료");
-    }
+    // @PostConstruct
+    // public void init() {
+    //     Stripe.apiKey = stripeSecretKey;
+    //     log.info("Stripe API 초기화 완료");
+    // }
     
     @Operation(
             summary = "현재 사용자 구독 정보 조회",

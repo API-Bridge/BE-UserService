@@ -232,26 +232,26 @@ curl -X GET "http://localhost:8080/api/subscription/products"
 curl -X POST "http://localhost:8080/api/shared-apis/share" \
   -H "X-User-Id: user-003" \
   -H "Content-Type: application/json" \
-  -d 'customApiId=api-001&planType=FREE'
+  -d 'customApiId=api-001&planName=FREE'
 
 # TC-SHARE-002: 존재하지 않는 API 공유 시도
 curl -X POST "http://localhost:8080/api/shared-apis/share" \
   -H "X-User-Id: user-003" \
   -H "Content-Type: application/json" \
-  -d 'customApiId=non-existent&planType=FREE'
+  -d 'customApiId=non-existent&planName=FREE'
 
 # TC-SHARE-003: 다른 사용자의 API 공유 시도
 curl -X POST "http://localhost:8080/api/shared-apis/share" \
   -H "X-User-Id: user-001" \
   -H "Content-Type: application/json" \
-  -d 'customApiId=api-001&planType=FREE'
+  -d 'customApiId=api-001&planName=FREE'
 # api-001은 user-003 소유
 
 # TC-SHARE-004: 이미 공유된 API 재공유 시도
 curl -X POST "http://localhost:8080/api/shared-apis/share" \
   -H "X-User-Id: user-003" \
   -H "Content-Type: application/json" \
-  -d 'customApiId=api-001&planType=FREE'
+  -d 'customApiId=api-001&planName=FREE'
 # 동일한 API를 두 번 공유 시도
 ```
 
@@ -362,7 +362,7 @@ curl -X GET "http://localhost:8080/api/users/$NEW_USER/secrets"
 # Step 1: 사용자 A가 API 공유
 curl -X POST "http://localhost:8080/api/shared-apis/share" \
   -H "X-User-Id: user-003" \
-  -d 'customApiId=api-002&planType=FREE'
+  -d 'customApiId=api-002&planName=FREE'
 
 # Step 2: 공유 목록에서 확인
 curl -X GET "http://localhost:8080/api/shared-apis?page=0&size=10"
