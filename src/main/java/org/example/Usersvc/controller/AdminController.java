@@ -15,6 +15,7 @@ import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.AdminService;
 import org.example.Usersvc.service.UserSubscriptionMigrationService;
+import org.example.Usersvc.service.AdminAuthorizationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -48,6 +49,7 @@ public class AdminController {
     private final UserSubscriptionMigrationService migrationService;
     private final UserService userService;
     private final AdminService adminService;
+    private final AdminAuthorizationService adminAuthorizationService;
 
     /**
      * 전체 사용자 목록 조회 (페이징)
@@ -90,16 +92,33 @@ public class AdminController {
     })
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<Page<User>>> getAllUsers(
-            @Parameter(description = "API Gateway에서 전달된 관리자 사용자 ID", required = true)
-            @RequestHeader("X-User-Id") String adminUserId,
-            @Parameter(description = "API Gateway에서 전달된 사용자 역할", required = true) 
-            @RequestHeader("X-User-Role") String userRole,
+            @Parameter(description = "관리자 사용자 ID", required = false)
+            @RequestHeader(value = "X-User-Id", required = false) String adminUserId,
+            @Parameter(description = "관리자 Auth0 ID", required = false)
+            @RequestParam(value = "adminAuth0Id", required = false) String adminAuth0Id,
             @PageableDefault(size = 20) Pageable pageable) {
         
-        log.info("관리자({}) - 전체 사용자 목록 조회 요청 - page: {}, size: {}", 
-                adminUserId, pageable.getPageNumber(), pageable.getPageSize());
+        log.info("관리자 - 전체 사용자 목록 조회 요청 - adminUserId: {}, adminAuth0Id: {}, page: {}, size: {}", 
+                adminUserId, adminAuth0Id, pageable.getPageNumber(), pageable.getPageSize());
         
         try {
+            // 관리자 권한 검증 (userId 또는 auth0Id로)
+            boolean isAdmin = false;
+            String actualAdminId = null;
+            
+            if (adminUserId != null && !adminUserId.trim().isEmpty()) {
+                isAdmin = adminAuthorizationService.isActiveAdmin(adminUserId);
+                actualAdminId = adminUserId;
+            } else if (adminAuth0Id != null && !adminAuth0Id.trim().isEmpty()) {
+                isAdmin = adminAuthorizationService.isActiveAdminByAuth0Id(adminAuth0Id);
+                actualAdminId = adminAuth0Id;
+            }
+            
+            if (!isAdmin) {
+                log.warn("관리자 권한 없음 - 전체 사용자 목록 조회 거부: {}", adminUserId);
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("관리자 권한이 필요합니다.", "ACCESS_DENIED"));
+            }
             Page<User> users = userService.getAllUsersWithPagination(pageable);
             
             log.info("관리자({}) - 전체 사용자 목록 조회 성공 - 총 {}명, {}페이지 중 {}페이지", 
@@ -128,15 +147,19 @@ public class AdminController {
     )
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserDetail(
-            @Parameter(description = "API Gateway에서 전달된 관리자 사용자 ID", required = true)
+            @Parameter(description = "관리자 사용자 ID", required = true)
             @RequestHeader("X-User-Id") String adminUserId,
-            @Parameter(description = "API Gateway에서 전달된 사용자 역할", required = true)
-            @RequestHeader("X-User-Role") String userRole,
             @Parameter(description = "조회할 사용자의 UUID") @PathVariable String userId) {
         
         log.info("관리자({}) - 사용자 상세 정보 조회 요청 - userId: {}", adminUserId, userId);
         
         try {
+            // 관리자 권한 검증
+            if (!adminAuthorizationService.isActiveAdmin(adminUserId)) {
+                log.warn("관리자 권한 없음 - 사용자 상세 정보 조회 거부: {}", adminUserId);
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("관리자 권한이 필요합니다.", "ACCESS_DENIED"));
+            }
             Map<String, Object> userDetail = adminService.getUserCompleteInfo(userId);
             
             log.info("관리자({}) - 사용자 상세 정보 조회 성공 - userId: {}", adminUserId, userId);
@@ -164,14 +187,18 @@ public class AdminController {
     )
     @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSystemStatistics(
-            @Parameter(description = "API Gateway에서 전달된 관리자 사용자 ID", required = true)
-            @RequestHeader("X-User-Id") String adminUserId,
-            @Parameter(description = "API Gateway에서 전달된 사용자 역할", required = true)
-            @RequestHeader("X-User-Role") String userRole) {
+            @Parameter(description = "관리자 사용자 ID", required = true)
+            @RequestHeader("X-User-Id") String adminUserId) {
         
         log.info("관리자({}) - 시스템 통계 조회 요청", adminUserId);
         
         try {
+            // 관리자 권한 검증
+            if (!adminAuthorizationService.isActiveAdmin(adminUserId)) {
+                log.warn("관리자 권한 없음 - 시스템 통계 조회 거부: {}", adminUserId);
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("관리자 권한이 필요합니다.", "ACCESS_DENIED"));
+            }
             Map<String, Object> statistics = adminService.getSystemStatistics();
             
             log.info("관리자({}) - 시스템 통계 조회 성공", adminUserId);
@@ -191,11 +218,16 @@ public class AdminController {
         description = "구독이 없는 모든 사용자에게 FREE 구독을 자동으로 생성합니다."
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> createMissingFreeSubscriptions(
-            @Parameter(description = "API Gateway에서 전달된 관리자 사용자 ID", required = true)
-            @RequestHeader("X-User-Id") String adminUserId,
-            @Parameter(description = "API Gateway에서 전달된 사용자 역할", required = true)
-            @RequestHeader("X-User-Role") String userRole) {
+            @Parameter(description = "관리자 사용자 ID", required = true)
+            @RequestHeader("X-User-Id") String adminUserId) {
         try {
+            // 관리자 권한 검증
+            if (!adminAuthorizationService.isActiveAdmin(adminUserId)) {
+                log.warn("관리자 권한 없음 - FREE 구독 자동 생성 거부: {}", adminUserId);
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("관리자 권한이 필요합니다.", "ACCESS_DENIED"));
+            }
+            
             log.info("관리자({}) - FREE 구독 자동 생성 요청 시작", adminUserId);
             
             // 현재 구독이 없는 사용자 수 확인
@@ -235,11 +267,16 @@ public class AdminController {
         description = "현재 구독이 없는 사용자의 수를 조회합니다."
     )
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUsersWithoutSubscriptionCount(
-            @Parameter(description = "API Gateway에서 전달된 관리자 사용자 ID", required = true)
-            @RequestHeader("X-User-Id") String adminUserId,
-            @Parameter(description = "API Gateway에서 전달된 사용자 역할", required = true)
-            @RequestHeader("X-User-Role") String userRole) {
+            @Parameter(description = "관리자 사용자 ID", required = true)
+            @RequestHeader("X-User-Id") String adminUserId) {
         try {
+            // 관리자 권한 검증
+            if (!adminAuthorizationService.isActiveAdmin(adminUserId)) {
+                log.warn("관리자 권한 없음 - 구독 없는 사용자 수 조회 거부: {}", adminUserId);
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("관리자 권한이 필요합니다.", "ACCESS_DENIED"));
+            }
+            
             long count = migrationService.countUsersWithoutSubscription();
             
             Map<String, Object> result = Map.of(

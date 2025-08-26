@@ -103,14 +103,10 @@ env:
   AUTH0_AUDIENCE: ""
   AUTH0_CLIENT_ID: ""
   
-  # Stripe (set via secret)
-  STRIPE_SECRET_KEY: ""
-  STRIPE_PUBLIC_KEY: ""
-  STRIPE_WEBHOOK_SECRET: ""
-  STRIPE_FREE_PRODUCT_ID: ""
-  STRIPE_PRO_PRODUCT_ID: ""
-  STRIPE_PRO_MONTHLY_PRICE_ID: ""
-  STRIPE_PRO_YEARLY_PRICE_ID: ""
+  # TossPay (set via secret)
+  TOSSPAY_SECRET_KEY: ""
+  TOSSPAY_CLIENT_ID: ""
+  TOSSPAY_WEBHOOK_SECRET: ""
   
   # Eureka
   EUREKA_SERVER_URL: "http://eureka:8761/eureka/"
@@ -127,9 +123,9 @@ secrets:
   auth0:
     enabled: true
     name: userservice-auth0-secret
-  stripe:
+  tosspay:
     enabled: true
-    name: userservice-stripe-secret
+    name: userservice-tosspay-secret
 
 # Health checks
 livenessProbe:

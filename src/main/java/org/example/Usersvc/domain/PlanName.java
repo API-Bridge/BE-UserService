@@ -11,8 +11,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * - PRO: 유료 플랜 (월 10,000회 API 호출, 우선 지원, 고급 분석)
  */
 public enum PlanName {
-    FREE("Free", 0.00, 100, 10, 100, 1000, 5, 3, 3),
-    PRO("Pro", 22.00, 10000, 60, 3600, 86400, 50, 20, 20);
+    FREE("Free", 0.00, 100, 10, 100, 1000, 0, 3, 3), // CustomAPI 기능 Custom API Service로 이관, 공유 기능 비활성화
+    PRO("Pro", 22.00, 10000, 60, 3600, 86400, 0, 20, 20); // CustomAPI 기능 Custom API Service로 이관, 공유 기능 비활성화
 
     private final String planName;
     private final double price;

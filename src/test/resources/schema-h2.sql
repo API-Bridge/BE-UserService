@@ -31,12 +31,10 @@ CREATE INDEX idx_arn ON user_secrets_arn(arn);
 -- 구독 플랜 정보
 CREATE TABLE subscription_plan (
     plan_id VARCHAR(36) NOT NULL,
-    plan_type VARCHAR(50) NOT NULL,
     plan_name VARCHAR(100) NOT NULL,
     max_api_calls_per_month INTEGER NOT NULL,
     max_custom_apis INTEGER NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT NULL,
     PRIMARY KEY (plan_id)
@@ -49,7 +47,6 @@ CREATE TABLE user_subscription (
     plan_id VARCHAR(36) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     auto_renewal BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT NULL,

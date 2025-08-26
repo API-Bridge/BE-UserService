@@ -9,6 +9,7 @@ import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.service.ApiUsageTrackingService;
 import org.example.Usersvc.service.UserService;
+import org.example.Usersvc.util.HeaderUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,10 +42,17 @@ public class PlanController {
             @RequestHeader("X-User-Id") String userId) {
         
         try {
-            log.info("사용량 통계 조회 요청 - userId: {}", userId);
+            // X-User-Id 헤더 정리 (쉼표로 구분된 경우 첫 번째 값 사용)
+            String actualUserId = HeaderUtils.extractUserId(userId);
+            if (actualUserId == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("유효하지 않은 사용자 ID", "INVALID_USER_ID"));
+            }
             
-            User user = userService.getUserById(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+            log.info("사용량 통계 조회 요청 - userId: {}", actualUserId);
+            
+            User user = userService.getUserById(actualUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + actualUserId));
             
             // 각종 사용량 통계 수집
             long minuteUsage = 0;
@@ -66,7 +74,7 @@ public class PlanController {
                 "currentHour", hourUsage, 
                 "currentDay", dayUsage,
                 "currentMonth", monthlyUsage,
-                "userId", userId,
+                "userId", actualUserId,
                 "timestamp", java.time.LocalDateTime.now()
             );
             

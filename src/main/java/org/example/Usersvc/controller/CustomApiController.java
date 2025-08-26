@@ -1,3 +1,4 @@
+/* CustomAPI 기능 분리 - Custom API Service로 이관
 package org.example.Usersvc.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
 import org.example.Usersvc.domain.CustomApi;
 import org.example.Usersvc.service.CustomApiService;
+import org.example.Usersvc.util.HeaderUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +32,8 @@ public class CustomApiController {
     public ResponseEntity<ApiResponse<List<CustomApi>>> getMyCustomApis(
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId) {
         
-        List<CustomApi> customApis = customApiService.getCustomApisByUserId(userId);
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        List<CustomApi> customApis = customApiService.getCustomApisByUserId(actualUserId);
         return ResponseEntity.ok(ApiResponse.success(customApis));
     }
 
@@ -41,8 +44,9 @@ public class CustomApiController {
             @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size) {
         
+        String actualUserId = HeaderUtils.extractUserId(userId);
         Pageable pageable = PageRequest.of(page, size);
-        Page<CustomApi> customApis = customApiService.getCustomApisByUserId(userId, pageable);
+        Page<CustomApi> customApis = customApiService.getCustomApisByUserId(actualUserId, pageable);
         return ResponseEntity.ok(ApiResponse.success(customApis));
     }
 
@@ -52,7 +56,8 @@ public class CustomApiController {
             @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "커스텀 API ID", required = true) @PathVariable String customApiId) {
         
-        CustomApi customApi = customApiService.getCustomApi(userId, customApiId);
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        CustomApi customApi = customApiService.getCustomApi(actualUserId, customApiId);
         return ResponseEntity.ok(ApiResponse.success(customApi));
     }
 
@@ -64,4 +69,4 @@ public class CustomApiController {
         List<CustomApi> customApis = customApiService.searchCustomApis(keyword);
         return ResponseEntity.ok(ApiResponse.success(customApis));
     }
-}
+}*/

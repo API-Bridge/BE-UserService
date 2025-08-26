@@ -1,3 +1,4 @@
+/* CustomAPI 기능 분리 - Custom API Service로 이관
 package org.example.Usersvc.service;
 
 import lombok.RequiredArgsConstructor;
@@ -49,13 +50,6 @@ public class CustomApiService {
         return customApiRepository.findByNameContainingIgnoreCaseOrderByCreatedAtDesc(keyword);
     }
 
-    /**
-     * 커스텀 API 생성 전 제한 검증
-     * 
-     * @param userId 사용자 ID
-     * @param planName 사용자 플랜 타입
-     * @throws PlanLimitExceededException 제한 초과 시
-     */
     public void validateCustomApiCreation(String userId, PlanName planName) {
         int currentCount = (int) customApiRepository.countByUserId(userId);
         int maxAllowed = planName.getMaxCustomApiCount();
@@ -70,29 +64,16 @@ public class CustomApiService {
         }
     }
 
-    /**
-     * 사용자의 커스텀 API 생성 가능 개수 조회
-     * 
-     * @param userId 사용자 ID
-     * @param planName 플랜 타입
-     * @return 생성 가능한 커스텀 API 개수
-     */
     public int getRemainingCustomApiCount(String userId, PlanName planName) {
         int currentCount = (int) customApiRepository.countByUserId(userId);
         int maxAllowed = planName.getMaxCustomApiCount();
         return Math.max(0, maxAllowed - currentCount);
     }
 
-    /**
-     * 커스텀 API 제한 초과 여부 확인
-     * 
-     * @param userId 사용자 ID
-     * @param planName 플랜 타입
-     * @return 제한 초과 시 true
-     */
     public boolean isCustomApiLimitExceeded(String userId, PlanName planName) {
         int currentCount = (int) customApiRepository.countByUserId(userId);
         int maxAllowed = planName.getMaxCustomApiCount();
         return currentCount >= maxAllowed;
     }
 }
+*/

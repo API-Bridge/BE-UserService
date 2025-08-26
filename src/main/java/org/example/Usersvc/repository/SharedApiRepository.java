@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화
 package org.example.Usersvc.repository;
 
 import org.example.Usersvc.domain.SharedApi;
@@ -25,4 +26,4 @@ public interface SharedApiRepository extends JpaRepository<SharedApi, String> {
     List<SharedApi> findByDataCountLessThanEqualAndIsActiveTrueOrderByCreatedAtDesc(Integer dataCount);
 
     long countByCreatorIdAndIsActiveTrue(String creatorId);
-}
+}*/

@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화
 package org.example.Usersvc.service;
 
 import lombok.RequiredArgsConstructor;
@@ -137,4 +138,4 @@ public class SharedApiService {
     public Optional<SharedApi> getSharedApiByOriginalApiId(String originalApiId) {
         return sharedApiRepository.findByOriginalApiIdAndIsActiveTrue(originalApiId);
     }
-}
+}*/

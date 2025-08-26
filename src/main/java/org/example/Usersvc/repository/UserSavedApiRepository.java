@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화
 package org.example.Usersvc.repository;
 
 import org.example.Usersvc.domain.UserSavedApi;
@@ -21,4 +22,4 @@ public interface UserSavedApiRepository extends JpaRepository<UserSavedApi, Stri
     List<UserSavedApi> findBySharedApiIdAndIsDeletedFalse(String sharedApiId);
 
     Optional<UserSavedApi> findByUserIdAndSharedApiIdAndIsDeletedFalse(String userId, String sharedApiId);
-}
+}*/

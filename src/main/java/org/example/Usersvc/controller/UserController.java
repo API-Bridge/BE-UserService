@@ -18,6 +18,7 @@ import org.example.Usersvc.common.util.ValidationUtils;
 import org.example.Usersvc.common.util.ValidationConstants;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.service.UserSecretsArnService;
+import org.example.Usersvc.util.HeaderUtils;
 import org.example.Usersvc.common.logging.UserActionLogger;
 import org.example.Usersvc.common.logging.SecurityAuditLogger;
 import org.example.Usersvc.common.metrics.CustomMetrics;
@@ -509,18 +510,20 @@ public class UserController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getPlanFeatures(
             @Parameter(description = "사용자 ID") @RequestHeader("X-User-Id") String userId) {
         
-        log.debug("플랜 기능 조회 요청 - userId: {}", userId);
+        // X-User-Id 헤더 정리
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        log.debug("플랜 기능 조회 요청 - userId: {}", actualUserId);
         
         try {
-            if (userId == null || userId.trim().isEmpty()) {
-                log.warn("빈 사용자 ID - userId: {}", userId);
+            if (actualUserId == null || actualUserId.trim().isEmpty()) {
+                log.warn("빈 사용자 ID - userId: {}", actualUserId);
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
             }
             
-            Optional<User> userOpt = userService.getUserById(userId);
+            Optional<User> userOpt = userService.getUserById(actualUserId);
             if (userOpt.isEmpty()) {
-                log.warn("플랜 기능 조회 실패 - 사용자를 찾을 수 없음: {}", userId);
+                log.warn("플랜 기능 조회 실패 - 사용자를 찾을 수 없음: {}", actualUserId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
             }
@@ -535,7 +538,6 @@ public class UserController {
                 Plan plan = currentSubscription.get().getPlan();
                 features = Map.of(
                     "planName", plan.getPlanName().name(),
-                    "planName", plan.getPlanName(),
                     "price", plan.getPrice(),
                     "description", plan.getDescription() != null ? plan.getDescription() : "",
                     "features", Map.of(
@@ -553,7 +555,6 @@ public class UserController {
                 PlanName freePlan = PlanName.FREE;
                 features = Map.of(
                     "planName", freePlan.name(),
-                    "planName", freePlan.getPlanName(),
                     "price", freePlan.getPrice(),
                     "description", "기본 무료 플랜",
                     "features", Map.of(
@@ -664,21 +665,23 @@ public class UserController {
             )
             @RequestHeader("X-User-Id") String userId) {
         
-        log.info("통합 사용자 정보 조회 요청 - userId: {}", userId);
+        // X-User-Id 헤더 정리
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        log.info("통합 사용자 정보 조회 요청 - userId: {}", actualUserId);
         
         try {
             // 입력 검증
-            if (userId == null || userId.trim().isEmpty()) {
-                log.warn("빈 사용자 ID - userId: {}", userId);
+            if (actualUserId == null || actualUserId.trim().isEmpty()) {
+                log.warn("빈 사용자 ID - userId: {}", actualUserId);
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("사용자 ID는 필수입니다.", "INVALID_USER_ID"));
             }
             
             // 통합 사용자 정보 조회
-            UserInfoResponse userInfo = userService.getUserCompleteInfo(userId);
+            UserInfoResponse userInfo = userService.getUserCompleteInfo(actualUserId);
             
             log.info("통합 사용자 정보 조회 성공 - userId: {}, planName: {}", 
-                    userId, userInfo.getPlanName());
+                    actualUserId, userInfo.getPlanName());
             
             return ResponseEntity.ok(ApiResponse.success(userInfo));
             

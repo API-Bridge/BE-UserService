@@ -1,3 +1,4 @@
+/* CustomAPI 기능 분리 - Custom API Service로 이관
 package org.example.Usersvc.domain;
 
 import jakarta.persistence.*;
@@ -85,4 +86,4 @@ public class CustomApi {
     public int hashCode() {
         return Objects.hash(customApiId);
     }
-}
+}*/

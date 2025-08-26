@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화
 package org.example.Usersvc.domain;
 
 import jakarta.persistence.*;
@@ -107,4 +108,4 @@ public class UserSavedApi {
     public int hashCode() {
         return Objects.hash(userApiId);
     }
-}
+}*/

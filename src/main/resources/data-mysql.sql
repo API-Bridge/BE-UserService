@@ -7,9 +7,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- 기존 테이블 삭제 (순서 중요)
 DROP TABLE IF EXISTS api_usage_record;
-DROP TABLE IF EXISTS user_saved_api;
-DROP TABLE IF EXISTS shared_api;
-DROP TABLE IF EXISTS custom_api;
+-- DROP TABLE IF EXISTS user_saved_api;  -- 공유 기능 비활성화
+-- DROP TABLE IF EXISTS shared_api;      -- 공유 기능 비활성화
+-- DROP TABLE IF EXISTS custom_api;      -- Custom API Service로 이관
 DROP TABLE IF EXISTS user_secrets_arn;
 DROP TABLE IF EXISTS subscription;
 DROP TABLE IF EXISTS plan;
@@ -32,9 +32,11 @@ CREATE TABLE `user` (
     user_id VARCHAR(36) PRIMARY KEY,
     auth0_id VARCHAR(255) UNIQUE NOT NULL,
     user_email VARCHAR(255) NOT NULL UNIQUE,
+    admin BOOLEAN NOT NULL DEFAULT FALSE COMMENT '관리자 권한 여부',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user_email (user_email),
-    INDEX idx_auth0_id (auth0_id)
+    INDEX idx_auth0_id (auth0_id),
+    INDEX idx_admin (admin)
 ) ENGINE=InnoDB;
 
 -- 3. Subscription 테이블 (사용자 구독) - TossPay 전용
@@ -66,7 +68,8 @@ CREATE TABLE user_secrets_arn (
     INDEX idx_arn (arn)
 ) ENGINE=InnoDB;
 
--- 5. Custom API 테이블
+-- 5. Custom API 테이블 -- Custom API Service로 이관
+/*
 CREATE TABLE custom_api (
     custom_api_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -78,8 +81,10 @@ CREATE TABLE custom_api (
     INDEX idx_user_id (user_id),
     INDEX idx_name (name)
 ) ENGINE=InnoDB;
+*/
 
--- 6. Shared API 테이블 
+-- 6. Shared API 테이블 -- 공유 기능 비활성화
+/*
 CREATE TABLE shared_api (
     shared_api_id VARCHAR(36) PRIMARY KEY,
     original_api_id VARCHAR(36) NOT NULL,
@@ -87,6 +92,7 @@ CREATE TABLE shared_api (
     api_name VARCHAR(255) NOT NULL,
     description TEXT,
     data_count INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (original_api_id) REFERENCES custom_api(custom_api_id) ON DELETE CASCADE,
@@ -95,8 +101,10 @@ CREATE TABLE shared_api (
     INDEX idx_original_api_id (original_api_id),
     INDEX idx_api_name (api_name)
 ) ENGINE=InnoDB;
+*/
 
--- 7. User Saved API 테이블
+-- 7. User Saved API 테이블 -- 공유 기능 비활성화
+/*
 CREATE TABLE user_saved_api (
     saved_api_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -112,6 +120,7 @@ CREATE TABLE user_saved_api (
     INDEX idx_user_id (user_id),
     INDEX idx_shared_api_id (shared_api_id)
 ) ENGINE=InnoDB;
+*/
 
 -- 8. API Usage Record 테이블
 CREATE TABLE api_usage_record (
@@ -130,48 +139,48 @@ CREATE TABLE api_usage_record (
 
 -- 1. Plan 데이터 (planName enum에 맞게 생성)
 INSERT INTO plan (plan_name, price, description, features) VALUES 
-('FREE', 0.00, '무료 플랜 - 시작하기에 완벽', '["월 100회 API 호출", "분당 10회 제한", "시간당 100회 제한", "일일 1,000회 제한", "최대 5개 커스텀 API", "최대 3개 공유 API", "기본 지원", "커뮤니티 액세스"]'),
-('PRO', 22.00, '프로 플랜 - 비즈니스용', '["월 10,000회 API 호출", "분당 60회 제한", "시간당 3,600회 제한", "일일 86,400회 제한", "최대 50개 커스텀 API", "최대 20개 공유 API", "우선 지원", "고급 분석", "API 키 관리", "Stripe 결제"]');
+('FREE', 0.00, '무료 플랜 - 시작하기에 완벽', '["월 100회 API 호출", "분당 10회 제한", "시간당 100회 제한", "일일 1,000회 제한", "최대 5개 커스텀 API", "기본 지원", "커뮤니티 액세스"]'),
+('PRO', 22.00, '프로 플랜 - 비즈니스용', '["월 10,000회 API 호출", "분당 60회 제한", "시간당 3,600회 제한", "일일 86,400회 제한", "최대 50개 커스텀 API", "우선 지원", "고급 분석", "API 키 관리", "TossPay 결제"]');
 
 -- 2. User 데이터 (2025년 1월 기준, 테스트하기 좋은 다양한 시나리오)
--- 주의: 관리자 권한은 이제 Auth0 역할로 관리됩니다.
-INSERT INTO `user` (user_id, auth0_id, user_email, created_at) VALUES 
+-- 주의: 관리자 권한은 admin 컬럼으로 관리됩니다.
+INSERT INTO `user` (user_id, auth0_id, user_email, admin, created_at) VALUES 
 -- 🧪 기본 테스트용 사용자들 (API 테스트에 최적화)
--- 관리자 권한은 이제 Auth0에서 'admin' 역할로 관리됩니다
-('test-user-001', 'auth0|testuser001', 'test@example.com', '2024-12-01 10:00:00'),
-('demo-user-001', 'auth0|demouser001', 'demo@test.com', '2024-12-01 10:30:00'),
-('api-tester-001', 'auth0|apitester001', 'apitester@example.com', '2024-12-01 11:00:00'),
+-- 첫 번째 사용자를 관리자로 설정
+('test-user-001', 'auth0|testuser001', 'test@example.com', true, '2024-12-01 10:00:00'),
+('demo-user-001', 'auth0|demouser001', 'demo@test.com', false, '2024-12-01 10:30:00'),
+('api-tester-001', 'auth0|apitester001', 'apitester@example.com', false, '2024-12-01 11:00:00'),
 
 -- 🆓 다양한 FREE 플랜 사용자들
-('free-user-001', 'google-oauth2|117885903921309558140', 'freeuser@gmail.com', '2024-12-15 09:00:00'),
-('free-user-002', 'auth0|freelancer2024', 'freelancer@startup.io', '2024-12-16 10:30:00'),
-('free-user-003', 'github|developer2024', 'coder@github.io', '2024-12-17 14:15:00'),
-('free-user-004', 'auth0|student2024', 'student@university.edu', '2024-12-18 16:00:00'),
-('free-user-005', 'google-oauth2|hobbyist123', 'hobby@personal.com', '2024-12-19 12:30:00'),
+('free-user-001', 'google-oauth2|117885903921309558140', 'freeuser@gmail.com', false, '2024-12-15 09:00:00'),
+('free-user-002', 'auth0|freelancer2024', 'freelancer@startup.io', false, '2024-12-16 10:30:00'),
+('free-user-003', 'github|developer2024', 'coder@github.io', false, '2024-12-17 14:15:00'),
+('free-user-004', 'auth0|student2024', 'student@university.edu', false, '2024-12-18 16:00:00'),
+('free-user-005', 'google-oauth2|hobbyist123', 'hobby@personal.com', false, '2024-12-19 12:30:00'),
 
--- 💎 다양한 PRO 플랜 사용자들 (Stripe 구독 포함)
-('pro-user-001', 'google-oauth2|business2024', 'business@company.com', '2024-11-01 09:00:00'),
-('pro-user-002', 'auth0|enterprise2024', 'enterprise@bigcorp.com', '2024-11-05 10:15:00'),
-('pro-user-003', 'auth0|startup2024', 'startup@unicorn.com', '2024-11-10 14:30:00'),
-('pro-user-004', 'google-oauth2|agency2024', 'agency@marketing.com', '2024-11-15 11:45:00'),
+-- 💎 다양한 PRO 플랜 사용자들 (TossPay 구독 포함)
+('pro-user-001', 'google-oauth2|business2024', 'business@company.com', false, '2024-11-01 09:00:00'),
+('pro-user-002', 'auth0|enterprise2024', 'enterprise@bigcorp.com', false, '2024-11-05 10:15:00'),
+('pro-user-003', 'auth0|startup2024', 'startup@unicorn.com', false, '2024-11-10 14:30:00'),
+('pro-user-004', 'google-oauth2|agency2024', 'agency@marketing.com', false, '2024-11-15 11:45:00'),
 
 -- 🔄 플랜 변경 이력이 있는 사용자들
-('switcher-001', 'auth0|planswitcher01', 'switcher1@plans.com', '2024-10-01 12:00:00'),
-('switcher-002', 'google-oauth2|upgrader2024', 'upgrader@growth.com', '2024-10-15 13:30:00'),
+('switcher-001', 'auth0|planswitcher01', 'switcher1@plans.com', false, '2024-10-01 12:00:00'),
+('switcher-002', 'google-oauth2|upgrader2024', 'upgrader@growth.com', false, '2024-10-15 13:30:00'),
 
 -- 🆕 최근 가입한 사용자들 (자동 FREE 구독 테스트용)
-('new-user-001', 'google-oauth2|newbie2025', 'newbie@fresh.com', '2025-01-15 10:00:00'),
-('new-user-002', 'auth0|recent2025', 'recent@signup.com', '2025-01-16 14:20:00'),
-('new-user-003', 'github|justjoined2025', 'joined@today.com', '2025-01-17 16:45:00'),
+('new-user-001', 'google-oauth2|newbie2025', 'newbie@fresh.com', false, '2025-01-15 10:00:00'),
+('new-user-002', 'auth0|recent2025', 'recent@signup.com', false, '2025-01-16 14:20:00'),
+('new-user-003', 'github|justjoined2025', 'joined@today.com', false, '2025-01-17 16:45:00'),
 
 -- 🔧 개발/QA 테스트용 특수 사용자들
-('dev-test-001', 'auth0|devtest001', 'dev.test@internal.com', '2024-12-01 08:00:00'),
-('qa-test-001', 'auth0|qatest001', 'qa.test@internal.com', '2024-12-01 08:30:00'),
-('load-test-001', 'auth0|loadtest001', 'load.test@performance.com', '2024-12-01 09:00:00'),
+('dev-test-001', 'auth0|devtest001', 'dev.test@internal.com', false, '2024-12-01 08:00:00'),
+('qa-test-001', 'auth0|qatest001', 'qa.test@internal.com', false, '2024-12-01 08:30:00'),
+('load-test-001', 'auth0|loadtest001', 'load.test@performance.com', false, '2024-12-01 09:00:00'),
 
 -- 🚀 고활용 사용자들 (메트릭 테스트용)
-('power-user-001', 'auth0|poweruser001', 'power@intensive.com', '2024-11-01 07:00:00'),
-('heavy-user-001', 'google-oauth2|heavyuser001', 'heavy@usage.com', '2024-11-01 07:30:00');
+('power-user-001', 'auth0|poweruser001', 'power@intensive.com', false, '2024-11-01 07:00:00'),
+('heavy-user-001', 'google-oauth2|heavyuser001', 'heavy@usage.com', false, '2024-11-01 07:30:00');
 
 -- 3. Subscription 데이터 (TossPay 전용으로 수정)
 INSERT INTO subscription (subscription_id, user_id, plan_id, plan_payment_date, plan_update_date, billing_key, payment_provider) VALUES 
@@ -236,7 +245,8 @@ INSERT INTO user_secrets_arn (arn_id, user_id, arn, arn_description, created_at)
 ('arn-power-001', 'power-user-001', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:power-api-key-PowerUser', 'Power User API Key', '2024-11-01 07:30:00'),
 ('arn-heavy-001', 'heavy-user-001', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:heavy-api-key-HeavyUser', 'Heavy User API Key', '2024-11-01 08:00:00');
 
--- 5. Custom API 데이터 (테스트하기 좋은 다양한 API)
+-- 5. Custom API 데이터 - Custom API Service로 이관
+/*
 INSERT INTO custom_api (custom_api_id, user_id, name, description, created_at, updated_at) VALUES 
 -- 🧪 기본 테스트용 APIs
 ('api-test-001', 'test-user-001', 'Simple Weather API', 'Basic weather information service', '2024-12-01 10:30:00', '2024-12-01 10:30:00'),
@@ -273,8 +283,10 @@ INSERT INTO custom_api (custom_api_id, user_id, name, description, created_at, u
 -- 🚀 고활용 사용자들의 APIs
 ('api-power-001', 'power-user-001', 'High Volume API', 'Heavy traffic processing', '2024-11-01 08:00:00', '2024-11-01 08:00:00'),
 ('api-heavy-001', 'heavy-user-001', 'Intensive Processing API', 'CPU intensive operations', '2024-11-01 08:30:00', '2024-11-01 08:30:00');
+*/
 
--- 6. Shared API 데이터 (활발한 공유 환경)
+-- 6. Shared API 데이터 (활발한 공유 환경) -- 공유 기능 비활성화
+/*
 INSERT INTO shared_api (shared_api_id, original_api_id, creator_id, api_name, description, data_count, created_at, updated_at) VALUES 
 -- 🧪 테스트용 공유 APIs
 ('shared-test-001', 'api-test-001', 'test-user-001', 'Public Weather API', 'Free weather data for testing', 120, '2024-12-05 10:00:00', '2024-12-05 10:00:00'),
@@ -294,8 +306,10 @@ INSERT INTO shared_api (shared_api_id, original_api_id, creator_id, api_name, de
 -- 🔄 플랜 변경 사용자들의 공유
 ('shared-switch-001', 'api-switch-001', 'switcher-001', 'Stock Insights Pro', 'Advanced stock analysis', 425, '2024-11-10 12:00:00', '2024-11-10 12:00:00'),
 ('shared-switch-002', 'api-switch-004', 'switcher-002', 'Growth Analytics', 'Business growth tracking', 287, '2024-12-01 15:00:00', '2024-12-01 15:00:00');
+*/
 
--- 7. User Saved API 데이터 (다양한 저장 패턴)
+-- 7. User Saved API 데이터 (다양한 저장 패턴) -- 공유 기능 비활성화
+/*
 INSERT INTO user_saved_api (saved_api_id, user_id, shared_api_id, api_name, description, data_count, is_favorite, created_at, updated_at) VALUES 
 -- 🧪 테스트 사용자들의 저장
 ('saved-test-001', 'test-user-001', 'shared-pro-001', 'Business Analytics', 'Testing analytics features', 25, false, '2024-12-10 14:00:00', '2024-12-10 14:00:00'),
@@ -316,6 +330,7 @@ INSERT INTO user_saved_api (saved_api_id, user_id, shared_api_id, api_name, desc
 -- 🔧 개발/QA 테스트용 저장
 ('saved-qa-001', 'qa-test-001', 'shared-test-001', 'QA Weather Testing', 'QA testing weather API', 45, false, '2024-12-10 09:30:00', '2024-12-10 09:30:00'),
 ('saved-load-001', 'load-test-001', 'shared-pro-003', 'Load Test Data Pipeline', 'Performance testing pipeline', 156, false, '2024-12-10 10:00:00', '2024-12-10 10:00:00');
+*/
 
 -- 8. API Usage Record 데이터 (현재 날짜 기준 현실적인 사용 패턴)
 INSERT INTO api_usage_record (record_id, user_id, api_endpoint, request_count, record_date, created_at) VALUES 

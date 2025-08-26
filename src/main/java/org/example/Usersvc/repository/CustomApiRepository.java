@@ -1,3 +1,4 @@
+/* CustomAPI 기능 분리 - Custom API Service로 이관
 package org.example.Usersvc.repository;
 
 import org.example.Usersvc.domain.CustomApi;
@@ -23,4 +24,4 @@ public interface CustomApiRepository extends JpaRepository<CustomApi, String> {
     List<CustomApi> findByNameContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
 
     long countByUserId(String userId);
-}
+}*/

@@ -5,8 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
-import org.example.Usersvc.repository.CustomApiRepository;
-import org.example.Usersvc.repository.SharedApiRepository;
+// import org.example.Usersvc.repository.CustomApiRepository; // Custom API Service로 이관
+// import org.example.Usersvc.repository.SharedApiRepository; // 공유 기능 비활성화
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +28,8 @@ import java.util.Optional;
 public class PlanLimitValidationService {
 
     private final UserSubscriptionRepository userSubscriptionRepository;
-    private final CustomApiRepository customApiRepository;
-    private final SharedApiRepository sharedApiRepository;
+    // private final CustomApiRepository customApiRepository; // Custom API Service로 이관
+    // private final SharedApiRepository sharedApiRepository; // 공유 기능 비활성화
 
     /**
      * 사용자가 새로운 Custom API를 생성할 수 있는지 검증
@@ -38,16 +38,10 @@ public class PlanLimitValidationService {
      * @return 생성 가능하면 true, 제한 초과 시 false
      */
     public boolean canCreateCustomApi(User user) {
-        PlanName planName = getUserPlanName(user);
-        int currentCount = (int) customApiRepository.countByUserId(user.getUserId());
-        int maxAllowed = planName.getMaxCustomApiCount();
-        
-        boolean canCreate = currentCount < maxAllowed;
-        
-        log.debug("Custom API 생성 가능 여부 - userId: {}, plan: {}, current: {}, max: {}, canCreate: {}", 
-                user.getUserId(), planName, currentCount, maxAllowed, canCreate);
-                
-        return canCreate;
+        // Custom API 기능이 Custom API Service로 이관됨
+        // 현재는 항상 true 반환 (제한 검증은 Custom API Service에서 수행)
+        log.debug("Custom API 생성 제한 검증 - userId: {} (Custom API Service로 위임)", user.getUserId());
+        return true;
     }
 
     /**
@@ -58,7 +52,8 @@ public class PlanLimitValidationService {
      */
     public boolean canShareApi(User user) {
         PlanName planName = getUserPlanName(user);
-        int currentCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(user.getUserId());
+        // int currentCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(user.getUserId()); // 공유 기능 비활성화
+        int currentCount = 0; // 공유 기능 비활성화로 인한 기본값
         int maxAllowed = planName.getMaxSharedApiCount();
         
         boolean canShare = currentCount < maxAllowed;
@@ -90,8 +85,10 @@ public class PlanLimitValidationService {
         PlanName planName = getUserPlanName(user);
         
         // 현재 사용량 조회
-        int currentCustomApiCount = (int) customApiRepository.countByUserId(user.getUserId());
-        int currentSharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(user.getUserId());
+        // int currentCustomApiCount = (int) customApiRepository.countByUserId(user.getUserId()); // Custom API Service로 이관
+        int currentCustomApiCount = 0; // Custom API Service로 이관됨
+        // int currentSharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(user.getUserId()); // 공유 기능 비활성화
+        int currentSharedApiCount = 0; // 공유 기능 비활성화로 인한 기본값
         
         return PlanLimitsInfo.builder()
                 .planName(planName)

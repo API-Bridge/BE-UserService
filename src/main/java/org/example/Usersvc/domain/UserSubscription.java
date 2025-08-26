@@ -58,10 +58,13 @@ public class UserSubscription {
     }
     
     /**
-     * 구독이 활성 상태인지 확인 - plan_id로 판단
+     * 구독이 활성 상태인지 확인 - PRO 플랜인 경우만 active
+     * FREE 플랜은 기본 상태이므로 inactive로 간주
      */
     public boolean isActive() {
-        return this.plan != null;
+        return this.plan != null && 
+               this.plan.getPlanName() != null && 
+               this.plan.getPlanName().name().equals("PRO");
     }
     
     

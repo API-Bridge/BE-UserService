@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화
 package org.example.Usersvc.service;
 
 import lombok.RequiredArgsConstructor;
@@ -88,4 +89,4 @@ public class UserSavedApiService {
     public List<UserSavedApi> getSavedApisBySharedApiId(String sharedApiId) {
         return userSavedApiRepository.findBySharedApiIdAndIsDeletedFalse(sharedApiId);
     }
-}
+}*/

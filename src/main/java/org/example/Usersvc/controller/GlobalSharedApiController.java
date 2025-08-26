@@ -1,3 +1,4 @@
+/* 공유 기능 비활성화
 package org.example.Usersvc.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,3 +46,4 @@ public class GlobalSharedApiController {
         return ResponseEntity.ok(ApiResponse.success(sharedApis));
     }
 }
+*/

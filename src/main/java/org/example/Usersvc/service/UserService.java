@@ -13,9 +13,9 @@ import org.example.Usersvc.event.publisher.EventPublisherService;
 import org.example.Usersvc.repository.UserRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
-import org.example.Usersvc.repository.CustomApiRepository;
-import org.example.Usersvc.repository.SharedApiRepository;
-import org.example.Usersvc.repository.UserSavedApiRepository;
+// import org.example.Usersvc.repository.CustomApiRepository; // Custom API Service로 이관
+// import org.example.Usersvc.repository.SharedApiRepository; // 공유 기능 비활성화
+// import org.example.Usersvc.repository.UserSavedApiRepository; // 공유 기능 비활성화
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.example.Usersvc.util.UserIdGenerator;
 import org.example.Usersvc.common.logging.UserActionLogger;
@@ -58,9 +60,9 @@ public class UserService {
     private final EventPublisherService eventPublisher;
     private final PlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
-    private final CustomApiRepository customApiRepository;
-    private final SharedApiRepository sharedApiRepository;
-    private final UserSavedApiRepository userSavedApiRepository;
+    // private final CustomApiRepository customApiRepository; // Custom API Service로 이관
+    // private final SharedApiRepository sharedApiRepository; // 공유 기능 비활성화
+    // private final UserSavedApiRepository userSavedApiRepository; // 공유 기능 비활성화
     
     @Autowired(required = false)
     private DevRateLimitService devRateLimitService;
@@ -93,10 +95,20 @@ public class UserService {
         // 입력 파라미터 유효성 검증
         validateCreateUserParameters(auth0Id, userEmail);
         
-        // 중복 사용자 확인
-        checkDuplicateUser(auth0Id, userEmail);
-        
         try {
+            // 기존 사용자가 있는지 먼저 확인하고 반환
+            Optional<User> existingUser = userRepository.findByAuth0Id(auth0Id);
+            if (existingUser.isPresent()) {
+                log.info("기존 사용자 발견 - auth0Id: {}, userId: {}", auth0Id, existingUser.get().getUserId());
+                customMetrics.recordUserCreationTime(creationTimer);
+                return existingUser.get();
+            }
+            
+            // 이메일 중복 확인
+            if (userRepository.existsByUserEmail(userEmail)) {
+                throw new IllegalArgumentException("이미 등록된 이메일입니다: " + userEmail);
+            }
+            
             // 새 사용자 엔티티 생성
             User newUser = User.builder()
                     .userId(UserIdGenerator.generateUserId())
@@ -124,9 +136,31 @@ public class UserService {
             
             return savedUser;
             
+        } catch (org.hibernate.exception.ConstraintViolationException e) {
+            log.warn("중복 사용자 생성 시도 (DB 제약조건) - auth0Id: {}, email: {}", auth0Id, userEmail);
+            // DB 제약 조건 위반 시 기존 사용자 반환
+            Optional<User> existingUser = userRepository.findByAuth0Id(auth0Id);
+            if (existingUser.isPresent()) {
+                customMetrics.recordUserCreationTime(creationTimer);
+                return existingUser.get();
+            }
+            // 기존 사용자가 없다면 예외 발생
+            log.error("사용자 생성 중 제약조건 위반 오류 - auth0Id: {}, email: {}", auth0Id, userEmail, e);
+            customMetrics.recordUserCreationTime(creationTimer);
+            throw new IllegalArgumentException("사용자 생성에 실패했습니다: " + e.getMessage(), e);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.warn("중복 사용자 생성 시도 (Spring DataIntegrity) - auth0Id: {}, email: {}", auth0Id, userEmail);
+            // 데이터 무결성 위반 시 기존 사용자 반환
+            Optional<User> existingUser = userRepository.findByAuth0Id(auth0Id);
+            if (existingUser.isPresent()) {
+                customMetrics.recordUserCreationTime(creationTimer);
+                return existingUser.get();
+            }
+            log.error("사용자 생성 중 데이터 무결성 위반 오류 - auth0Id: {}, email: {}", auth0Id, userEmail, e);
+            customMetrics.recordUserCreationTime(creationTimer);
+            throw new IllegalArgumentException("사용자 생성에 실패했습니다: " + e.getMessage(), e);
         } catch (Exception e) {
             log.error("사용자 생성 중 오류 발생 - auth0Id: {}, email: {}", auth0Id, userEmail, e);
-            // 실패한 경우에도 시간 측정 종료
             customMetrics.recordUserCreationTime(creationTimer);
             throw new RuntimeException("사용자 생성에 실패했습니다.", e);
         }
@@ -351,14 +385,14 @@ public class UserService {
         UserSubscription subscription = activeSubscription.get();
         Plan plan = subscription.getPlan();
         
-        // PRO 플랜이고 활성 상태면 구독 불가 (이미 최고 플랜)
-        if (PlanName.PRO.name().equals(plan.getPlanName().name()) && subscription.isActive()) {
+        // PRO 플랜이면 구독 불가 (이미 최고 플랜)
+        if (PlanName.PRO.name().equals(plan.getPlanName().name())) {
             log.debug("이미 PRO 구독자 - 구독 불가 - userId: {}", userId);
             return false;
         }
         
-        // FREE 플랜이고 활성 상태면 구독 가능 (PRO로 업그레이드)
-        if (PlanName.FREE.name().equals(plan.getPlanName().name()) && subscription.isActive()) {
+        // FREE 플랜이면 구독 가능 (PRO로 업그레이드)
+        if (PlanName.FREE.name().equals(plan.getPlanName().name())) {
             log.debug("FREE 구독자 - PRO 구독 가능 - userId: {}", userId);
             return true;
         }
@@ -399,8 +433,8 @@ public class UserService {
         UserSubscription subscription = activeSubscription.get();
         Plan plan = subscription.getPlan();
         
-        // PRO 플랜이고 활성 상태면 취소 가능
-        if (PlanName.PRO.name().equals(plan.getPlanName().name()) && subscription.isActive()) {
+        // PRO 플랜이면 취소 가능
+        if (PlanName.PRO.name().equals(plan.getPlanName().name())) {
             log.debug("PRO 구독자 - 취소 가능 - userId: {}", userId);
             return true;
         }
@@ -506,7 +540,6 @@ public class UserService {
             PlanName freePlan = PlanName.FREE;
             return PlanInfo.builder()
                 .planName(freePlan.name())
-                .planName(freePlan.getPlanName())
                 .isActive(true)
                 .planPaymentDate(user.getCreatedAt())
                 .planUpdateDate(user.getCreatedAt())
@@ -549,9 +582,12 @@ public class UserService {
      * 현재 사용량 정보 구성
      */
     private CurrentUsage buildCurrentUsage(String userId, User user) {
-        int customApiCount = (int) customApiRepository.countByUserId(userId);
-        int sharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(userId);
-        int savedApiCount = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId).size();
+        // int customApiCount = (int) customApiRepository.countByUserId(userId); // Custom API Service로 이관
+        int customApiCount = 0; // Custom API Service에서 제공할 예정 (현재는 0으로 고정)
+        // int sharedApiCount = (int) sharedApiRepository.countByCreatorIdAndIsActiveTrue(userId); // 공유 기능 비활성화
+        // int savedApiCount = userSavedApiRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId).size(); // 공유 기능 비활성화
+        int sharedApiCount = 0; // 공유 기능 비활성화로 인한 기본값
+        int savedApiCount = 0; // 공유 기능 비활성화로 인한 기본값
         
         // 실시간 요청 사용량 조회
         long[] usageData = getCurrentUsageData(user);
@@ -601,16 +637,16 @@ public class UserService {
     }
     
     /**
-     * 중복 사용자 확인
+     * 중복 사용자 확인 (사용 안 함 - createUser에서 직접 처리)
      */
-    private void checkDuplicateUser(String auth0Id, String userEmail) {
-        if (userRepository.existsByAuth0Id(auth0Id)) {
-            throw new IllegalArgumentException("이미 등록된 Auth0 사용자입니다: " + auth0Id);
-        }
-        if (userRepository.existsByUserEmail(userEmail)) {
-            throw new IllegalArgumentException("이미 등록된 이메일입니다: " + userEmail);
-        }
-    }
+    // private void checkDuplicateUser(String auth0Id, String userEmail) {
+    //     if (userRepository.existsByAuth0Id(auth0Id)) {
+    //         throw new IllegalArgumentException("이미 등록된 Auth0 사용자입니다: " + auth0Id);
+    //     }
+    //     if (userRepository.existsByUserEmail(userEmail)) {
+    //         throw new IllegalArgumentException("이미 등록된 이메일입니다: " + userEmail);
+    //     }
+    // }
     
     /**
      * 사용자 ID 유효성 검증
@@ -742,6 +778,112 @@ public class UserService {
         }
     }
     
+    /**
+     * 사용자 비활성화 (내부 API용)
+     * 
+     * @param userId 비활성화할 사용자 ID
+     * @return 성공 여부
+     */
+    public boolean deactivateUser(String userId) {
+        log.info("사용자 비활성화 시작 - userId: {}", userId);
+        
+        validateUserId(userId);
+        
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isEmpty()) {
+            log.warn("비활성화하려는 사용자가 존재하지 않음 - userId: {}", userId);
+            return false;
+        }
+        
+        try {
+            User user = userOptional.get();
+            // status 필드 제거로 인해 deactivate() 메서드 제거됨
+            
+            userRepository.save(user);
+            log.info("사용자 비활성화 성공 - userId: {}", userId);
+            
+            // 사용자 액션 로깅 - 내부 API 요청
+            
+            return true;
+            
+        } catch (Exception e) {
+            log.error("사용자 비활성화 중 오류 발생 - userId: {}", userId, e);
+            return false;
+        }
+    }
+    
+    /**
+     * 사용자 완전 삭제 (내부 API용)
+     * 
+     * @param userId 삭제할 사용자 ID
+     * @return 성공 여부
+     */
+    public boolean deleteUser(String userId) {
+        log.warn("사용자 완전 삭제 시작 - userId: {}", userId);
+        
+        return deleteUser(userId, "Internal API deletion request");
+    }
+    
+    /**
+     * 사용자 활성화 (내부 API용)
+     * 
+     * @param userId 활성화할 사용자 ID
+     * @return 성공 여부
+     */
+    public boolean activateUser(String userId) {
+        log.info("사용자 활성화 시작 - userId: {}", userId);
+        
+        validateUserId(userId);
+        
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isEmpty()) {
+            log.warn("활성화하려는 사용자가 존재하지 않음 - userId: {}", userId);
+            return false;
+        }
+        
+        try {
+            User user = userOptional.get();
+            // status 필드 제거로 인해 activate() 메서드 제거됨
+            
+            userRepository.save(user);
+            log.info("사용자 활성화 성공 - userId: {}", userId);
+            
+            // 사용자 액션 로깅 - 내부 API 요청
+            
+            return true;
+            
+        } catch (Exception e) {
+            log.error("사용자 활성화 중 오류 발생 - userId: {}", userId, e);
+            return false;
+        }
+    }
+    
+    /**
+     * 사용자 상태 조회 (내부 API용)
+     * 
+     * @param userId 조회할 사용자 ID
+     * @return 사용자 상태 (ACTIVE, DEACTIVATED, SUSPENDED), 사용자가 없으면 null
+     */
+    @Transactional(readOnly = true)
+    public String getUserStatus(String userId) {
+        log.debug("사용자 상태 조회 - userId: {}", userId);
+        
+        validateUserId(userId);
+        
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (userOptional.isEmpty()) {
+            log.warn("상태를 조회하려는 사용자가 존재하지 않음 - userId: {}", userId);
+            return null;
+        }
+        
+        User user = userOptional.get();
+        // status 필드 제거로 인해 항상 "ACTIVE" 반환
+        String status = "ACTIVE";
+        
+        log.debug("사용자 상태 조회 완료 - userId: {}, status: {}", userId, status);
+        return status;
+    }
+
     /**
      * 새로운 사용자에게 기본 FREE 구독 생성
      * 

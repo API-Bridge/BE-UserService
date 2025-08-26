@@ -79,6 +79,22 @@ public class User {
     @Column(name = "user_email", length = 255, nullable = false, unique = true)
     private String userEmail;
     
+    // status, status_updated_at 필드 제거 - 더 이상 사용하지 않음
+    
+    /**
+     * 관리자 권한 여부
+     * 
+     * 사용자가 관리자 권한을 가지고 있는지 나타냅니다.
+     * 기본값은 false이며, 관리자 페이지 접근 권한을 제어합니다.
+     * 
+     * 특징:
+     * - 기본값은 false (일반 사용자)
+     * - 관리자 페이지 접근 권한 제어에 사용
+     * - 데이터베이스에서 수동으로 true로 변경하여 관리자로 승격
+     */
+    @Column(name = "admin", nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT FALSE")
+    @Builder.Default
+    private Boolean admin = false;
     
     /**
      * 사용자 생성 시간
@@ -138,6 +154,19 @@ public class User {
             throw new IllegalArgumentException("Auth0 ID는 필수입니다.");
         }
         this.auth0Id = auth0Id.trim();
+    }
+    
+    // 상태 관련 메서드들 제거 - 더 이상 사용하지 않음
+    
+    /**
+     * 관리자 권한 확인 메서드
+     * 
+     * 사용자가 관리자 권한을 가지고 있는지 확인합니다.
+     * 
+     * @return 관리자인 경우 true, 일반 사용자인 경우 false
+     */
+    public boolean isAdmin() {
+        return this.admin != null && this.admin;
     }
     
     /**

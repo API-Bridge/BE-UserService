@@ -92,43 +92,23 @@ spec:
                   key: client-id
             {{- end }}
             
-            # Stripe configuration
-            {{- if .Values.secrets.stripe.enabled }}
-            - name: STRIPE_SECRET_KEY
+            # TossPay configuration
+            {{- if .Values.secrets.tosspay.enabled }}
+            - name: TOSSPAY_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
+                  name: {{ .Values.secrets.tosspay.name }}
                   key: secret-key
-            - name: STRIPE_PUBLIC_KEY
+            - name: TOSSPAY_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
-                  key: public-key
-            - name: STRIPE_WEBHOOK_SECRET
+                  name: {{ .Values.secrets.tosspay.name }}
+                  key: client-id
+            - name: TOSSPAY_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
+                  name: {{ .Values.secrets.tosspay.name }}
                   key: webhook-secret
-            - name: STRIPE_FREE_PRODUCT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
-                  key: free-product-id
-            - name: STRIPE_PRO_PRODUCT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
-                  key: pro-product-id
-            - name: STRIPE_PRO_MONTHLY_PRICE_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
-                  key: pro-monthly-price-id
-            - name: STRIPE_PRO_YEARLY_PRICE_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.stripe.name }}
-                  key: pro-yearly-price-id
             {{- end }}
             
             # Service Discovery
