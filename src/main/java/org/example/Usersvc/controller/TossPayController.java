@@ -179,6 +179,41 @@ public class TossPayController {
     }
 
     /**
+     * TossPay 설정 디버그 엔드포인트
+     */
+    @GetMapping("/debug/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> debugConfig() {
+        
+        log.info("🔧 TossPay 설정 디버그 요청:");
+        
+        try {
+            Map<String, Object> configInfo = new HashMap<>();
+            // TossPayService에서 TossPayProperties 접근
+            String clientKey = tossPayService.getClientKeyForDebug();
+            String secretKey = tossPayService.getSecretKeyForDebug();
+            String successUrl = tossPayService.getSuccessUrlForDebug();
+            String failUrl = tossPayService.getFailUrlForDebug();
+            
+            configInfo.put("clientKey", clientKey != null ? clientKey : "NULL");
+            configInfo.put("secretKeyLength", secretKey != null ? secretKey.length() : 0);
+            configInfo.put("successUrl", successUrl != null ? successUrl : "NULL");
+            configInfo.put("failUrl", failUrl != null ? failUrl : "NULL");
+            
+            log.info("🔧 TossPay 설정:");
+            log.info("  - clientKey: {}", clientKey);
+            log.info("  - secretKey length: {}", secretKey != null ? secretKey.length() : 0);
+            log.info("  - successUrl: {}", successUrl);
+            log.info("  - failUrl: {}", failUrl);
+            
+            return ResponseEntity.ok(ApiResponse.success(configInfo, "TossPay 설정 정보를 성공적으로 가져왔습니다."));
+        } catch (Exception e) {
+            log.error("TossPay 설정 디버그 오류: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("TossPay 설정 디버그 오류: " + e.getMessage(), "DEBUG_CONFIG_ERROR"));
+        }
+    }
+
+    /**
      * 빌링키 등록 (정기결제용)
      */
     @PostMapping("/billing/register")
@@ -199,6 +234,76 @@ public class TossPayController {
             log.error("TossPay 빌링키 등록 실패: {}", e.getMessage(), e);
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("빌링키 등록에 실패했습니다.", "BILLING_REGISTER_ERROR"));
+        }
+    }
+
+    /**
+     * 탈렌더 방식 테스트 - 서버에서 직접 결제 처리
+     */
+    @PostMapping("/test/direct-payment")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testDirectPayment(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody Map<String, Object> request) {
+        
+        String planNameStr = (String) request.get("planName");
+        String paymentKey = "test_payment_key_" + System.currentTimeMillis();
+        
+        log.info("탈렌더 테스트 결제 시작 - userId: {}, planName: {}", userId, planNameStr);
+        
+        try {
+            PlanName planName = PlanName.valueOf(planNameStr.toUpperCase());
+            
+            // 1. 결제 요청 데이터 생성
+            Map<String, Object> paymentData = tossPayService.createSubscriptionPayment(userId, planName);
+            String orderId = (String) paymentData.get("orderId");
+            Integer amount = (Integer) paymentData.get("amount");
+            
+            log.info("결제 데이터 생성 완료 - orderId: {}, amount: {}", orderId, amount);
+            
+            // 2. 서버에서 직접 결제 승인 처리 (테스트용 모의)
+            Map<String, Object> confirmResult = tossPayService.confirmPaymentWithAPI(paymentKey, orderId, amount);
+            
+            log.info("✅ 탈렌더 테스트 결제 완료 - orderId: {}", orderId);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("paymentKey", paymentKey);
+            result.put("orderId", orderId);
+            result.put("amount", amount);
+            result.put("planName", planNameStr);
+            result.put("confirmResult", confirmResult);
+            
+            return ResponseEntity.ok(ApiResponse.success(result, "탈렌더 테스트 결제가 성공적으로 완료되었습니다."));
+            
+        } catch (Exception e) {
+            log.error("탈렌더 테스트 결제 실패: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("탈렌더 테스트 결제에 실패했습니다: " + e.getMessage(), "DIRECT_PAYMENT_TEST_ERROR"));
+        }
+    }
+
+    /**
+     * TossPay 설정 확인 테스트
+     */
+    @GetMapping("/test/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testConfig() {
+        
+        log.info("TossPay 설정 확인 테스트");
+        
+        try {
+            Map<String, Object> configInfo = new HashMap<>();
+            configInfo.put("clientKey", tossPayService.getClientKeyForDebug());
+            configInfo.put("secretKeyMasked", tossPayService.getSecretKeyForDebug() != null ? 
+                tossPayService.getSecretKeyForDebug().substring(0, 10) + "***" : "NULL");
+            configInfo.put("successUrl", tossPayService.getSuccessUrlForDebug());
+            configInfo.put("failUrl", tossPayService.getFailUrlForDebug());
+            
+            return ResponseEntity.ok(ApiResponse.success(configInfo, "TossPay 설정 확인 완료"));
+            
+        } catch (Exception e) {
+            log.error("TossPay 설정 확인 오류: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("TossPay 설정 확인 오류: " + e.getMessage(), "CONFIG_TEST_ERROR"));
         }
     }
 

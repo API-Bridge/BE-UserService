@@ -181,6 +181,27 @@ public class UserController {
                     )
             )
     })
+    /**
+     * 사용자 조회 엔드포인트
+     * 
+     * 예시 호출:
+     * curl -X GET "http://localhost:8080/api/users/123e4567-e89b-12d3-a456-426614174000" \
+     *   -H "Authorization: Bearer {access_token}" \
+     *   -H "Content-Type: application/json"
+     * 
+     * 성공 응답 예시:
+     * {
+     *   "success": true,
+     *   "message": "요청이 성공적으로 처리되었습니다.",
+     *   "data": {
+     *     "userId": "123e4567-e89b-12d3-a456-426614174000",
+     *     "auth0Id": "auth0|123456789",
+     *     "userEmail": "user@example.com",
+     *     "admin": false,
+     *     "createdAt": "2024-01-01T10:00:00"
+     *   }
+     * }
+     */
     @GetMapping("/users/{userId}")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<User>> getUser(

@@ -445,6 +445,23 @@ public class TossPayService {
         }
     }
 
+    // 디버그용 메서드들
+    public String getClientKeyForDebug() {
+        return tossPayProperties.getClientKey();
+    }
+    
+    public String getSecretKeyForDebug() {
+        return tossPayProperties.getSecretKey();
+    }
+    
+    public String getSuccessUrlForDebug() {
+        return tossPayProperties.getSuccessUrl();
+    }
+    
+    public String getFailUrlForDebug() {
+        return tossPayProperties.getFailUrl();
+    }
+
     /**
      * TossPay 빌링키 정기결제 API 호출
      */

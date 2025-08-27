@@ -50,9 +50,10 @@ dependencies {
     // Monitoring & Observability
     implementation 'io.micrometer:micrometer-registry-prometheus'
     
-    // Security & OAuth2 (Auth0 JWT 토큰 검증)
+    // Security & OAuth2 (Auth0 JWT 토큰 검증 및 로그인)
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'  // OAuth2 로그인용 추가
     implementation 'com.auth0:java-jwt:4.2.1'
     
     // Documentation (Swagger/OpenAPI) - Spring Boot 3.4.3 호환 버전

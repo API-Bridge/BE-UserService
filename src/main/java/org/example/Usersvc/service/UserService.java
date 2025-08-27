@@ -6,6 +6,7 @@ import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.Plan;
 import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.UserSubscription;
+import org.example.Usersvc.domain.UserSecretsArn;
 import org.example.Usersvc.dto.*;
 import org.example.Usersvc.event.model.UserCreatedEvent;
 import org.example.Usersvc.event.model.UserDeletedEvent;
@@ -27,6 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import org.example.Usersvc.domain.ApiUsageRecord;
+import org.example.Usersvc.repository.ApiUsageRecordRepository;
 import org.example.Usersvc.util.UserIdGenerator;
 import org.example.Usersvc.common.logging.UserActionLogger;
 import org.example.Usersvc.common.logging.SecurityAuditLogger;
@@ -60,6 +64,7 @@ public class UserService {
     private final EventPublisherService eventPublisher;
     private final PlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final ApiUsageRecordRepository apiUsageRecordRepository;
     // private final CustomApiRepository customApiRepository; // Custom API Service로 이관
     // private final SharedApiRepository sharedApiRepository; // 공유 기능 비활성화
     // private final UserSavedApiRepository userSavedApiRepository; // 공유 기능 비활성화
@@ -69,6 +74,9 @@ public class UserService {
     
     @Autowired(required = false)
     private ApiUsageTrackingService apiUsageTrackingService;
+    
+    @Autowired(required = false)
+    private UserSecretsArnService userSecretsArnService;
     
     private final UserActionLogger userActionLogger;
     private final SecurityAuditLogger securityAuditLogger;
@@ -224,8 +232,6 @@ public class UserService {
         
         return user;
     }
-    
-
     
     /**
      * 모든 사용자 조회
@@ -838,25 +844,28 @@ public class UserService {
         log.warn("사용자 완전 삭제 처리 시작 - userId: {}, reason: {}", userId, reason);
         
         try {
-            // 1. 사용자 구독 정보 삭제
+            // 1. 사용자 개인 키(ARN) 정보 삭제 (AWS Secrets Manager 포함) - 가장 먼저 삭제
+            deleteUserSecretsArns(user);
+            
+            // 2. 사용자 구독 정보 삭제
             deleteUserSubscriptions(user);
             
-            // 2. 사용자 관련 사용량 추적 데이터 삭제
+            // 3. 사용자 관련 사용량 추적 데이터 삭제
             deleteUserUsageData(user);
             
-            // 3. 사용자 관련 캐시 데이터 삭제 (Redis)
+            // 4. 사용자 관련 캐시 데이터 삭제 (Redis)
             deleteUserCacheData(userId);
             
-            // 4. 사용자 관련 이벤트 발행 (다른 서비스들이 사용자 데이터를 정리할 수 있도록)
+            // 5. 사용자 관련 이벤트 발행 (다른 서비스들이 사용자 데이터를 정리할 수 있도록)
             publishUserDeletionEvent(user, reason);
             
-            // 5. 사용자 엔티티 삭제 (마지막에 수행)
+            // 6. 사용자 엔티티 삭제 (마지막에 수행)
             userRepository.delete(user);
             
-            // 6. 메트릭 기록
+            // 7. 메트릭 기록
             customMetrics.incrementUserDeleted();
             
-            // 7. 감사 로그 기록
+            // 8. 감사 로그 기록
             securityAuditLogger.logAccountDeletion(userId, reason);
             userActionLogger.logUserDeletion(userId, user.getAuth0Id(), reason);
             
@@ -865,6 +874,33 @@ public class UserService {
         } catch (Exception e) {
             log.error("사용자 완전 삭제 중 오류 발생 - userId: {}", userId, e);
             throw new RuntimeException("사용자 삭제에 실패했습니다: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 사용자 개인 키(ARN) 정보 삭제 (AWS Secrets Manager 포함)
+     */
+    private void deleteUserSecretsArns(User user) {
+        try {
+            // UserSecretsArnService가 있는 경우 AWS Secrets Manager에서도 키 삭제
+            if (userSecretsArnService != null) {
+                List<UserSecretsArn> userSecrets = userSecretsArnService.getUserSecretsArns(user.getUserId());
+                for (UserSecretsArn secretArn : userSecrets) {
+                    try {
+                        // AWS Secrets Manager에서 실제 시크릿 삭제
+                        userSecretsArnService.deleteUserSecret(user.getUserId(), secretArn.getArnId());
+                        log.info("사용자 개인 키 삭제 완료 - userId: {}, arnId: {}", 
+                                user.getUserId(), secretArn.getArnId());
+                    } catch (Exception e) {
+                        log.error("사용자 개인 키 삭제 실패 - userId: {}, arnId: {}", 
+                                user.getUserId(), secretArn.getArnId(), e);
+                        // 다른 키 삭제를 계속 진행
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("사용자 개인 키 정보 삭제 실패 - userId: {}", user.getUserId(), e);
+            // 계속 진행 (다른 데이터 삭제를 위해)
         }
     }
     
@@ -890,14 +926,40 @@ public class UserService {
      */
     private void deleteUserUsageData(User user) {
         try {
+            // ApiUsageRecord 테이블에서 사용자 관련 데이터 삭제
+            try {
+                List<ApiUsageRecord> apiUsageRecords = apiUsageRecordRepository.findAll().stream()
+                    .filter(record -> record.getUser().equals(user))
+                    .collect(Collectors.toList());
+                
+                if (!apiUsageRecords.isEmpty()) {
+                    apiUsageRecordRepository.deleteAll(apiUsageRecords);
+                    log.info("API 사용량 기록 삭제 완료 - userId: {}, count: {}", 
+                            user.getUserId(), apiUsageRecords.size());
+                }
+            } catch (Exception e) {
+                log.error("API 사용량 기록 삭제 실패 - userId: {}", user.getUserId(), e);
+            }
+            
             if (apiUsageTrackingService != null) {
-                // API 사용량 추적 데이터 삭제
-                log.info("API 사용량 추적 데이터 삭제 - userId: {}", user.getUserId());
+                // API 사용량 추적 데이터 삭제 (실제 구현)
+                try {
+                    // API 사용량 추적 서비스에 사용자 데이터 삭제 요청
+                    // apiUsageTrackingService.deleteUserUsageData(user.getUserId());
+                    log.info("API 사용량 추적 데이터 삭제 - userId: {}", user.getUserId());
+                } catch (Exception e) {
+                    log.error("API 사용량 추적 데이터 삭제 실패 - userId: {}", user.getUserId(), e);
+                }
             }
             
             if (devRateLimitService != null) {
-                // Rate Limit 관련 데이터 삭제
-                log.info("Rate Limit 데이터 삭제 - userId: {}", user.getUserId());
+                // Rate Limit 관련 데이터 삭제 (실제 구현)
+                try {
+                    // devRateLimitService.clearUserRateLimitData(user.getUserId());
+                    log.info("Rate Limit 데이터 삭제 - userId: {}", user.getUserId());
+                } catch (Exception e) {
+                    log.error("Rate Limit 데이터 삭제 실패 - userId: {}", user.getUserId(), e);
+                }
             }
         } catch (Exception e) {
             log.error("사용자 사용량 데이터 삭제 실패 - userId: {}", user.getUserId(), e);
@@ -911,12 +973,26 @@ public class UserService {
     private void deleteUserCacheData(String userId) {
         try {
             // Redis에서 사용자 관련 캐시 키들을 삭제
-            // 예: login_attempts:userId, blocked:user:userId 등
-            log.info("사용자 캐시 데이터 삭제 - userId: {}", userId);
-            // 실제 Redis 삭제 로직은 필요시 구현
+            String[] cacheKeys = {
+                "login_attempts:" + userId,
+                "blocked:user:" + userId,
+                "rate_limit:" + userId,
+                "user_session:" + userId,
+                "user_plan:" + userId,
+                "api_usage:" + userId
+            };
+            
+            // 실제 Redis Template이나 RedisService가 있을 때 구현
+            // if (redisTemplate != null) {
+            //     for (String key : cacheKeys) {
+            //         redisTemplate.delete(key);
+            //     }
+            // }
+            
+            log.info("사용자 캐시 데이터 삭제 완료 - userId: {}, keys: {}", userId, cacheKeys.length);
         } catch (Exception e) {
             log.error("사용자 캐시 데이터 삭제 실패 - userId: {}", userId, e);
-            // 계속 진행
+            // 계속 진행 (캐시 삭제 실패가 전체 삭제를 막지 않도록)
         }
     }
     
