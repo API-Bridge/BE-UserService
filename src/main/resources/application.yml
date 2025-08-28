@@ -33,8 +33,8 @@ spring:
   # Redis 설정 (개발환경에서는 비활성화)
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
       timeout: 2000ms
       lettuce:
         pool:
@@ -72,18 +72,17 @@ spring:
       client:
         registration:
           auth0:
-            client-id: gleGDUmC5iSKvbt4IN12t7cAIHfwEYQI
-            client-secret: 2Ct7FI5_pvArr6tOs0XBmmSaL06N-QJjx4LpoqjKmGmh0b-210UkwUV4U8syPRkM
+            client-id: ${AUTH0_CLIENT_ID:}
+            client-secret: ${AUTH0_CLIENT_SECRET:}
             authorization-grant-type: authorization_code
             redirect-uri: "http://localhost:8081/login/oauth2/code/{registrationId}"
             scope:
               - openid
               - profile
               - email
-              - api:read
         provider:
           auth0:
-            issuer-uri: https://api-bridge.us.auth0.com/
+            issuer-uri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
             authorization-uri: https://api-bridge.us.auth0.com/authorize
             token-uri: https://api-bridge.us.auth0.com/oauth/token
             user-info-uri: https://api-bridge.us.auth0.com/userinfo
@@ -92,8 +91,8 @@ spring:
       resourceserver:
         jwt:
           # Auth0 Issuer URI (JWT 발급자)
-          issuer-uri: https://api-bridge.us.auth0.com/
-          audience: https://api.api-bridge.com  # Auth0 API Identifier
+          issuer-uri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
+          audience: ${AUTH0_AUDIENCE:http://localhost:8081/}
           # JWKS URI (공개키 엔드포인트) - 자동 설정됨
           # jwk-set-uri: ${AUTH0_ISSUER_URI}/.well-known/jwks.json
 
@@ -262,10 +261,10 @@ management:
 
 # Auth0 설정 (User Service에서 Auth0 로그인 처리)
 auth0:
-  issuerUri: https://api-bridge.us.auth0.com/
-  audience: https://api.api-bridge.com  # Auth0 API Identifier
-  client-id: gleGDUmC5iSKvbt4IN12t7cAIHfwEYQI
-  logout-redirect-uri: http://localhost:8081/api/auth/logout-success
+  issuerUri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
+  audience: ${AUTH0_AUDIENCE:http://localhost:8081/}  # User Service 포트로 변경
+  client-id: ${AUTH0_CLIENT_ID}
+  logout-redirect-uri: ${AUTH0_LOGOUT_REDIRECT_URI:http://localhost:8081/api/auth/logout-success}
 
 # Eureka 클라이언트 설정
 eureka:
@@ -428,7 +427,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://api-bridge.us.auth0.com/
+          issuer-uri: ${AUTH0_ISSUER_URI}
           cache-duration: PT5M
 
 # 프로덕션 환경 로깅 설정
