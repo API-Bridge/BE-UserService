@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.3'
+    id 'org.springframework.boot' version '3.5.4'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -25,7 +25,7 @@ repositories {
 }
 
 ext {
-    set('springCloudVersion', "2024.0.1")
+    set('springCloudVersion', "2025.0.0")
 }
 
 dependencies {
@@ -44,9 +44,7 @@ dependencies {
     // Data & Messaging
     implementation 'org.springframework.kafka:spring-kafka'                      // 이벤트 기반 통신
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'     // 캐싱
-    
 
-    
     // Monitoring & Observability
     implementation 'io.micrometer:micrometer-registry-prometheus'
     
@@ -59,13 +57,12 @@ dependencies {
     // Documentation (Swagger/OpenAPI) - Spring Boot 3.4.3 호환 버전
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
 
+    // build.gradle
+    implementation 'com.github.ben-manes.caffeine:caffeine'
     
     // AWS SDK (AWS Secrets Manager 연동을 위해 추가)
     implementation platform('software.amazon.awssdk:bom:2.20.56')
     implementation 'software.amazon.awssdk:secretsmanager'
-    
-    // Stripe Payment Integration
-    implementation 'com.stripe:stripe-java:24.16.0'
     
     
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

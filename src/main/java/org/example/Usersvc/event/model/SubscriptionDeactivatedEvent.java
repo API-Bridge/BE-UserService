@@ -84,7 +84,7 @@ public class SubscriptionDeactivatedEvent extends BaseEvent {
         
         return SubscriptionDeactivatedEvent.builder()
                 .eventType("SUBSCRIPTION_DEACTIVATED")
-                .sourceService("user-service")
+                .serviceName("user-service")
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
@@ -109,7 +109,7 @@ public class SubscriptionDeactivatedEvent extends BaseEvent {
         
         return SubscriptionDeactivatedEvent.builder()
                 .eventType("SUBSCRIPTION_DEACTIVATED")
-                .sourceService("user-service")
+                .serviceName("user-service")
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
@@ -133,7 +133,7 @@ public class SubscriptionDeactivatedEvent extends BaseEvent {
         
         return SubscriptionDeactivatedEvent.builder()
                 .eventType("SUBSCRIPTION_DEACTIVATED")
-                .sourceService("user-service")
+                .serviceName("user-service")
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
@@ -157,7 +157,7 @@ public class SubscriptionDeactivatedEvent extends BaseEvent {
         
         return SubscriptionDeactivatedEvent.builder()
                 .eventType("SUBSCRIPTION_DEACTIVATED")
-                .sourceService("user-service")
+                .serviceName("user-service")
                 .userId(userId)
                 .subscriptionId(subscriptionId)
                 .planId(planId)
@@ -170,5 +170,10 @@ public class SubscriptionDeactivatedEvent extends BaseEvent {
                 .newplanName("FREE")
                 .newSubscriptionId(newSubscriptionId)
                 .build();
+    }
+
+    @Override
+    public Object getPayload() {
+        return this;
     }
 }

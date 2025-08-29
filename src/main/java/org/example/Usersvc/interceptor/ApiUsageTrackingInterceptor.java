@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Optional;
 import org.example.Usersvc.domain.User;
-import org.example.Usersvc.service.ApiUsageTrackingService;
+import org.example.Usersvc.service.ActiveUserTrackingService;
 import org.example.Usersvc.service.UserService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -20,7 +20,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class ApiUsageTrackingInterceptor implements HandlerInterceptor {
     
     private final UserService userService;
-    private final ApiUsageTrackingService apiUsageTrackingService;
+    private final ActiveUserTrackingService activeUserTrackingService;
     
     private static final String START_TIME_ATTRIBUTE = "startTime";
     
@@ -42,7 +42,7 @@ public class ApiUsageTrackingInterceptor implements HandlerInterceptor {
             
             // API 사용량 기록
             String apiEndpoint = normalizeEndpoint(requestUri);
-            apiUsageTrackingService.recordApiCall(user.get(), apiEndpoint);
+            activeUserTrackingService.recordApiCall(user.get(), apiEndpoint);
             
             log.debug("API 사용량 추적됨 - userId: {}, endpoint: {}, method: {}", 
                     user.get().getUserId(), apiEndpoint, request.getMethod());

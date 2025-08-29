@@ -25,7 +25,7 @@ import java.time.temporal.ChronoUnit;
 @Profile({"prod", "production"})
 public class ProductionRateLimitService {
 
-    private final ApiUsageTrackingService apiUsageTrackingService;
+    private final ActiveUserTrackingService activeUserTrackingService;
     private final PlanLimitValidationService planLimitValidationService;
 
     /**
@@ -37,7 +37,7 @@ public class ProductionRateLimitService {
     public boolean isAllowedPerMinute(User user) {
         try {
             PlanName planName = getPlanName(user);
-            long currentUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
+            long currentUsage = activeUserTrackingService.getCurrentMinuteUsage(user);
             int limit = planName.getRateLimitPerMinute();
             
             boolean allowed = currentUsage < limit;
@@ -62,7 +62,7 @@ public class ProductionRateLimitService {
     public boolean isAllowedPerHour(User user) {
         try {
             PlanName planName = getPlanName(user);
-            long currentUsage = apiUsageTrackingService.getCurrentHourUsage(user);
+            long currentUsage = activeUserTrackingService.getCurrentHourUsage(user);
             int limit = planName.getRateLimitPerHour();
             
             boolean allowed = currentUsage < limit;
@@ -86,7 +86,7 @@ public class ProductionRateLimitService {
     public boolean isAllowedPerDay(User user) {
         try {
             PlanName planName = getPlanName(user);
-            long currentUsage = apiUsageTrackingService.getCurrentDayUsage(user);
+            long currentUsage = activeUserTrackingService.getCurrentDayUsage(user);
             int limit = planName.getRateLimitPerDay();
             
             boolean allowed = currentUsage < limit;
@@ -110,7 +110,7 @@ public class ProductionRateLimitService {
     public boolean isAllowedPerMonth(User user) {
         try {
             PlanName planName = getPlanName(user);
-            long currentUsage = apiUsageTrackingService.getMonthlyUsage(user);
+            long currentUsage = activeUserTrackingService.getMonthlyUsage(user);
             int limit = planName.getMaxApiCount();
             
             boolean allowed = currentUsage < limit;
@@ -149,10 +149,10 @@ public class ProductionRateLimitService {
         try {
             PlanName planName = getPlanName(user);
             
-            long minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
-            long hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
-            long dayUsage = apiUsageTrackingService.getCurrentDayUsage(user);
-            long monthUsage = apiUsageTrackingService.getMonthlyUsage(user);
+            long minuteUsage = activeUserTrackingService.getCurrentMinuteUsage(user);
+            long hourUsage = activeUserTrackingService.getCurrentHourUsage(user);
+            long dayUsage = activeUserTrackingService.getCurrentDayUsage(user);
+            long monthUsage = activeUserTrackingService.getMonthlyUsage(user);
             
             return RateLimitStatus.builder()
                     .userId(user.getUserId())
@@ -192,10 +192,10 @@ public class ProductionRateLimitService {
         try {
             PlanName planName = getPlanName(user);
             
-            long minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
-            long hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
-            long dayUsage = apiUsageTrackingService.getCurrentDayUsage(user);
-            long monthUsage = apiUsageTrackingService.getMonthlyUsage(user);
+            long minuteUsage = activeUserTrackingService.getCurrentMinuteUsage(user);
+            long hourUsage = activeUserTrackingService.getCurrentHourUsage(user);
+            long dayUsage = activeUserTrackingService.getCurrentDayUsage(user);
+            long monthUsage = activeUserTrackingService.getMonthlyUsage(user);
             
             return RemainingLimits.builder()
                     .minuteRemaining(Math.max(0, planName.getRateLimitPerMinute() - minuteUsage))

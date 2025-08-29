@@ -10,6 +10,8 @@ import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.example.Usersvc.exception.*;
+import org.example.Usersvc.event.model.UserSubscriptionUpdateEvent;
+import org.example.Usersvc.event.publisher.EventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -35,6 +37,7 @@ public class TossPaymentService implements PaymentService {
     private final PlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final RestTemplate restTemplate;
+    private final EventPublisher eventPublisher;
 
     @Override
     public String getProvider() {
@@ -228,9 +231,16 @@ public class TossPaymentService implements PaymentService {
 
         UserSubscription savedSubscription = userSubscriptionRepository.save(subscription);
 
+        // UserSubscriptionUpdateEvent 발행
+        UserSubscriptionUpdateEvent event = new UserSubscriptionUpdateEvent(
+            userId, "FREE", "PRO", "TOSSPAY_PAYMENT_COMPLETED"
+        );
+        eventPublisher.publishEvent("SubscriptionEvents", event);
+
         log.info("✅ TossPay 승인 후 구독 정보 DB 업데이트 완료 - userId: {}, planName: {}, subscriptionId: {}", 
             userId, proPlan.getPlanName(), savedSubscription.getSubscriptionId());
         log.info("✅ 기존 구독(Stripe 포함) 모두 비활성화 완료");
+        log.info("📢 구독 업데이트 이벤트 발행 완료 - userId: {}", userId);
     }
 
     /**

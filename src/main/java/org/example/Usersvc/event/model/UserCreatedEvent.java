@@ -57,4 +57,9 @@ public class UserCreatedEvent extends BaseEvent {
         this.userEmail = userEmail;
         this.createdAt = createdAt;
     }
+
+    @Override
+    public Object getPayload() {
+        return this;
+    }
 }

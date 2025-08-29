@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>토스페이 결제 테스트</title>
-    <script src="https://js.tosspayments.com/v2"></script>
+    <script src="https://js.tosspayments.com/v1/payment"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -78,7 +78,10 @@
         let widgets;
         
         // 토스페이먼츠 초기화 (테스트 클라이언트 키)
-        async function initTossPayments(clientKey) {
+        function initTossPayments(clientKey) {
+            if (typeof TossPayments === 'undefined') {
+                throw new Error('토스페이먼츠 SDK가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            }
             tossPayments = TossPayments(clientKey);
         }
         
@@ -137,10 +140,14 @@
                 const paymentData = result.data;
                 console.log('✅ 결제 데이터:', paymentData);
                 
-                // 2. 토스페이먼츠 초기화
-                await initTossPayments(paymentData.clientKey);
+                // 2. 토스페이먼츠 SDK 로드 대기
+                console.log('⏳ 토스페이먼츠 SDK 로드 대기 중...');
+                await waitForTossPayments();
                 
-                // 3. V1 API 사용하여 결제 요청
+                // 3. 토스페이먼츠 초기화
+                initTossPayments(paymentData.clientKey);
+                
+                // 4. V1 API 사용하여 결제 요청
                 await tossPayments.requestPayment('카드', {
                     amount: paymentData.amount,
                     orderId: paymentData.orderId,
@@ -222,8 +229,50 @@
             resultDiv.style.display = 'block';
         }
         
+        // SDK 로드 완료 대기
+        function waitForTossPayments() {
+            return new Promise((resolve, reject) => {
+                // 이미 로드되어 있는지 먼저 확인
+                if (typeof TossPayments !== 'undefined') {
+                    console.log('✅ 토스페이먼츠 SDK 이미 로드됨');
+                    resolve();
+                    return;
+                }
+                
+                let attempts = 0;
+                const maxAttempts = 30; // 3초 대기로 단축
+                
+                const checkSDK = () => {
+                    attempts++;
+                    console.log(`🔍 SDK 로드 확인 중... (${attempts}/${maxAttempts})`);
+                    console.log('현재 window 객체에서 TossPayments:', typeof TossPayments);
+                    console.log('window.TossPayments:', window.TossPayments);
+                    
+                    if (typeof TossPayments !== 'undefined' && TossPayments) {
+                        console.log('✅ 토스페이먼츠 SDK 로드 완료');
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        console.error('❌ SDK 로드 실패. 사용 가능한 전역 변수:', Object.keys(window).filter(key => key.toLowerCase().includes('toss')));
+                        reject(new Error('토스페이먼츠 SDK 로드 시간 초과'));
+                    } else {
+                        setTimeout(checkSDK, 100);
+                    }
+                };
+                
+                checkSDK();
+            });
+        }
+
         // URL 파라미터 확인 (결제 성공/실패 시)
-        window.addEventListener('load', function() {
+        window.addEventListener('load', async function() {
+            // SDK 로드 대기
+            try {
+                await waitForTossPayments();
+                showResult('토스페이먼츠 SDK가 준비되었습니다.', 'success');
+            } catch (error) {
+                showResult('토스페이먼츠 SDK 로드에 실패했습니다: ' + error.message, 'error');
+            }
+            
             const urlParams = new URLSearchParams(window.location.search);
             const paymentKey = urlParams.get('paymentKey');
             const orderId = urlParams.get('orderId');

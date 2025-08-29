@@ -58,7 +58,7 @@ public class EventPublisher implements EventPublisherService {
 
         String eventId = java.util.UUID.randomUUID().toString();
         
-        kafkaTemplate.send("user-service-events", eventId, data)
+        kafkaTemplate.send("user-events", eventId, data)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Failed to publish event: eventType: {}, eventId: {}", eventType, eventId, ex);

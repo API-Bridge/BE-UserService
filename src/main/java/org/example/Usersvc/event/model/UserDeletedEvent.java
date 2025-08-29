@@ -66,4 +66,9 @@ public class UserDeletedEvent extends BaseEvent {
         this.deletedAt = deletedAt;
         this.deletionReason = deletionReason;
     }
+
+    @Override
+    public Object getPayload() {
+        return this;
+    }
 }

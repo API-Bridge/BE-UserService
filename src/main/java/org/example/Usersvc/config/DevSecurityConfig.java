@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -21,7 +22,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import lombok.extern.slf4j.Slf4j;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -42,6 +49,7 @@ import java.util.stream.Stream;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 @Profile({"dev", "default", "trusted-gateway"})
+@org.springframework.core.annotation.Order(1) // 높은 우선순위로 설정
 public class DevSecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
@@ -107,91 +115,67 @@ public class DevSecurityConfig {
                 // 기타 모든 요청 - JWT 인증 또는 완화된 접근
                 .anyRequest().permitAll()  // 개발 환경에서는 JWT가 없어도 허용
             )
-                          .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable())) // H2 콘솔 지원
-            // OAuth2 Login 설정 (Auth0 로그인 처리)
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler((request, response, authentication) -> {
-                    // 로그인 성공 시 login-success 페이지로 리다이렉트
-                    response.sendRedirect("/api/auth/login-success");
-                })
-                .failureHandler((request, response, exception) -> {
-                    // 로그인 실패 시 error 페이지로 리다이렉트
-                    response.sendRedirect("/api/auth/login-error");
-                })
-            )
+                          .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)) // H2 콘솔 지원
+            // OAuth2 Login 설정 (Auth0 로그인 처리) - 임시 비활성화
+             .oauth2Login(oauth2 -> oauth2
+                 .successHandler((request, response, authentication) -> {
+                     // 로그인 성공 시 login-success 페이지로 리다이렉트
+                     response.sendRedirect("/api/auth/login-success");
+                 })
+                 .failureHandler((request, response, exception) -> {
+                     // 로그인 실패 시 error 페이지로 리다이렉트
+                     response.sendRedirect("/api/auth/login-error");
+                 })
+             )
+            // OAuth2 Resource Server 설정 (JWT 검증) - 개발 환경에서는 관대하게 처리
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt
                     .decoder(jwtDecoder())
                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
-                // JWT 인증 실패 시 적절한 JSON 에러 응답 반환
-                // 
-                // *** AuthenticationEntryPoint 호출 원리 ***
-                // 이 람다식은 Filter Chain에 등록되지만 조건부로만 실행됨:
-                //
-                // 1. SUCCESS PATH (이 람다식 호출 안됨):
-                //    BearerTokenAuthenticationFilter → JWT 추출 성공
-                //    → JwtAuthenticationProvider → jwtDecoder().decode() 성공
-                //    → DetailedAudienceValidator.validate() → success() 반환
-                //    → JwtAuthenticationConverter → 권한 변환
-                //    → SecurityContext에 Authentication 저장
-                //    → 다음 필터로 진행 (UserController 도달)
-                //
-                // 2. FAILURE PATH (이 람다식 호출됨):
-                //    BearerTokenAuthenticationFilter → JWT 추출 또는 검증 실패
-                //    → JwtAuthenticationProvider에서 AuthenticationException 발생
-                //    → ExceptionTranslationFilter가 Exception catch
-                //    → authenticationEntryPoint.commence() 호출 ← 바로 여기서 이 람다식 실행
-                //    → Filter Chain 중단, 즉시 응답 반환
-                //
-                // 즉, Spring Security는 인증 성공 시에는 이 EntryPoint를 호출하지 않고,
-                // 인증 실패 Exception이 발생했을 때만 ExceptionTranslationFilter를 통해 호출함
+                // JWT 인증 실패 시 친화적 에러 응답
                 .authenticationEntryPoint((request, response, authException) -> {
-                    // JWT 인증 실패 상세 로깅
                     String requestPath = request.getRequestURI();
                     String authHeader = request.getHeader("Authorization");
                     
-                    log.warn("=== JWT 인증 실패 디버깅 정보 ===");
-                    log.warn("요청 경로: {}", requestPath);
-                    log.warn("Authorization 헤더 존재: {}", authHeader != null);
-                    if (authHeader != null) {
-                        log.warn("Authorization 헤더 형식: {}", authHeader.length() > 20 ? authHeader.substring(0, 20) + "..." : authHeader);
-                    }
-                    log.warn("인증 예외 유형: {}", authException.getClass().getSimpleName());
-                    log.warn("인증 예외 메시지: {}", authException.getMessage());
-                    log.warn("설정된 Auth0 Issuer: {}", issuer);
-                    log.warn("설정된 Auth0 Audience: {}", audience);
-                    log.warn("================================");
+                    log.info("=== JWT 인증 실패 - 개발 환경 ===");
+                    log.info("요청 경로: {}", requestPath);
+                    log.info("Authorization 헤더: {}", authHeader != null ? "존재함" : "없음");
                     
-                    // JSON 에러 응답 반환
+                    // 인증 경로에 대한 접근은 로그인으로 리다이렉트 (브라우저 요청의 경우)
+                    String acceptHeader = request.getHeader("Accept");
+                    if (requestPath.startsWith("/api/auth/") && 
+                        acceptHeader != null && acceptHeader.contains("text/html")) {
+                        log.info("브라우저에서 인증 경로 접근 - 로그인 시작으로 리다이렉트");
+                        response.sendRedirect("/oauth2/authorization/auth0");
+                        return;
+                    }
+                    
+                    // API 요청에 대한 JSON 응답
                     response.setStatus(401);
                     response.setContentType("application/json");
                     response.setCharacterEncoding("UTF-8");
                     
-                    String errorResponse = """
+                    String errorResponse = String.format("""
                         {
                             "error": "Unauthorized",
-                            "message": "Authentication required. Please provide a valid JWT token.",
+                            "message": "Authentication required. Please login first.",
                             "status": 401,
                             "timestamp": "%s",
                             "path": "%s",
-                            "details": {
-                                "reason": "%s",
-                                "authHeaderPresent": %b
-                            }
+                            "loginUrl": "/api/auth/login",
+                            "oauthUrl": "/oauth2/authorization/auth0"
                         }
-                        """.formatted(
-                            java.time.Instant.now().toString(),
-                            requestPath,
-                            authException.getMessage(),
-                            authHeader != null
-                        );
+                        """, 
+                        java.time.Instant.now().toString(),
+                        requestPath
+                    );
                     
                     try {
                         response.getWriter().write(errorResponse);
                         response.getWriter().flush();
                     } catch (IOException e) {
-                        log.error("JWT 인증 실패 응답 작성 중 오류 발생", e);
+                        log.error("JWT 인증 실패 응답 작성 중 오류", e);
                     }
                 })
             );

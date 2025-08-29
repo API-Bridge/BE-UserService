@@ -42,7 +42,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -50,8 +50,19 @@ public class SecurityConfig {
                 .requestMatchers("/api/subscription/products").permitAll()
                 .requestMatchers("/api/shared-apis").permitAll()
                 .requestMatchers("/api/shared-apis/search").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/oauth2/**", "/login/**").permitAll()
                 .requestMatchers("/*.html", "/css/**", "/js/**", "/images/**").permitAll()
                 .anyRequest().authenticated()
+            )
+            // OAuth2 Login 설정 (Auth0 로그인 처리)
+            .oauth2Login(oauth2 -> oauth2
+                .successHandler((request, response, authentication) -> {
+                    response.sendRedirect("/api/auth/login-success");
+                })
+                .failureHandler((request, response, exception) -> {
+                    response.sendRedirect("/api/auth/login-error");
+                })
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt

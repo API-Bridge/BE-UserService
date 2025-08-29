@@ -1,9 +1,5 @@
 package org.example.Usersvc.controller;
 
-// import com.stripe.Stripe;
-// import com.stripe.exception.StripeException;
-// import com.stripe.model.checkout.Session;
-// import com.stripe.param.checkout.SessionCreateParams;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,36 +10,29 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.common.response.ApiResponse;
-import org.example.Usersvc.domain.PaymentProvider;
 import org.example.Usersvc.domain.Plan;
 import org.example.Usersvc.domain.PlanName;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.service.DevRateLimitService;
-import org.example.Usersvc.service.ApiUsageTrackingService;
+import org.example.Usersvc.service.ActiveUserTrackingService;
 import org.example.Usersvc.service.ProductionRateLimitService;
-
 import org.example.Usersvc.service.UserService;
-// import org.example.Usersvc.service.StripeSubscriptionService;  // 비활성화
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.example.Usersvc.common.logging.UserActionLogger;
 import org.example.Usersvc.common.metrics.CustomMetrics;
-import org.example.Usersvc.event.model.SubscriptionUpdatedEvent;
+import org.example.Usersvc.event.model.UserSubscriptionUpdateEvent;
 import org.example.Usersvc.event.model.SubscriptionDeactivatedEvent;
 import org.example.Usersvc.event.publisher.EventPublisherService;
-// import org.example.Usersvc.config.StripeProperties;
 
 /**
  * 구독 및 API 사용량 관리 컨트롤러
@@ -58,8 +47,7 @@ public class SubscriptionController {
     private final UserService userService;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
-    // private final StripeSubscriptionService stripeSubscriptionService;  // 비활성화
-    
+
     @Autowired(required = false)
     private DevRateLimitService devRateLimitService;
     
@@ -67,28 +55,11 @@ public class SubscriptionController {
     private ProductionRateLimitService productionRateLimitService;
     
     @Autowired(required = false)
-    private ApiUsageTrackingService apiUsageTrackingService;
+    private ActiveUserTrackingService activeUserTrackingService;
     
     private final UserActionLogger userActionLogger;
     private final CustomMetrics customMetrics;
     private final EventPublisherService eventPublisher;
-    // private final StripeProperties stripeProperties;
-    
-    // Stripe 관련 필드들 제거됨 - TossPay 사용으로 변경
-    // @Value("${stripe.secret-key:sk_test_dummy_key}")
-    // private String stripeSecretKey = "sk_test_dummy_key";
-    // 
-    // @Value("${stripe.products.free:prod_Ss3CAEwmeB1QuU}")
-    // private String freeProductId = "prod_Ss3CAEwmeB1QuU";
-    // 
-    // @Value("${stripe.products.pro:prod_Ss3ChLEOuz3Km9}")
-    // private String proProductId = "prod_Ss3ChLEOuz3Km9";
-    
-    // @PostConstruct
-    // public void init() {
-    //     Stripe.apiKey = stripeSecretKey;
-    //     log.info("Stripe API 초기화 완료");
-    // }
     
     @Operation(
             summary = "현재 사용자 구독 정보 조회",
@@ -221,6 +192,12 @@ public class SubscriptionController {
             activeSubscription.setPlanUpdateDate(LocalDateTime.now());
             userSubscriptionRepository.save(activeSubscription);
             
+            // UserSubscriptionUpdateEvent 발행
+            UserSubscriptionUpdateEvent updateEvent = new UserSubscriptionUpdateEvent(
+                user.getUserId(), previousPlanName, "FREE", "USER_CANCELLED"
+            );
+            eventPublisher.publishEvent("SubscriptionEvents", updateEvent);
+            
             // 구독 취소 이벤트 발행
             publishSubscriptionCancelledEvent(user, previousPlanName, "USER_CANCELLED");
             
@@ -268,7 +245,7 @@ public class SubscriptionController {
                     0L,   // activeDays (계산 복잡성으로 인해 기본값 사용)
                     subscriptionId); // newSubscriptionId (기존 구독을 FREE로 전환하므로 동일)
             
-            eventPublisher.publishEvent("user-service-events", event);
+            eventPublisher.publishEvent("user-events", event);
             log.info("구독 취소 이벤트 발행 완료 - userId: {}", user.getUserId());
         } catch (Exception e) {
             log.warn("구독 취소 이벤트 발행 실패 - userId: {}", user.getUserId(), e);

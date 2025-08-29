@@ -6,6 +6,7 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- 기존 테이블 삭제 (순서 중요)
+DROP TABLE IF EXISTS active_user_record;
 DROP TABLE IF EXISTS api_usage_record;
 -- DROP TABLE IF EXISTS user_saved_api;  -- 공유 기능 비활성화
 -- DROP TABLE IF EXISTS shared_api;      -- 공유 기능 비활성화
@@ -68,73 +69,18 @@ CREATE TABLE user_secrets_arn (
     INDEX idx_arn (arn)
 ) ENGINE=InnoDB;
 
--- 5. Custom API 테이블 -- Custom API Service로 이관
-/*
-CREATE TABLE custom_api (
-    custom_api_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id),
-    INDEX idx_name (name)
-) ENGINE=InnoDB;
-*/
-
--- 6. Shared API 테이블 -- 공유 기능 비활성화
-/*
-CREATE TABLE shared_api (
-    shared_api_id VARCHAR(36) PRIMARY KEY,
-    original_api_id VARCHAR(36) NOT NULL,
-    creator_id VARCHAR(36) NOT NULL,
-    api_name VARCHAR(255) NOT NULL,
-    description TEXT,
-    data_count INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (original_api_id) REFERENCES custom_api(custom_api_id) ON DELETE CASCADE,
-    FOREIGN KEY (creator_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
-    INDEX idx_creator_id (creator_id),
-    INDEX idx_original_api_id (original_api_id),
-    INDEX idx_api_name (api_name)
-) ENGINE=InnoDB;
-*/
-
--- 7. User Saved API 테이블 -- 공유 기능 비활성화
-/*
-CREATE TABLE user_saved_api (
-    saved_api_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    shared_api_id VARCHAR(36) NOT NULL,
-    api_name VARCHAR(255) NOT NULL,
-    description TEXT,
-    data_count INT DEFAULT 0,
-    is_favorite BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (shared_api_id) REFERENCES shared_api(shared_api_id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id),
-    INDEX idx_shared_api_id (shared_api_id)
-) ENGINE=InnoDB;
-*/
-
--- 8. API Usage Record 테이블
-CREATE TABLE api_usage_record (
+-- 8. Active User Record 테이블 (DAU/MAU 측정용)
+CREATE TABLE active_user_record (
     record_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    api_endpoint VARCHAR(255) NOT NULL,
-    request_count INT DEFAULT 1,
-    record_date DATE NOT NULL,
+    activity_type VARCHAR(50) NOT NULL DEFAULT 'API_CALL' COMMENT '활동 유형 (LOGIN, API_CALL, PAGE_VIEW)',
+    active_date DATE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES `user`(user_id) ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
-    INDEX idx_record_date (record_date),
-    INDEX idx_api_endpoint (api_endpoint),
-    UNIQUE KEY uk_user_api_date (user_id, api_endpoint, record_date)
+    INDEX idx_active_date (active_date),
+    INDEX idx_activity_type (activity_type),
+    UNIQUE KEY uk_user_activity_date (user_id, activity_type, active_date)
 ) ENGINE=InnoDB;
 
 -- 1. Plan 데이터 (planName enum에 맞게 생성)
@@ -245,146 +191,65 @@ INSERT INTO user_secrets_arn (arn_id, user_id, arn, arn_description, created_at)
 ('arn-power-001', 'power-user-001', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:power-api-key-PowerUser', 'Power User API Key', '2024-11-01 07:30:00'),
 ('arn-heavy-001', 'heavy-user-001', 'arn:aws:secretsmanager:us-east-1:123456789012:secret:heavy-api-key-HeavyUser', 'Heavy User API Key', '2024-11-01 08:00:00');
 
--- 5. Custom API 데이터 - Custom API Service로 이관
-/*
-INSERT INTO custom_api (custom_api_id, user_id, name, description, created_at, updated_at) VALUES 
--- 🧪 기본 테스트용 APIs
-('api-test-001', 'test-user-001', 'Simple Weather API', 'Basic weather information service', '2024-12-01 10:30:00', '2024-12-01 10:30:00'),
-('api-test-002', 'test-user-001', 'News Feed API', 'Latest news articles', '2024-12-01 11:00:00', '2024-12-01 11:00:00'),
-('api-demo-001', 'demo-user-001', 'Demo Calculator API', 'Mathematical operations API', '2024-12-01 11:30:00', '2024-12-01 11:30:00'),
+-- 8. Active User Record 데이터 (DAU/MAU 측정용 활성 사용자 기록)
+INSERT INTO active_user_record (record_id, user_id, activity_type, active_date, created_at) VALUES 
+-- 🧪 테스트 사용자들 (최근 활동)
+('active-test-001', 'test-user-001', 'API_CALL', '2025-01-19', '2025-01-19 09:00:00'),
+('active-test-002', 'test-user-001', 'API_CALL', '2025-01-20', '2025-01-20 10:00:00'),
+('active-test-003', 'test-user-001', 'LOGIN', '2025-01-20', '2025-01-20 08:30:00'),
+('active-demo-001', 'demo-user-001', 'API_CALL', '2025-01-20', '2025-01-20 12:00:00'),
+('active-api-001', 'api-tester-001', 'API_CALL', '2025-01-20', '2025-01-20 14:00:00'),
 
--- 🆓 FREE 사용자들의 APIs (제한된 개수)
-('api-free-001', 'free-user-001', 'Personal Weather', 'Personal weather tracking', '2024-12-15 10:00:00', '2024-12-15 10:00:00'),
-('api-free-002', 'free-user-001', 'Todo List API', 'Simple task management', '2024-12-15 11:00:00', '2024-12-15 11:00:00'),
-('api-free-003', 'free-user-002', 'Freelance Timer', 'Time tracking for freelancers', '2024-12-16 11:00:00', '2024-12-16 11:00:00'),
-('api-free-004', 'free-user-003', 'Code Snippets', 'Programming code examples', '2024-12-17 15:00:00', '2024-12-17 15:00:00'),
-('api-free-005', 'free-user-003', 'Git Helper API', 'Git command assistance', '2024-12-17 16:00:00', '2024-12-17 16:00:00'),
+-- 🆓 FREE 사용자들 (다양한 활동 패턴)
+('active-free-001', 'free-user-001', 'LOGIN', '2025-01-19', '2025-01-19 09:00:00'),
+('active-free-002', 'free-user-001', 'API_CALL', '2025-01-20', '2025-01-20 10:00:00'),
+('active-free-003', 'free-user-002', 'API_CALL', '2025-01-20', '2025-01-20 12:00:00'),
+('active-free-004', 'free-user-003', 'LOGIN', '2025-01-20', '2025-01-20 15:00:00'),
+('active-free-005', 'free-user-003', 'API_CALL', '2025-01-20', '2025-01-20 15:30:00'),
+('active-free-006', 'free-user-004', 'API_CALL', '2025-01-20', '2025-01-20 17:00:00'),
+('active-free-007', 'free-user-005', 'API_CALL', '2025-01-20', '2025-01-20 18:00:00'),
 
--- 💎 PRO 사용자들의 APIs (풍부하고 복잡한 기능)
-('api-pro-001', 'pro-user-001', 'Advanced Analytics Dashboard', 'Real-time business analytics', '2024-11-01 10:00:00', '2024-11-01 10:00:00'),
-('api-pro-002', 'pro-user-001', 'Customer CRM Integration', 'Complete customer management', '2024-11-02 09:30:00', '2024-11-02 09:30:00'),
-('api-pro-003', 'pro-user-001', 'Payment Gateway API', 'Secure payment processing', '2024-11-03 14:45:00', '2024-11-03 14:45:00'),
-('api-pro-004', 'pro-user-001', 'Inventory Management', 'Real-time inventory tracking', '2024-11-04 11:20:00', '2024-11-04 11:20:00'),
-('api-pro-005', 'pro-user-002', 'Enterprise SSO', 'Single sign-on authentication', '2024-11-05 11:00:00', '2024-11-05 11:00:00'),
-('api-pro-006', 'pro-user-002', 'Data Pipeline API', 'Big data processing pipeline', '2024-11-06 10:15:00', '2024-11-06 10:15:00'),
-('api-pro-007', 'pro-user-002', 'ML Model Deployment', 'Machine learning model API', '2024-11-07 13:30:00', '2024-11-07 13:30:00'),
-('api-pro-008', 'pro-user-003', 'Startup Metrics API', 'KPI tracking for startups', '2024-11-10 15:00:00', '2024-11-10 15:00:00'),
+-- 💎 PRO 사용자들 (높은 활동성)
+('active-pro-001', 'pro-user-001', 'LOGIN', '2025-01-19', '2025-01-19 08:00:00'),
+('active-pro-002', 'pro-user-001', 'API_CALL', '2025-01-19', '2025-01-19 08:30:00'),
+('active-pro-003', 'pro-user-001', 'API_CALL', '2025-01-20', '2025-01-20 09:00:00'),
+('active-pro-004', 'pro-user-002', 'LOGIN', '2025-01-20', '2025-01-20 10:00:00'),
+('active-pro-005', 'pro-user-002', 'API_CALL', '2025-01-20', '2025-01-20 10:30:00'),
+('active-pro-006', 'pro-user-003', 'API_CALL', '2025-01-20', '2025-01-20 12:00:00'),
+('active-pro-007', 'pro-user-004', 'API_CALL', '2025-01-20', '2025-01-20 13:45:00'),
 
--- 🔄 플랜 변경 사용자들의 APIs (업그레이드 후 더 많은 API)
-('api-switch-001', 'switcher-001', 'Stock Analysis API', 'Advanced stock market analysis', '2024-10-15 11:00:00', '2024-11-02 09:00:00'),
-('api-switch-002', 'switcher-001', 'Crypto Trading Bot', 'Automated crypto trading', '2024-11-02 10:00:00', '2024-11-02 10:00:00'),
-('api-switch-003', 'switcher-001', 'Portfolio Tracker', 'Investment portfolio management', '2024-11-05 14:00:00', '2024-11-05 14:00:00'),
-('api-switch-004', 'switcher-002', 'Growth Metrics API', 'Business growth analytics', '2024-11-15 16:00:00', '2024-11-15 16:00:00'),
+-- 🔄 플랜 변경 사용자들 (업그레이드 후 활발한 활동)
+('active-switch-001', 'switcher-001', 'API_CALL', '2024-10-30', '2024-10-30 11:00:00'), -- FREE 시절
+('active-switch-002', 'switcher-001', 'LOGIN', '2025-01-19', '2025-01-19 11:30:00'), -- PRO 전환 후
+('active-switch-003', 'switcher-001', 'API_CALL', '2025-01-19', '2025-01-19 12:00:00'),
+('active-switch-004', 'switcher-001', 'API_CALL', '2025-01-20', '2025-01-20 14:00:00'),
+('active-switch-005', 'switcher-002', 'API_CALL', '2025-01-20', '2025-01-20 16:00:00'),
 
--- 🔧 개발/QA 테스트용 APIs
-('api-qa-001', 'qa-test-001', 'QA Testing API', 'Automated testing endpoints', '2024-12-01 09:00:00', '2024-12-01 09:00:00'),
-('api-load-001', 'load-test-001', 'Load Test API', 'Performance testing endpoints', '2024-12-01 09:30:00', '2024-12-01 09:30:00'),
+-- 🆕 최근 가입 사용자들 (초기 활동)
+('active-new-001', 'new-user-001', 'LOGIN', '2025-01-20', '2025-01-20 11:30:00'),
+('active-new-002', 'new-user-001', 'API_CALL', '2025-01-20', '2025-01-20 12:00:00'),
+('active-new-003', 'new-user-002', 'API_CALL', '2025-01-20', '2025-01-20 15:00:00'),
+('active-new-004', 'new-user-003', 'API_CALL', '2025-01-20', '2025-01-20 17:00:00'),
 
--- 🚀 고활용 사용자들의 APIs
-('api-power-001', 'power-user-001', 'High Volume API', 'Heavy traffic processing', '2024-11-01 08:00:00', '2024-11-01 08:00:00'),
-('api-heavy-001', 'heavy-user-001', 'Intensive Processing API', 'CPU intensive operations', '2024-11-01 08:30:00', '2024-11-01 08:30:00');
-*/
+-- 🔧 개발/QA 테스트용 (집중적인 테스트 활동)
+('active-qa-001', 'qa-test-001', 'LOGIN', '2025-01-20', '2025-01-20 08:30:00'),
+('active-qa-002', 'qa-test-001', 'API_CALL', '2025-01-20', '2025-01-20 09:00:00'),
+('active-load-001', 'load-test-001', 'API_CALL', '2025-01-20', '2025-01-20 10:00:00'),
+('active-dev-001', 'dev-test-001', 'API_CALL', '2025-01-20', '2025-01-20 11:00:00'),
 
--- 6. Shared API 데이터 (활발한 공유 환경) -- 공유 기능 비활성화
-/*
-INSERT INTO shared_api (shared_api_id, original_api_id, creator_id, api_name, description, data_count, created_at, updated_at) VALUES 
--- 🧪 테스트용 공유 APIs
-('shared-test-001', 'api-test-001', 'test-user-001', 'Public Weather API', 'Free weather data for testing', 120, '2024-12-05 10:00:00', '2024-12-05 10:00:00'),
-('shared-demo-001', 'api-demo-001', 'demo-user-001', 'Calculator Service', 'Demo calculation service', 85, '2024-12-05 11:00:00', '2024-12-05 11:00:00'),
+-- 🚀 고활용 사용자들 (매우 활발한 활동)
+('active-power-001', 'power-user-001', 'LOGIN', '2025-01-19', '2025-01-19 07:30:00'),
+('active-power-002', 'power-user-001', 'API_CALL', '2025-01-19', '2025-01-19 08:00:00'),
+('active-power-003', 'power-user-001', 'API_CALL', '2025-01-20', '2025-01-20 08:00:00'),
+('active-heavy-001', 'heavy-user-001', 'LOGIN', '2025-01-20', '2025-01-20 08:30:00'),
+('active-heavy-002', 'heavy-user-001', 'API_CALL', '2025-01-20', '2025-01-20 09:00:00'),
 
--- 🆓 FREE 사용자들의 공유
-('shared-free-001', 'api-free-001', 'free-user-001', 'Community Weather', 'Community weather service', 95, '2024-12-20 10:00:00', '2024-12-20 10:00:00'),
-('shared-free-002', 'api-free-004', 'free-user-003', 'Code Examples Library', 'Programming snippets collection', 156, '2024-12-20 16:00:00', '2024-12-20 16:00:00'),
-('shared-free-003', 'api-free-005', 'free-user-003', 'Git Commands Helper', 'Git command reference API', 203, '2024-12-21 09:00:00', '2024-12-21 09:00:00'),
-
--- 💎 PRO 사용자들의 공유 (고품질 서비스)
-('shared-pro-001', 'api-pro-001', 'pro-user-001', 'Business Analytics Suite', 'Professional analytics tools', 847, '2024-11-15 11:00:00', '2024-11-15 11:00:00'),
-('shared-pro-002', 'api-pro-005', 'pro-user-002', 'Enterprise Auth System', 'Enterprise-grade authentication', 562, '2024-11-20 14:30:00', '2024-11-20 14:30:00'),
-('shared-pro-003', 'api-pro-006', 'pro-user-002', 'Data Processing Pipeline', 'Big data processing service', 731, '2024-11-25 16:00:00', '2024-11-25 16:00:00'),
-('shared-pro-004', 'api-pro-008', 'pro-user-003', 'Startup KPI Tracker', 'Startup metrics dashboard', 394, '2024-11-30 12:00:00', '2024-11-30 12:00:00'),
-
--- 🔄 플랜 변경 사용자들의 공유
-('shared-switch-001', 'api-switch-001', 'switcher-001', 'Stock Insights Pro', 'Advanced stock analysis', 425, '2024-11-10 12:00:00', '2024-11-10 12:00:00'),
-('shared-switch-002', 'api-switch-004', 'switcher-002', 'Growth Analytics', 'Business growth tracking', 287, '2024-12-01 15:00:00', '2024-12-01 15:00:00');
-*/
-
--- 7. User Saved API 데이터 (다양한 저장 패턴) -- 공유 기능 비활성화
-/*
-INSERT INTO user_saved_api (saved_api_id, user_id, shared_api_id, api_name, description, data_count, is_favorite, created_at, updated_at) VALUES 
--- 🧪 테스트 사용자들의 저장
-('saved-test-001', 'test-user-001', 'shared-pro-001', 'Business Analytics', 'Testing analytics features', 25, false, '2024-12-10 14:00:00', '2024-12-10 14:00:00'),
-('saved-demo-001', 'demo-user-001', 'shared-free-002', 'Code Examples', 'Demo code samples', 12, false, '2024-12-10 15:00:00', '2024-12-10 15:00:00'),
-
--- 🆓 FREE 사용자들의 저장 (학습 목적)
-('saved-free-001', 'free-user-001', 'shared-pro-001', 'Analytics for Learning', 'Learning business analytics', 18, false, '2024-12-22 09:00:00', '2024-12-22 09:00:00'),
-('saved-free-002', 'free-user-002', 'shared-free-003', 'Git Commands', 'Git reference guide', 32, false, '2024-12-22 11:00:00', '2024-12-22 11:00:00'),
-('saved-free-003', 'free-user-003', 'shared-switch-001', 'Stock Analysis Study', 'Learning stock analysis', 8, false, '2024-12-22 14:30:00', '2024-12-22 14:30:00'),
-('saved-free-004', 'free-user-004', 'shared-pro-002', 'Auth System Study', 'Learning authentication', 15, false, '2024-12-22 14:30:00', '2024-12-22 14:30:00'),
-
--- 💎 PRO 사용자들의 저장 (비즈니스 활용)
-('saved-pro-001', 'pro-user-001', 'shared-switch-001', 'Stock Analysis for Business', 'Business investment analysis', 78, false, '2024-11-25 10:00:00', '2024-11-25 10:00:00'),
-('saved-pro-002', 'pro-user-002', 'shared-pro-001', 'Cross-Company Analytics', 'Inter-company analytics', 134, false, '2024-11-26 15:00:00', '2024-11-26 15:00:00'),
-('saved-pro-003', 'pro-user-003', 'shared-pro-003', 'Data Pipeline Integration', 'Startup data processing', 89, false, '2024-12-01 11:00:00', '2024-12-01 11:00:00'),
-('saved-pro-004', 'pro-user-004', 'shared-switch-002', 'Growth Metrics Analysis', 'Agency growth tracking', 67, false, '2024-12-05 13:00:00', '2024-12-05 13:00:00'),
-
--- 🔧 개발/QA 테스트용 저장
-('saved-qa-001', 'qa-test-001', 'shared-test-001', 'QA Weather Testing', 'QA testing weather API', 45, false, '2024-12-10 09:30:00', '2024-12-10 09:30:00'),
-('saved-load-001', 'load-test-001', 'shared-pro-003', 'Load Test Data Pipeline', 'Performance testing pipeline', 156, false, '2024-12-10 10:00:00', '2024-12-10 10:00:00');
-*/
-
--- 8. API Usage Record 데이터 (현재 날짜 기준 현실적인 사용 패턴)
-INSERT INTO api_usage_record (record_id, user_id, api_endpoint, request_count, record_date, created_at) VALUES 
--- 🧪 테스트 사용자들 (오늘과 어제 데이터)
-('usage-test-001', 'test-user-001', '/api/weather', 25, '2025-01-19', '2025-01-19 09:00:00'),
-('usage-test-002', 'test-user-001', '/api/weather', 18, '2025-01-20', '2025-01-20 10:00:00'),
-('usage-test-003', 'test-user-001', '/api/news', 12, '2025-01-20', '2025-01-20 11:00:00'),
-('usage-demo-001', 'demo-user-001', '/api/calculator', 8, '2025-01-20', '2025-01-20 12:00:00'),
-
--- 🆓 FREE 사용자들 (제한된 사용량 - 일일 100회 이하)
-('usage-free-001', 'free-user-001', '/api/weather', 35, '2025-01-19', '2025-01-19 09:00:00'),
-('usage-free-002', 'free-user-001', '/api/weather', 42, '2025-01-20', '2025-01-20 10:00:00'),
-('usage-free-003', 'free-user-001', '/api/todo', 18, '2025-01-20', '2025-01-20 11:30:00'),
-('usage-free-004', 'free-user-002', '/api/timer', 28, '2025-01-20', '2025-01-20 12:00:00'),
-('usage-free-005', 'free-user-003', '/api/code-snippets', 67, '2025-01-20', '2025-01-20 15:00:00'),
-('usage-free-006', 'free-user-003', '/api/git-helper', 23, '2025-01-20', '2025-01-20 16:00:00'),
-('usage-free-007', 'free-user-004', '/api/study', 15, '2025-01-20', '2025-01-20 17:00:00'),
-('usage-free-008', 'free-user-005', '/api/hobby', 9, '2025-01-20', '2025-01-20 18:00:00'),
-
--- 💎 PRO 사용자들 (높은 사용량 - 일일 1000-5000회)
-('usage-pro-001', 'pro-user-001', '/api/analytics', 1247, '2025-01-19', '2025-01-19 08:00:00'),
-('usage-pro-002', 'pro-user-001', '/api/analytics', 1356, '2025-01-20', '2025-01-20 09:00:00'),
-('usage-pro-003', 'pro-user-001', '/api/crm', 832, '2025-01-20', '2025-01-20 09:30:00'),
-('usage-pro-004', 'pro-user-001', '/api/payments', 456, '2025-01-20', '2025-01-20 14:15:00'),
-('usage-pro-005', 'pro-user-001', '/api/inventory', 623, '2025-01-20', '2025-01-20 16:00:00'),
-('usage-pro-006', 'pro-user-002', '/api/enterprise-auth', 743, '2025-01-20', '2025-01-20 10:00:00'),
-('usage-pro-007', 'pro-user-002', '/api/data-pipeline', 1789, '2025-01-20', '2025-01-20 11:30:00'),
-('usage-pro-008', 'pro-user-002', '/api/ml-model', 567, '2025-01-20', '2025-01-20 16:30:00'),
-('usage-pro-009', 'pro-user-003', '/api/startup-metrics', 892, '2025-01-20', '2025-01-20 12:00:00'),
-('usage-pro-010', 'pro-user-004', '/api/agency-analytics', 634, '2025-01-20', '2025-01-20 13:45:00'),
-
--- 🔄 플랜 변경 사용자들 (업그레이드 후 사용량 급증)
-('usage-switch-001', 'switcher-001', '/api/stock-analysis', 89, '2024-10-30', '2024-10-30 11:00:00'), -- FREE 시절
-('usage-switch-002', 'switcher-001', '/api/stock-analysis', 1234, '2025-01-19', '2025-01-19 12:00:00'), -- PRO 전환 후
-('usage-switch-003', 'switcher-001', '/api/crypto-bot', 756, '2025-01-20', '2025-01-20 14:00:00'),
-('usage-switch-004', 'switcher-001', '/api/portfolio', 432, '2025-01-20', '2025-01-20 15:30:00'),
-('usage-switch-005', 'switcher-002', '/api/growth-metrics', 687, '2025-01-20', '2025-01-20 16:00:00'),
-
--- 🆕 최근 가입 사용자들 (낮은 사용량)
-('usage-new-001', 'new-user-001', '/api/weather', 5, '2025-01-20', '2025-01-20 12:00:00'),
-('usage-new-002', 'new-user-002', '/api/test', 2, '2025-01-20', '2025-01-20 15:00:00'),
-('usage-new-003', 'new-user-003', '/api/demo', 1, '2025-01-20', '2025-01-20 17:00:00'),
-
--- 🔧 개발/QA 테스트용 (집중적인 테스트 패턴)
-('usage-qa-001', 'qa-test-001', '/api/qa-testing', 234, '2025-01-20', '2025-01-20 09:00:00'),
-('usage-qa-002', 'qa-test-001', '/api/qa-testing', 189, '2025-01-20', '2025-01-20 14:00:00'),
-('usage-load-001', 'load-test-001', '/api/load-test', 2567, '2025-01-20', '2025-01-20 10:00:00'),
-('usage-load-002', 'load-test-001', '/api/performance', 1834, '2025-01-20', '2025-01-20 15:00:00'),
-
--- 🚀 고활용 사용자들 (매우 높은 사용량)
-('usage-power-001', 'power-user-001', '/api/high-volume', 4567, '2025-01-20', '2025-01-20 08:00:00'),
-('usage-power-002', 'power-user-001', '/api/intensive', 3421, '2025-01-20', '2025-01-20 13:00:00'),
-('usage-heavy-001', 'heavy-user-001', '/api/cpu-intensive', 3789, '2025-01-20', '2025-01-20 09:00:00'),
-('usage-heavy-002', 'heavy-user-001', '/api/data-processing', 2987, '2025-01-20', '2025-01-20 16:00:00');
+-- 📊 과거 데이터 (통계 테스트용)
+('active-past-001', 'test-user-001', 'API_CALL', '2025-01-15', '2025-01-15 10:00:00'),
+('active-past-002', 'pro-user-001', 'API_CALL', '2025-01-15', '2025-01-15 11:00:00'),
+('active-past-003', 'free-user-001', 'API_CALL', '2025-01-16', '2025-01-16 12:00:00'),
+('active-past-004', 'pro-user-002', 'API_CALL', '2025-01-17', '2025-01-17 13:00:00'),
+('active-past-005', 'switcher-001', 'API_CALL', '2025-01-18', '2025-01-18 14:00:00');
 
 
 

@@ -6,7 +6,7 @@ spring:
   application:
     name: USER-SERVICE
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE:prod}
     # trusted-gateway: API Gateway 신뢰 기반 인증 모드 (JWT 재검증 안함) - 기본값
     # prod: 프로덕션 모드 (JWT 재검증 함) - 레거시 모드
     # staging: 스테이징 모드 (JWT 재검증 함) - 레거시 모드
@@ -44,7 +44,7 @@ spring:
 
   # 데이터베이스 설정 (MySQL 사용)
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/userservice?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_svc_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&autoCommit=false}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1111}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -54,6 +54,7 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
+      auto-commit: false
 
   # data:
   #   redis:
@@ -72,8 +73,8 @@ spring:
       client:
         registration:
           auth0:
-            client-id: ${AUTH0_CLIENT_ID:}
-            client-secret: ${AUTH0_CLIENT_SECRET:}
+            client-id: ${AUTH0_CLIENT_ID:FbvvzTKMwAFKK6Zo7EQwFNhZCIbTXGNv}
+            client-secret: ${AUTH0_CLIENT_SECRET:cL_HwcnMk583zVfP3gMpttfwsNXZDSr8S6g9Sr7MfePMUdzq8y_RZj8v06xIaF7p}
             authorization-grant-type: authorization_code
             redirect-uri: "http://localhost:8081/login/oauth2/code/{registrationId}"
             scope:
@@ -162,25 +163,25 @@ springdoc:
   show-actuator: false
 
 # Stripe 설정
-stripe:
-  secret-key: ${STRIPE_SECRET_KEY}
-  public-key: ${STRIPE_PUBLIC_KEY}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
-  # Stripe에 등록된 Product IDs
-  products:
-    free: ${STRIPE_FREE_PRODUCT_ID}
-    pro: ${STRIPE_PRO_PRODUCT_ID}
-  # Stripe에 등록된 Price IDs
-  prices:
-    pro-monthly: ${STRIPE_PRO_MONTHLY_PRICE_ID}
+#stripe:
+#  secret-key: ${STRIPE_SECRET_KEY:dummy-stripe-secret}
+#  public-key: ${STRIPE_PUBLIC_KEY:dummy-stripe-public}
+#  webhook-secret: ${STRIPE_WEBHOOK_SECRET:dummy-webhook-secret}
+#  # Stripe에 등록된 Product IDs
+#  products:
+#    free: ${STRIPE_FREE_PRODUCT_ID:dummy-free-product}
+#    pro: ${STRIPE_PRO_PRODUCT_ID:dummy-pro-product}
+#  # Stripe에 등록된 Price IDs
+#  prices:
+#    pro-monthly: ${STRIPE_PRO_MONTHLY_PRICE_ID:dummy-price}
 
 # TossPay 설정
 toss:
-  client-key: ${TOSSPAY_CLIENT_KEY}
-  secret-key: ${TOSSPAY_SECRET_KEY}
-  success-url: ${TOSSPAY_SUCCESS_URL}
-  fail-url: ${TOSSPAY_FAIL_URL}
-  confirm-url: ${TOSSPAY_CONFIRM_URL}
+  client-key: ${TOSSPAY_CLIENT_KEY:test_ck_ORzdMaqN3wKEX17JQBNb35AkYXQG}
+  secret-key: ${TOSSPAY_SECRET_KEY:test_sk_YZloq5vDnyRQOBEgko3YrPJ7X96Eoqte}
+  success-url: ${TOSSPAY_SUCCESS_URL:http://localhost:8081/api/tosspay/success}
+  fail-url: ${TOSSPAY_FAIL_URL:http://localhost:8081/api/tosspay/fail}
+  confirm-url: ${TOSSPAY_CONFIRM_URL:https://api.tosspayments.com/v1/payments/confirm}
   # 결제 금액 설정 (원 단위)
   prices:
     proMonthly: 22000
@@ -263,7 +264,7 @@ management:
 auth0:
   issuerUri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
   audience: ${AUTH0_AUDIENCE:http://localhost:8081/}  # User Service 포트로 변경
-  client-id: ${AUTH0_CLIENT_ID}
+  client-id: ${AUTH0_CLIENT_ID:gleGDUmC5iSKvbt4IN12t7cAIHfwEYQI}
   logout-redirect-uri: ${AUTH0_LOGOUT_REDIRECT_URI:http://localhost:8081/api/auth/logout-success}
 
 # Eureka 클라이언트 설정
@@ -314,14 +315,16 @@ spring:
   
   # 개발 환경에서는 MySQL 사용
   datasource:
-    url: jdbc:mysql://localhost:3306/userservice
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_svc_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&autoCommit=false}
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: ${DB_PASSWORD:1111}
+    password: ${DB_PASSWORD:cell4086}
+    hikari:
+      auto-commit: false
     
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -349,7 +352,7 @@ spring:
 
   # 프로덕션 환경에서는 MySQL 사용
   datasource:
-    url: ${DB_URL:jdbc:mysql://mysql:3306/userservice?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=false&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&maxReconnects=10}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_svc_db?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=false&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&maxReconnects=10&autoCommit=false}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -361,10 +364,11 @@ spring:
       connection-timeout: 30000
       leak-detection-threshold: 60000
       pool-name: UserServiceHikariCP
+      auto-commit: false
 
   jpa:
     hibernate:
-      ddl-auto: ${DDL_AUTO:validate}
+      ddl-auto: ${DDL_AUTO:update}
     show-sql: false
     properties:
       hibernate:
@@ -406,7 +410,7 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
-      group-id: ${SERVICE_NAME}-group
+      group-id: ${SERVICE_NAME:user-svc}-group
       auto-offset-reset: earliest
       enable-auto-commit: false
       properties:
@@ -513,13 +517,14 @@ spring:
 
   # 스테이징 환경에서도 MySQL 사용 (프로덕션과 동일하지만 더 관대한 설정)
   datasource:
-    url: ${DB_URL:jdbc:mysql://mysql:3306/userservice_staging?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=false&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/userservice_staging?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=false&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&autoCommit=false}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 15
       minimum-idle: 5
+      auto-commit: false
 
   jpa:
     hibernate:
@@ -539,5 +544,5 @@ spring:
 # 스테이징 로깅 설정
 logging:
   level:
-    org.example.usersvc: DEBUG
-    org.springframework.security: INFO
+    org.springframework: DEBUG
+    org.hibernate: DEBUG

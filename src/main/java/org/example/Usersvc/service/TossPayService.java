@@ -9,6 +9,8 @@ import org.example.Usersvc.repository.UserRepository;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.example.Usersvc.event.model.UserSubscriptionUpdateEvent;
+import org.example.Usersvc.event.publisher.EventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -34,6 +36,7 @@ public class TossPayService {
     private final PlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final RestTemplate restTemplate = new RestTemplate();
+    private final EventPublisher eventPublisher;
 
     /**
      * 구독 결제 요청 생성
@@ -307,8 +310,15 @@ public class TossPayService {
 
             UserSubscription savedSubscription = userSubscriptionRepository.save(subscription);
             
+            // UserSubscriptionUpdateEvent 발행
+            UserSubscriptionUpdateEvent event = new UserSubscriptionUpdateEvent(
+                user.getUserId(), "FREE", "PRO", "TOSSPAY_PAYMENT_COMPLETED"
+            );
+            eventPublisher.publishEvent("SubscriptionEvents", event);
+            
             log.info("✅ 기존 구독을 PRO로 업데이트 완료 - userId: {}, subscriptionId: {}", 
                 user.getUserId(), savedSubscription.getSubscriptionId());
+            log.info("📢 구독 업데이트 이벤트 발행 완료 - userId: {}", user.getUserId());
         } else {
             // 구독이 없는 경우 새로 생성 (일반적으로는 발생하지 않아야 함)
             log.warn("기존 구독이 없어서 새 PRO 구독을 생성합니다 - userId: {}", user.getUserId());
@@ -325,8 +335,15 @@ public class TossPayService {
 
             UserSubscription savedSubscription = userSubscriptionRepository.save(newSubscription);
             
+            // UserSubscriptionUpdateEvent 발행
+            UserSubscriptionUpdateEvent event = new UserSubscriptionUpdateEvent(
+                user.getUserId(), "FREE", "PRO", "TOSSPAY_PAYMENT_COMPLETED"
+            );
+            eventPublisher.publishEvent("SubscriptionEvents", event);
+            
             log.info("✅ 새 PRO 구독 생성 완료 - userId: {}, subscriptionId: {}", 
                 user.getUserId(), savedSubscription.getSubscriptionId());
+            log.info("📢 구독 업데이트 이벤트 발행 완료 - userId: {}", user.getUserId());
         }
     }
 

@@ -24,13 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.example.Usersvc.domain.ApiUsageRecord;
-import org.example.Usersvc.repository.ApiUsageRecordRepository;
+import org.example.Usersvc.domain.ActiveUserRecord;
+import org.example.Usersvc.repository.ActiveUserRecordRepository;
 import org.example.Usersvc.util.UserIdGenerator;
 import org.example.Usersvc.common.logging.UserActionLogger;
 import org.example.Usersvc.common.logging.SecurityAuditLogger;
@@ -64,7 +62,7 @@ public class UserService {
     private final EventPublisherService eventPublisher;
     private final PlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
-    private final ApiUsageRecordRepository apiUsageRecordRepository;
+    private final ActiveUserRecordRepository activeUserRecordRepository;
     // private final CustomApiRepository customApiRepository; // Custom API Service로 이관
     // private final SharedApiRepository sharedApiRepository; // 공유 기능 비활성화
     // private final UserSavedApiRepository userSavedApiRepository; // 공유 기능 비활성화
@@ -73,7 +71,7 @@ public class UserService {
     private DevRateLimitService devRateLimitService;
     
     @Autowired(required = false)
-    private ApiUsageTrackingService apiUsageTrackingService;
+    private ActiveUserTrackingService activeUserTrackingService;
     
     @Autowired(required = false)
     private UserSecretsArnService userSecretsArnService;
@@ -192,62 +190,7 @@ public class UserService {
         
         return user;
     }
-    
-    /**
-     * Auth0 ID로 사용자 조회
-     * 
-     * Auth0 JWT 토큰 검증 후 사용자 정보를 조회할 때 사용됩니다.
-     * 
-     * @param auth0Id Auth0에서 제공하는 사용자 식별자
-     * @return 사용자 정보, 존재하지 않으면 Optional.empty()
-     * @throws IllegalArgumentException Auth0 ID가 유효하지 않은 경우
-     */
-    @Transactional(readOnly = true)
-    public Optional<User> getUserByAuth0Id(String auth0Id) {
-        log.debug("Auth0 ID로 조회 시작 - auth0Id: {}", auth0Id);
-        
-        validateAuth0Id(auth0Id);
-        
-        Optional<User> user = userRepository.findByAuth0Id(auth0Id);
-        log.debug("Auth0 ID로 조회 완료 - auth0Id: {}, found: {}", auth0Id, user.isPresent());
-        
-        return user;
-    }
-    
-    /**
-     * 이메일로 사용자 조회
-     * 
-     * @param userEmail 조회할 사용자의 이메일 주소
-     * @return 사용자 정보, 존재하지 않으면 Optional.empty()
-     * @throws IllegalArgumentException 이메일이 유효하지 않은 경우
-     */
-    @Transactional(readOnly = true)
-    public Optional<User> getUserByEmail(String userEmail) {
-        log.debug("이메일로 조회 시작 - email: {}", userEmail);
-        
-        validateEmail(userEmail);
-        
-        Optional<User> user = userRepository.findByUserEmail(userEmail);
-        log.debug("이메일로 조회 완료 - email: {}, found: {}", userEmail, user.isPresent());
-        
-        return user;
-    }
-    
-    /**
-     * 모든 사용자 조회
-     * 
-     * @return 전체 사용자 목록
-     */
-    @Transactional(readOnly = true)
-    public List<User> getAllUsers() {
-        log.debug("전체 사용자 조회 시작");
-        
-        List<User> users = userRepository.findAll();
-        log.debug("전체 사용자 조회 완료 - count: {}", users.size());
-        
-        return users;
-    }
-    
+
     /**
      * 모든 사용자 조회 (페이징)
      * 
@@ -617,10 +560,10 @@ public class UserService {
         long dayUsage = 0;
         
         try {
-            if (apiUsageTrackingService != null) {
-                minuteUsage = apiUsageTrackingService.getCurrentMinuteUsage(user);
-                hourUsage = apiUsageTrackingService.getCurrentHourUsage(user);
-                dayUsage = apiUsageTrackingService.getCurrentDayUsage(user);
+            if (activeUserTrackingService != null) {
+                minuteUsage = activeUserTrackingService.getCurrentMinuteUsage(user);
+                hourUsage = activeUserTrackingService.getCurrentHourUsage(user);
+                dayUsage = activeUserTrackingService.getCurrentDayUsage(user);
             } else if (devRateLimitService != null) {
                 minuteUsage = devRateLimitService.getCurrentMinuteUsage(user);
                 hourUsage = devRateLimitService.getCurrentHourUsage(user);
@@ -755,7 +698,7 @@ public class UserService {
                     .createdAt(user.getCreatedAt())
                     .build();
             
-            eventPublisher.publishEvent("user-service-events", event);
+            eventPublisher.publishEvent("user-events", event);
             log.info("사용자 생성 이벤트 발행 성공 - userId: {}", user.getUserId());
         } catch (Exception e) {
             log.warn("사용자 생성 이벤트 발행 실패 - userId: {}", user.getUserId(), e);
@@ -776,7 +719,7 @@ public class UserService {
                     .deletionReason(deletionReason)
                     .build();
             
-            eventPublisher.publishEvent("user-service-events", event);
+            eventPublisher.publishEvent("user-events", event);
             log.info("사용자 삭제 이벤트 발행 성공 - userId: {}", user.getUserId());
         } catch (Exception e) {
             log.warn("사용자 삭제 이벤트 발행 실패 - userId: {}", user.getUserId(), e);
@@ -926,26 +869,26 @@ public class UserService {
      */
     private void deleteUserUsageData(User user) {
         try {
-            // ApiUsageRecord 테이블에서 사용자 관련 데이터 삭제
+            // ActiveUserRecord 테이블에서 사용자 관련 데이터 삭제
             try {
-                List<ApiUsageRecord> apiUsageRecords = apiUsageRecordRepository.findAll().stream()
+                List<ActiveUserRecord> activeUserRecords = activeUserRecordRepository.findAll().stream()
                     .filter(record -> record.getUser().equals(user))
                     .collect(Collectors.toList());
                 
-                if (!apiUsageRecords.isEmpty()) {
-                    apiUsageRecordRepository.deleteAll(apiUsageRecords);
-                    log.info("API 사용량 기록 삭제 완료 - userId: {}, count: {}", 
-                            user.getUserId(), apiUsageRecords.size());
+                if (!activeUserRecords.isEmpty()) {
+                    activeUserRecordRepository.deleteAll(activeUserRecords);
+                    log.info("활성 사용자 기록 삭제 완료 - userId: {}, count: {}", 
+                            user.getUserId(), activeUserRecords.size());
                 }
             } catch (Exception e) {
-                log.error("API 사용량 기록 삭제 실패 - userId: {}", user.getUserId(), e);
+                log.error("활성 사용자 기록 삭제 실패 - userId: {}", user.getUserId(), e);
             }
             
-            if (apiUsageTrackingService != null) {
-                // API 사용량 추적 데이터 삭제 (실제 구현)
+            if (activeUserTrackingService != null) {
+                // 활성 사용자 추적 데이터 삭제 (실제 구현)
                 try {
-                    // API 사용량 추적 서비스에 사용자 데이터 삭제 요청
-                    // apiUsageTrackingService.deleteUserUsageData(user.getUserId());
+                    // 활성 사용자 추적 서비스에 사용자 데이터 삭제 요청
+                    activeUserTrackingService.resetCounters(user.getUserId());
                     log.info("API 사용량 추적 데이터 삭제 - userId: {}", user.getUserId());
                 } catch (Exception e) {
                     log.error("API 사용량 추적 데이터 삭제 실패 - userId: {}", user.getUserId(), e);
@@ -1009,7 +952,7 @@ public class UserService {
                     .deletionReason(reason != null ? reason : "User requested account deletion")
                     .build();
             
-            eventPublisher.publishEvent("user-service-events", event);
+            eventPublisher.publishEvent("user-events", event);
             log.info("사용자 삭제 이벤트 발행 완료 - userId: {}", user.getUserId());
         } catch (Exception e) {
             log.warn("사용자 삭제 이벤트 발행 실패 - userId: {}", user.getUserId(), e);

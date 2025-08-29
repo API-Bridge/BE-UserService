@@ -40,38 +40,38 @@ public class InternalUserController {
      * @param userId 비활성화할 사용자 ID
      * @return 처리 결과
      */
-    @PatchMapping("/{userId}/deactivate")
-    @Operation(summary = "사용자 비활성화", description = "사용자를 비활성화 상태로 변경합니다 (복구 가능)")
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "사용자 비활성화 성공"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 내부 오류")
-    })
-    public ResponseEntity<org.example.Usersvc.common.response.ApiResponse> deactivateUser(
-            @Parameter(description = "사용자 ID", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
-            @PathVariable String userId) {
-        
-        log.info("Internal API: Deactivating user {}", userId);
-        
-        try {
-            boolean success = userService.deactivateUser(userId);
-            
-            if (success) {
-                log.info("Successfully deactivated user: {}", userId);
-                return ResponseEntity.ok(
-                    org.example.Usersvc.common.response.ApiResponse.success("사용자가 성공적으로 비활성화되었습니다.", "DEACTIVATED")
-                );
-            } else {
-                log.warn("Failed to deactivate user: {} - User not found", userId);
-                return ResponseEntity.notFound().build();
-            }
-            
-        } catch (Exception e) {
-            log.error("Error deactivating user: {}", userId, e);
-            return ResponseEntity.internalServerError()
-                .body(org.example.Usersvc.common.response.ApiResponse.error("사용자 비활성화 중 오류가 발생했습니다.", e.getMessage()));
-        }
-    }
+//    @PatchMapping("/{userId}/deactivate") - 사용자 비활성화 기능 없음
+//    @Operation(summary = "사용자 비활성화", description = "사용자를 비활성화 상태로 변경합니다 (복구 가능)")
+//    @ApiResponses({
+//        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "사용자 비활성화 성공"),
+//        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+//        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 내부 오류")
+//    })
+//    public ResponseEntity<org.example.Usersvc.common.response.ApiResponse> deactivateUser(
+//            @Parameter(description = "사용자 ID", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+//            @PathVariable String userId) {
+//
+//        log.info("Internal API: Deactivating user {}", userId);
+//
+//        try {
+//            boolean success = userService.deactivateUser(userId);
+//
+//            if (success) {
+//                log.info("Successfully deactivated user: {}", userId);
+//                return ResponseEntity.ok(
+//                    org.example.Usersvc.common.response.ApiResponse.success("사용자가 성공적으로 비활성화되었습니다.", "DEACTIVATED")
+//                );
+//            } else {
+//                log.warn("Failed to deactivate user: {} - User not found", userId);
+//                return ResponseEntity.notFound().build();
+//            }
+//
+//        } catch (Exception e) {
+//            log.error("Error deactivating user: {}", userId, e);
+//            return ResponseEntity.internalServerError()
+//                .body(org.example.Usersvc.common.response.ApiResponse.error("사용자 비활성화 중 오류가 발생했습니다.", e.getMessage()));
+//        }
+//    }
 
     /**
      * 사용자 완전 삭제
