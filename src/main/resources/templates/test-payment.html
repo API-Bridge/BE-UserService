@@ -19,7 +19,7 @@
             orderId: 'order_' + new Date().getTime(),
             orderName: '1000 포인트 결제',
             customerName: '홍길동',
-            successUrl: 'http://localhost:8080/api/payments/confirm?userId={user_id}',
+            successUrl: 'http://localhost:8080/gateway/users/tosspay/success',
             failUrl: 'http://localhost:8080/fail'
         });
     });

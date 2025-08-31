@@ -41,33 +41,34 @@ public class TossPayService {
     /**
      * 구독 결제 요청 생성
      */
-    public Map<String, Object> createSubscriptionPayment(String userId, PlanName planName) {
-        log.info("TossPay 구독 결제 요청 생성 - userId: {}, planName: {}", userId, planName);
+    public Map<String, Object> createSubscriptionPayment(String auth0Id, PlanName planName) {
+        log.info("TossPay 구독 결제 요청 생성 - auth0Id: {}, planName: {}", auth0Id, planName);
 
-        // 사용자 확인
-        log.debug("사용자 조회 시작 - userId: {}", userId);
-        User user = userRepository.findById(userId)
+        // 사용자 확인 (Auth0 ID로 조회)
+        log.debug("사용자 조회 시작 - auth0Id: {}", auth0Id);
+        User user = userRepository.findByAuth0Id(auth0Id)
                 .orElseThrow(() -> {
-                    log.error("사용자를 찾을 수 없습니다 - userId: {}", userId);
-                    return new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId);
+                    log.error("사용자를 찾을 수 없습니다 - auth0Id: {}", auth0Id);
+                    return new IllegalArgumentException("사용자를 찾을 수 없습니다: " + auth0Id);
                 });
-        log.debug("사용자 조회 성공 - userId: {}, userEmail: {}", user.getUserId(), user.getUserEmail());
+        log.debug("사용자 조회 성공 - userId: {}, auth0Id: {}, userEmail: {}", 
+                 user.getUserId(), user.getAuth0Id(), user.getUserEmail());
 
         // 플랜 확인
         log.debug("플랜 조회 시작 - planName: {}", planName);
         log.debug("데이터베이스에서 사용할 PlanName enum: {}", planName.name());
-        log.debug("PlanName toString(): {}", planName.toString());
+        log.debug("PlanName toString(): {}", planName);
         
         Plan plan = planRepository.findByPlanName(planName)
                 .orElseThrow(() -> {
                     log.error("플랜을 찾을 수 없습니다 - planName: {}", planName);
-                    log.error("PlanName enum name: {}, toString: {}", planName.name(), planName.toString());
+                    log.error("PlanName enum name: {}, toString: {}", planName.name(), planName);
                     return new IllegalArgumentException("플랜을 찾을 수 없습니다: " + planName);
                 });
         log.debug("플랜 조회 성공 - planName: {}, planId: {}, price: {}", planName, plan.getPlanId(), plan.getPrice());
 
-        // 주문 ID 생성
-        String orderId = "order_" + userId + "_" + System.currentTimeMillis();
+        // 주문 ID 생성 (실제 DB userId 사용)
+        String orderId = "order_" + user.getUserId() + "_" + System.currentTimeMillis();
         
         // 결제 금액 설정
         Integer amount = getAmountByplanName(planName);
@@ -125,16 +126,16 @@ public class TossPayService {
     /**
      * 빌링키 등록 (정기결제용)
      */
-    public Map<String, Object> registerBillingKey(String userId, String customerKey) {
-        log.info("TossPay 빌링키 등록 - userId: {}, customerKey: {}", userId, customerKey);
+    public Map<String, Object> registerBillingKey(String auth0Id, String customerKey) {
+        log.info("TossPay 빌링키 등록 - auth0Id: {}, customerKey: {}", auth0Id, customerKey);
 
         try {
-            // 사용자 확인
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+            // 사용자 확인 (Auth0 ID로 조회)
+            User user = userRepository.findByAuth0Id(auth0Id)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + auth0Id));
 
             // TossPay 빌링키 발급 API 호출
-            Map<String, Object> billingKeyResponse = callTossPayBillingKeyAPI(userId, customerKey);
+            Map<String, Object> billingKeyResponse = callTossPayBillingKeyAPI(user.getUserId(), customerKey);
             
             if (billingKeyResponse != null && billingKeyResponse.containsKey("billingKey")) {
                 // 기존 구독에 빌링키 업데이트
@@ -199,7 +200,7 @@ public class TossPayService {
             Map<String, Object> confirmResult = callTossPayConfirmAPI(paymentKey, orderId, amount);
             
             // 2. 승인 성공 시 DB 업데이트
-            if (confirmResult != null && "DONE".equals(confirmResult.get("status"))) {
+            if ("DONE".equals(confirmResult.get("status"))) {
                 updateSubscriptionAfterPayment(orderId, paymentKey, confirmResult);
                 
                 Map<String, Object> result = new HashMap<>();
@@ -222,7 +223,7 @@ public class TossPayService {
     /**
      * TossPay 승인 API 실제 호출
      */
-    private Map<String, Object> callTossPayConfirmAPI(String paymentKey, String orderId, Integer amount) {
+    private Map callTossPayConfirmAPI(String paymentKey, String orderId, Integer amount) {
         // V2 API 엔드포인트
         String url = tossPayProperties.getConfirmUrl();
         
@@ -247,7 +248,7 @@ public class TossPayService {
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
             
             if (response.getStatusCode().is2xxSuccessful()) {
-                Map<String, Object> responseBody = response.getBody();
+                Map responseBody = response.getBody();
                 log.info("✅ TossPay V2 API 호출 성공: {}", responseBody);
                 
                 // V2 응답 형식에 맞게 처리
@@ -351,7 +352,7 @@ public class TossPayService {
     /**
      * TossPay 빌링키 발급 API 호출
      */
-    private Map<String, Object> callTossPayBillingKeyAPI(String userId, String customerKey) {
+    private Map callTossPayBillingKeyAPI(String userId, String customerKey) {
         // V2 빌링키 발급 API 엔드포인트 
         String url = "https://api.tosspayments.com/v2/billing/authorizations/issue";
         
@@ -380,7 +381,7 @@ public class TossPayService {
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
             
             if (response.getStatusCode().is2xxSuccessful()) {
-                Map<String, Object> responseBody = response.getBody();
+                Map responseBody = response.getBody();
                 log.info("✅ TossPay 빌링키 발급 API 호출 성공: {}", responseBody);
                 
                 return responseBody;
@@ -429,15 +430,19 @@ public class TossPayService {
     /**
      * 빌링키를 사용한 정기결제 실행
      */
-    public Map<String, Object> chargeWithBillingKey(String userId, String billingKey, Integer amount, String orderName) {
-        log.info("빌링키 정기결제 실행 - userId: {}, amount: {}, orderName: {}", userId, amount, orderName);
+    public Map<String, Object> chargeWithBillingKey(String auth0Id, String billingKey, Integer amount, String orderName) {
+        log.info("빌링키 정기결제 실행 - auth0Id: {}, amount: {}, orderName: {}", auth0Id, amount, orderName);
         
         try {
+            // 사용자 확인 (Auth0 ID로 조회)
+            User user = userRepository.findByAuth0Id(auth0Id)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + auth0Id));
+            
             // 빌링키 정기결제 API 호출
-            Map<String, Object> chargeResult = callTossPayBillingChargeAPI(userId, billingKey, amount, orderName);
+            Map<String, Object> chargeResult = callTossPayBillingChargeAPI(user.getUserId(), billingKey, amount, orderName);
             
             if (chargeResult != null && "DONE".equals(chargeResult.get("status"))) {
-                log.info("✅ 빌링키 정기결제 성공 - userId: {}, paymentKey: {}", userId, chargeResult.get("paymentKey"));
+                log.info("✅ 빌링키 정기결제 성공 - auth0Id: {}, paymentKey: {}", auth0Id, chargeResult.get("paymentKey"));
                 
                 Map<String, Object> result = new HashMap<>();
                 result.put("status", "SUCCESS");

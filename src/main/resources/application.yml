@@ -6,8 +6,10 @@ spring:
   application:
     name: USER-SERVICE
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:prod}
-    # trusted-gateway: API Gateway 신뢰 기반 인증 모드 (JWT 재검증 안함) - 기본값
+    active: ${SPRING_PROFILES_ACTIVE:trusted-gateway}
+  config:
+    import: optional:file:.env(.properties)
+#   trusted-gateway: API Gateway 신뢰 기반 인증 모드 (JWT 재검증 안함) - 기본값
     # prod: 프로덕션 모드 (JWT 재검증 함) - 레거시 모드
     # staging: 스테이징 모드 (JWT 재검증 함) - 레거시 모드
 
@@ -44,9 +46,9 @@ spring:
 
   # 데이터베이스 설정 (MySQL 사용)
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/user_svc_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&autoCommit=false}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_svc_db?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&autoCommit=false}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:1111}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -73,8 +75,8 @@ spring:
       client:
         registration:
           auth0:
-            client-id: ${AUTH0_CLIENT_ID:FbvvzTKMwAFKK6Zo7EQwFNhZCIbTXGNv}
-            client-secret: ${AUTH0_CLIENT_SECRET:cL_HwcnMk583zVfP3gMpttfwsNXZDSr8S6g9Sr7MfePMUdzq8y_RZj8v06xIaF7p}
+            client-id: ${AUTH0_CLIENT_ID:fzwFru3aG5pUJWsofqjxXxbYmWfzrnFX}
+            client-secret: ${AUTH0_CLIENT_SECRET:ZE9q5_Xbkf9kaW9q29qBTWWlJD5Ps8sRNLL6qj4t2c9XwdlR_nO6f_nE4zBC0IS7}
             authorization-grant-type: authorization_code
             redirect-uri: "http://localhost:8081/login/oauth2/code/{registrationId}"
             scope:
@@ -83,17 +85,13 @@ spring:
               - email
         provider:
           auth0:
-            issuer-uri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
-            authorization-uri: https://api-bridge.us.auth0.com/authorize
-            token-uri: https://api-bridge.us.auth0.com/oauth/token
-            user-info-uri: https://api-bridge.us.auth0.com/userinfo
-            jwk-set-uri: https://api-bridge.us.auth0.com/.well-known/jwks.json
+            issuer-uri: ${AUTH0_ISSUER_URI:https://dev-q64r0n0blzhir6y0.us.auth0.com/}
       # OAuth2 Resource Server 설정 (JWT 검증용)
       resourceserver:
         jwt:
           # Auth0 Issuer URI (JWT 발급자)
-          issuer-uri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
-          audience: ${AUTH0_AUDIENCE:http://localhost:8081/}
+          issuer-uri: ${AUTH0_ISSUER_URI:https://dev-q64r0n0blzhir6y0.us.auth0.com/}
+          audience: ${AUTH0_AUDIENCE:https://ApiBridge/}
           # JWKS URI (공개키 엔드포인트) - 자동 설정됨
           # jwk-set-uri: ${AUTH0_ISSUER_URI}/.well-known/jwks.json
 
@@ -262,9 +260,9 @@ management:
 
 # Auth0 설정 (User Service에서 Auth0 로그인 처리)
 auth0:
-  issuerUri: ${AUTH0_ISSUER_URI:https://api-bridge.us.auth0.com/}
-  audience: ${AUTH0_AUDIENCE:http://localhost:8081/}  # User Service 포트로 변경
-  client-id: ${AUTH0_CLIENT_ID:gleGDUmC5iSKvbt4IN12t7cAIHfwEYQI}
+  issuerUri: ${AUTH0_ISSUER_URI:https://dev-q64r0n0blzhir6y0.us.auth0.com/}
+  audience: ${AUTH0_AUDIENCE:https://ApiBridge/}
+  client-id: ${AUTH0_CLIENT_ID:fzwFru3aG5pUJWsofqjxXxbYmWfzrnFX}
   logout-redirect-uri: ${AUTH0_LOGOUT_REDIRECT_URI:http://localhost:8081/api/auth/logout-success}
 
 # Eureka 클라이언트 설정
@@ -318,7 +316,7 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/user_svc_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&autoCommit=false}
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: ${DB_PASSWORD:cell4086}
+    password: ${DB_PASSWORD}
     hikari:
       auto-commit: false
     

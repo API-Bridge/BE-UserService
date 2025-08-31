@@ -91,7 +91,7 @@ public class InternalUserController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<org.example.Usersvc.common.response.ApiResponse> deleteUser(
-            @Parameter(description = "사용자 ID", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @Parameter(description = "사용자 Auth0 ID", required = true, example = "google-oauth2|117885903921309558140")
             @PathVariable String userId) {
         
         log.warn("Internal API: Permanently deleting user {}", userId);
@@ -133,7 +133,7 @@ public class InternalUserController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<org.example.Usersvc.common.response.ApiResponse> activateUser(
-            @Parameter(description = "사용자 ID", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @Parameter(description = "사용자 Auth0 ID", required = true, example = "google-oauth2|117885903921309558140")
             @PathVariable String userId) {
         
         log.info("Internal API: Activating user {}", userId);
@@ -175,7 +175,7 @@ public class InternalUserController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<org.example.Usersvc.common.response.ApiResponse<String>> getUserStatus(
-            @Parameter(description = "사용자 ID", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @Parameter(description = "사용자 Auth0 ID", required = true, example = "google-oauth2|117885903921309558140")
             @PathVariable String userId) {
         
         log.debug("Internal API: Getting user status for {}", userId);

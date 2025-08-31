@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.domain.User;
 import org.example.Usersvc.domain.Plan;
-import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.repository.UserRepository;
 import org.example.Usersvc.repository.PlanRepository;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
@@ -36,7 +35,7 @@ public class AdminService {
      * 사용자 완전한 정보 조회 (구독 정보 포함)
      */
     public Map<String, Object> getUserCompleteInfo(String userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByAuth0Id(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
         Map<String, Object> userInfo = new HashMap<>();
@@ -65,13 +64,6 @@ public class AdminService {
                 );
 
         return userInfo;
-    }
-
-    /**
-     * 전체 플랜 목록 조회
-     */
-    public List<Plan> getAllPlans() {
-        return planRepository.findAll();
     }
 
     /**
@@ -120,17 +112,4 @@ public class AdminService {
         return result;
     }
 
-    /**
-     * 사용자 검색 (이메일 또는 Auth0 ID로)
-     */
-    public List<User> searchUsers(String keyword) {
-        if (keyword == null || keyword.trim().isEmpty()) {
-            return List.of();
-        }
-        
-        String searchTerm = "%" + keyword.trim().toLowerCase() + "%";
-        
-        return userRepository.findByUserEmailContainingIgnoreCaseOrAuth0IdContainingIgnoreCase(
-                keyword.trim(), keyword.trim());
-    }
 }

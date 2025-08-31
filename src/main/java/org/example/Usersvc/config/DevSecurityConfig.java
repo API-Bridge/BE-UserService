@@ -23,7 +23,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,7 +47,7 @@ import java.util.stream.Stream;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@Profile({"dev", "default", "trusted-gateway"})
+@Profile({"dev", "default"})
 @org.springframework.core.annotation.Order(1) // 높은 우선순위로 설정
 public class DevSecurityConfig {
 
@@ -57,7 +56,7 @@ public class DevSecurityConfig {
     @Value("${auth0.audience:https://api.api-bridge.com}")
     private String audience;
 
-    @Value("${auth0.issuerUri:https://api-bridge.us.auth0.com/}")
+    @Value("${auth0.issuerUri:https://dev-q64r0n0blzhir6y0.us.auth0.com/}")
     private String issuer;
 
     public DevSecurityConfig(@Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfigurationSource) {

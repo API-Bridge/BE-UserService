@@ -205,7 +205,7 @@ public class UserController {
     @GetMapping("/users/{userId}")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<User>> getUser(
-            @Parameter(description = "조회할 사용자의 UUID", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @Parameter(description = "조회할 사용자의 Auth0 ID", required = true, example = "google-oauth2|117885903921309558140")
             @PathVariable String userId) {
         log.debug("사용자 조회 요청 - userId: {}", userId);
         
@@ -217,7 +217,7 @@ public class UserController {
                         .body(ApiResponse.error(validationError.getBody().getMessage(), validationError.getBody().getErrorCode()));
             }
             
-            Optional<User> user = userService.getUserById(userId);
+            Optional<User> user = userService.getUserByAuth0Id(userId);
             
             if (user.isEmpty()) {
                 log.warn("사용자를 찾을 수 없음 - userId: {}", userId);
@@ -250,7 +250,7 @@ public class UserController {
     @PostMapping("/users/{userId}/secrets")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<UserSecretsArn>> registerUserSecret(
-            @Parameter(description = "사용자 UUID") @PathVariable String userId,
+            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
             @Parameter(description = "개인 키 등록 요청 정보") @Valid @RequestBody RegisterSecretRequest request) {
         log.info("개인 키 등록 요청 - userId: {}, secretName: {}", userId, request.secretName());
         
@@ -279,7 +279,7 @@ public class UserController {
             }
             
             // 사용자 존재 여부 확인
-            if (!userService.getUserById(userId).isPresent()) {
+            if (!userService.getUserByAuth0Id(userId).isPresent()) {
                 log.warn("키 등록 실패 - 사용자를 찾을 수 없음: {}", userId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
@@ -343,7 +343,7 @@ public class UserController {
     @GetMapping("/secrets/{userId}/arn")
     // @PreAuthorize("hasRole('SERVICE') or hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserSecretValue(
-            @Parameter(description = "사용자 UUID") @PathVariable String userId,
+            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
             @Parameter(description = "ARN ID", required = true) @RequestParam @NotBlank(message = "ARN ID는 필수입니다") String arnId) {
         log.info("개인 키 조회 요청 - userId: {}, arnId: {}", userId, arnId);
         
@@ -406,7 +406,7 @@ public class UserController {
     @GetMapping("/users/{userId}/secrets")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<List<UserSecretsArn>>> getUserSecrets(
-            @Parameter(description = "사용자 UUID") @PathVariable String userId) {
+            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId) {
         log.debug("사용자 키 목록 조회 요청 - userId: {}", userId);
         
         try {
@@ -418,7 +418,7 @@ public class UserController {
             }
             
             // 사용자 존재 여부 확인
-            if (!userService.getUserById(userId).isPresent()) {
+            if (!userService.getUserByAuth0Id(userId).isPresent()) {
                 log.warn("키 목록 조회 실패 - 사용자를 찾을 수 없음: {}", userId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
@@ -452,7 +452,7 @@ public class UserController {
     @DeleteMapping("/users/{userId}/secrets/{arnId}")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<Void>> deleteUserSecret(
-            @Parameter(description = "사용자 UUID") @PathVariable String userId,
+            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
             @Parameter(description = "삭제할 ARN ID") @PathVariable String arnId) {
         log.info("개인 키 삭제 요청 - userId: {}, arnId: {}", userId, arnId);
         
@@ -465,7 +465,7 @@ public class UserController {
             }
             
             // 사용자 존재 여부 확인
-            if (!userService.getUserById(userId).isPresent()) {
+            if (!userService.getUserByAuth0Id(userId).isPresent()) {
                 log.warn("키 삭제 실패 - 사용자를 찾을 수 없음: {}", userId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
@@ -542,7 +542,7 @@ public class UserController {
                         .body(ApiResponse.error("INVALID_USER_ID", "사용자 ID는 필수입니다."));
             }
             
-            Optional<User> userOpt = userService.getUserById(actualUserId);
+            Optional<User> userOpt = userService.getUserByAuth0Id(actualUserId);
             if (userOpt.isEmpty()) {
                 log.warn("플랜 기능 조회 실패 - 사용자를 찾을 수 없음: {}", actualUserId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -747,7 +747,7 @@ public class UserController {
     })
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Object>> deleteAccount(
-            @Parameter(description = "사용자 ID") @PathVariable String userId,
+            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
             @Parameter(description = "사용자 ID (헤더)") @RequestHeader("X-User-Id") String headerUserId,
             @Parameter(description = "삭제 사유", example = "계정이 더 이상 필요하지 않습니다")
             @RequestParam(required = false) String reason,
@@ -777,7 +777,7 @@ public class UserController {
         
         try {
             // 사용자 존재 확인
-            Optional<User> userOpt = userService.getUserById(userId);
+            Optional<User> userOpt = userService.getUserByAuth0Id(userId);
             if (userOpt.isEmpty()) {
                 log.warn("삭제 대상 사용자를 찾을 수 없음 - userId: {}", userId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)

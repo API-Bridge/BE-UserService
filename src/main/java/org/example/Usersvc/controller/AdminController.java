@@ -149,7 +149,7 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserDetail(
             @Parameter(description = "관리자 사용자 ID", required = true)
             @RequestHeader("X-User-Id") String adminUserId,
-            @Parameter(description = "조회할 사용자의 UUID") @PathVariable String userId) {
+            @Parameter(description = "조회할 사용자의 Auth0 ID") @PathVariable String userId) {
         
         log.info("관리자({}) - 사용자 상세 정보 조회 요청 - userId: {}", adminUserId, userId);
         
@@ -258,6 +258,77 @@ public class AdminController {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error("FREE 구독 자동 생성에 실패했습니다: " + e.getMessage(), 
                     "MIGRATION_FAILED"));
+        }
+    }
+    
+    /**
+     * 플랜별 사용자 분포 통계 조회
+     * API Gateway에서 admin 역할이 검증된 후 호출됩니다.
+     */
+    @Operation(
+            summary = "플랜별 사용자 분포 통계 조회",
+            description = "관리자용 플랜별 구독자 분포 및 통계를 조회합니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "플랜 분포 통계 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class),
+                            examples = @ExampleObject(
+                                    value = """
+                                    {
+                                        "success": true,
+                                        "data": {
+                                            "planDistribution": {
+                                                "FREE": 150,
+                                                "BASIC": 45,
+                                                "PREMIUM": 23,
+                                                "ENTERPRISE": 5
+                                            },
+                                            "totalActivePlans": 223
+                                        }
+                                    }
+                                    """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "관리자 권한 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class)
+                    )
+            )
+    })
+    @GetMapping("/statistics/plan-distribution")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPlanDistributionStatistics(
+            @Parameter(description = "관리자 사용자 ID", required = true)
+            @RequestHeader("X-User-Id") String adminUserId) {
+        
+        log.info("관리자({}) - 플랜별 분포 통계 조회 요청", adminUserId);
+        
+        try {
+            // 관리자 권한 검증
+            if (!adminAuthorizationService.isActiveAdmin(adminUserId)) {
+                log.warn("관리자 권한 없음 - 플랜별 분포 통계 조회 거부: {}", adminUserId);
+                return ResponseEntity.status(403)
+                        .body(ApiResponse.error("관리자 권한이 필요합니다.", "ACCESS_DENIED"));
+            }
+            
+            Map<String, Object> planDistribution = adminService.getPlanDistributionStatistics();
+            
+            log.info("관리자({}) - 플랜별 분포 통계 조회 성공 - 총 활성 구독: {}", 
+                    adminUserId, planDistribution.get("totalActivePlans"));
+            
+            return ResponseEntity.ok(ApiResponse.success(planDistribution));
+            
+        } catch (Exception e) {
+            log.error("관리자({}) - 플랜별 분포 통계 조회 중 오류 발생", adminUserId, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error(ErrorConstants.DATABASE_OPERATION_FAILED, ErrorConstants.INTERNAL_ERROR));
         }
     }
     

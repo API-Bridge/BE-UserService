@@ -44,7 +44,8 @@ public class StatisticsController {
                     .body(ApiResponse.error("인증이 필요합니다.", "AUTHENTICATION_REQUIRED"));
             }
 
-            User user = userService.getUserById(userIdHeader.trim())
+            // X-User-Id 헤더는 Auth0 ID 형식이므로 findByAuth0Id 사용
+            User user = userService.getUserByAuth0Id(userIdHeader.trim())
                 .orElse(null);
             
             if (user == null) {
@@ -82,6 +83,7 @@ public class StatisticsController {
         // 관리자 권한 체크
         ResponseEntity<ApiResponse<Object>> adminCheck = checkAdminAccess(request);
         if (adminCheck != null) {
+            assert adminCheck.getBody() != null;
             return ResponseEntity.status(adminCheck.getStatusCode())
                     .body(ApiResponse.error(adminCheck.getBody().getMessage(), adminCheck.getBody().getErrorCode()));
         }
@@ -154,6 +156,7 @@ public class StatisticsController {
         // 관리자 권한 체크
         ResponseEntity<ApiResponse<Object>> adminCheck = checkAdminAccess(request);
         if (adminCheck != null) {
+            assert adminCheck.getBody() != null;
             return ResponseEntity.status(adminCheck.getStatusCode())
                     .body(ApiResponse.error(adminCheck.getBody().getMessage(), adminCheck.getBody().getErrorCode()));
         }
@@ -189,6 +192,7 @@ public class StatisticsController {
         // 관리자 권한 체크
         ResponseEntity<ApiResponse<Object>> adminCheck = checkAdminAccess(request);
         if (adminCheck != null) {
+            assert adminCheck.getBody() != null;
             return ResponseEntity.status(adminCheck.getStatusCode())
                     .body(ApiResponse.error(adminCheck.getBody().getMessage(), adminCheck.getBody().getErrorCode()));
         }
@@ -228,6 +232,7 @@ public class StatisticsController {
         // 관리자 권한 체크
         ResponseEntity<ApiResponse<Object>> adminCheck = checkAdminAccess(request);
         if (adminCheck != null) {
+            assert adminCheck.getBody() != null;
             return ResponseEntity.status(adminCheck.getStatusCode())
                     .body(ApiResponse.error(adminCheck.getBody().getMessage(), adminCheck.getBody().getErrorCode()));
         }

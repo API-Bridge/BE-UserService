@@ -47,16 +47,6 @@ public class SubscriptionController {
     private final UserService userService;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
-
-    @Autowired(required = false)
-    private DevRateLimitService devRateLimitService;
-    
-    @Autowired(required = false)
-    private ProductionRateLimitService productionRateLimitService;
-    
-    @Autowired(required = false)
-    private ActiveUserTrackingService activeUserTrackingService;
-    
     private final UserActionLogger userActionLogger;
     private final CustomMetrics customMetrics;
     private final EventPublisherService eventPublisher;
@@ -90,7 +80,7 @@ public class SubscriptionController {
             // 개발 환경에서는 기본 사용자 ID 사용 (data.sql에 있는 사용자)
             String defaultUserId = "user-001";
             
-            Optional<User> userOptional = userService.getUserById(defaultUserId);
+            Optional<User> userOptional = userService.getUserByAuth0Id(defaultUserId);
             if (userOptional.isEmpty()) {
                 // 사용자가 없으면 기본 구독 정보 반환
                 Map<String, Object> defaultSubscription = new HashMap<>();
@@ -154,12 +144,12 @@ public class SubscriptionController {
     )
     @PostMapping("/users/{userId}/subscription/cancel")
     public ResponseEntity<ApiResponse<Map<String, Object>>> cancelSubscription(
-            @Parameter(description = "사용자 ID") @PathVariable String userId) {
+            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId) {
         try {
             log.info("구독 취소 요청 - userId: {}", userId);
             
             // 사용자 존재 여부 확인
-            Optional<User> userOptional = userService.getUserById(userId);
+            Optional<User> userOptional = userService.getUserByAuth0Id(userId);
             if (userOptional.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));

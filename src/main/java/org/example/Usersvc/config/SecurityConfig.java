@@ -64,12 +64,14 @@ public class SecurityConfig {
                     response.sendRedirect("/api/auth/login-error");
                 })
             )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                    .decoder(jwtDecoder())
-                    .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                )
-            );
+            // OAuth2 Resource Server 설정 (JWT 검증) - 주석처리
+            // .oauth2ResourceServer(oauth2 -> oauth2
+            //     .jwt(jwt -> jwt
+            //         .decoder(jwtDecoder())
+            //         .jwtAuthenticationConverter(jwtAuthenticationConverter())
+            //     )
+            // )
+            ;
 
         return http.build();
     }

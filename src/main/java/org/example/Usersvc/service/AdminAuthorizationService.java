@@ -38,7 +38,7 @@ public class AdminAuthorizationService {
         String actualUserId = HeaderUtils.extractUserId(userId);
         
         try {
-            Optional<User> userOpt = userRepository.findById(actualUserId);
+            Optional<User> userOpt = userRepository.findByAuth0Id(actualUserId);
             
             if (userOpt.isEmpty()) {
                 log.debug("관리자 권한 검증 - 사용자를 찾을 수 없음: {}", actualUserId);
@@ -121,7 +121,7 @@ public class AdminAuthorizationService {
         String actualUserId = HeaderUtils.extractUserId(userId);
         
         try {
-            Optional<User> userOpt = userRepository.findById(actualUserId);
+            Optional<User> userOpt = userRepository.findByAuth0Id(actualUserId);
             
             if (userOpt.isEmpty()) {
                 return false;

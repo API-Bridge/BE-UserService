@@ -192,6 +192,27 @@ public class UserService {
     }
 
     /**
+     * Auth0 ID로 사용자 조회
+     * 
+     * @param auth0Id Auth0 사용자 식별자
+     * @return 조회된 사용자 정보 (Optional)
+     * @throws IllegalArgumentException Auth0 ID가 유효하지 않은 경우
+     */
+    @Transactional(readOnly = true)
+    public Optional<User> getUserByAuth0Id(String auth0Id) {
+        log.debug("Auth0 ID로 사용자 조회 시작 - auth0Id: {}", auth0Id);
+        
+        if (auth0Id == null || auth0Id.trim().isEmpty()) {
+            throw new IllegalArgumentException("Auth0 ID는 필수입니다");
+        }
+        
+        Optional<User> user = userRepository.findByAuth0Id(auth0Id.trim());
+        log.debug("Auth0 ID로 사용자 조회 완료 - auth0Id: {}, found: {}", auth0Id, user.isPresent());
+        
+        return user;
+    }
+
+    /**
      * 모든 사용자 조회 (페이징)
      * 
      * @param pageable 페이징 정보
@@ -259,7 +280,7 @@ public class UserService {
         
         validateUserId(userId);
         
-        Optional<User> userOptional = userRepository.findById(userId);
+        Optional<User> userOptional = userRepository.findByAuth0Id(userId);
         if (userOptional.isEmpty()) {
             log.warn("삭제하려는 사용자가 존재하지 않음 - userId: {}", userId);
             return false;
@@ -738,7 +759,7 @@ public class UserService {
         
         validateUserId(userId);
         
-        Optional<User> userOptional = userRepository.findById(userId);
+        Optional<User> userOptional = userRepository.findByAuth0Id(userId);
         if (userOptional.isEmpty()) {
             log.warn("비활성화하려는 사용자가 존재하지 않음 - userId: {}", userId);
             return false;
@@ -971,7 +992,7 @@ public class UserService {
         
         validateUserId(userId);
         
-        Optional<User> userOptional = userRepository.findById(userId);
+        Optional<User> userOptional = userRepository.findByAuth0Id(userId);
         if (userOptional.isEmpty()) {
             log.warn("활성화하려는 사용자가 존재하지 않음 - userId: {}", userId);
             return false;
@@ -1006,7 +1027,7 @@ public class UserService {
         
         validateUserId(userId);
         
-        Optional<User> userOptional = userRepository.findById(userId);
+        Optional<User> userOptional = userRepository.findByAuth0Id(userId);
         if (userOptional.isEmpty()) {
             log.warn("상태를 조회하려는 사용자가 존재하지 않음 - userId: {}", userId);
             return null;

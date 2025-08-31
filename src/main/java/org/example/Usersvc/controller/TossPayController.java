@@ -32,26 +32,62 @@ public class TossPayController {
      */
     @PostMapping("/subscribe")
     public ResponseEntity<ApiResponse<Map<String, Object>>> subscribe(
-            @RequestHeader("X-User-Id") String userId,
-            @RequestBody Map<String, Object> request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest) {
         
-        String planNameStr = (String) request.get("planName");
-        String provider = (String) request.getOrDefault("provider", "TOSSPAY");
+        String planNameStr = request != null ? (String) request.get("planName") : null;
+        String provider = request != null ? (String) request.getOrDefault("provider", "TOSSPAY") : "TOSSPAY";
         
-        // 헤더 정보 디버깅 로그
-        log.info("🔍 TossPay 구독 요청 수신:");
-        log.info("  - X-User-Id 헤더: {}", userId);
-        log.info("  - planName: {}", planNameStr);
-        log.info("  - provider: {}", provider);
-        log.info("  - 모든 헤더: {}", 
-            Collections.list(httpRequest.getHeaderNames()).stream()
-                .collect(Collectors.toMap(
-                    headerName -> headerName,
-                    headerName -> httpRequest.getHeader(headerName)
-                )));
+        // API Gateway 요청 상세 분석 로그
+        log.info("🚀 ============= API Gateway 요청 수신 =============");
+        log.info("📋 기본 요청 정보:");
+        log.info("  ├─ Method: {}", httpRequest.getMethod());
+        log.info("  ├─ URI: {}", httpRequest.getRequestURI());
+        log.info("  ├─ Query String: {}", httpRequest.getQueryString());
+        log.info("  ├─ Content-Type: {}", httpRequest.getContentType());
+        log.info("  ├─ Content-Length: {}", httpRequest.getContentLengthLong());
+        log.info("  ├─ Protocol: {}", httpRequest.getProtocol());
+        log.info("  ├─ Remote Address: {}", httpRequest.getRemoteAddr());
+        log.info("  └─ Remote Host: {}", httpRequest.getRemoteHost());
         
-        log.info("결제 요청 - userId: {}, planName: {}, provider: {}", userId, planNameStr, provider);
+        log.info("🏷️  헤더 정보:");
+        log.info("  ├─ X-User-Id: '{}'", userId);
+        log.info("  ├─ X-Gateway-Source: '{}'", httpRequest.getHeader("X-Gateway-Source"));
+        log.info("  ├─ X-Forwarded-For: '{}'", httpRequest.getHeader("X-Forwarded-For"));
+        log.info("  ├─ X-Real-IP: '{}'", httpRequest.getHeader("X-Real-IP"));
+        log.info("  ├─ Authorization: '{}'", httpRequest.getHeader("Authorization") != null ? "[EXISTS]" : "[MISSING]");
+        log.info("  ├─ User-Agent: '{}'", httpRequest.getHeader("User-Agent"));
+        log.info("  └─ Accept: '{}'", httpRequest.getHeader("Accept"));
+        
+        log.info("📦 요청 본문 (Request Body) 분석:");
+        if (request == null) {
+            log.error("  ❌ Request Body가 null입니다! JSON 파싱이 실패했을 가능성이 높습니다.");
+        } else {
+            log.info("  ├─ Body 크기: {} 개 필드", request.size());
+            log.info("  ├─ Body 전체: {}", request);
+            log.info("  └─ Body 필드 상세:");
+            request.forEach((key, value) -> {
+                if (value != null) {
+                    log.info("      * '{}': '{}' (타입: {})", key, value, value.getClass().getSimpleName());
+                } else {
+                    log.info("      * '{}': null", key);
+                }
+            });
+        }
+        
+        log.info("🎯 파싱된 파라미터:");
+        log.info("  ├─ planName: '{}'", planNameStr);
+        log.info("  └─ provider: '{}'", provider);
+        
+        log.info("🌐 전체 헤더 목록:");
+        Collections.list(httpRequest.getHeaderNames()).stream()
+                .sorted()
+                .forEach(headerName -> 
+                    log.info("  ├─ {}: '{}'", headerName, httpRequest.getHeader(headerName))
+                );
+        
+        log.info("===============================================");
         
         // 입력값 검증
         if (userId == null || userId.trim().isEmpty()) {
