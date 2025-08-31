@@ -22,8 +22,7 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@Primary
-@Profile({"dev", "default", "trusted-gateway"})
+@Profile({"dev", "default"})
 public class DevAWSSecretsManagerService implements AWSSecretsManagerService {
 
     // 개발 환경용 메모리 저장소

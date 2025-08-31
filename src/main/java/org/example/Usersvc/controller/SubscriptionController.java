@@ -20,6 +20,7 @@ import org.example.Usersvc.service.ProductionRateLimitService;
 import org.example.Usersvc.service.UserService;
 import org.example.Usersvc.repository.UserSubscriptionRepository;
 import org.example.Usersvc.repository.PlanRepository;
+import org.example.Usersvc.util.HeaderUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -142,14 +143,16 @@ public class SubscriptionController {
             description = "사용자의 활성 구독을 취소합니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @PostMapping("/users/{userId}/subscription/cancel")
+    @PostMapping("/subscription/cancel")
     public ResponseEntity<ApiResponse<Map<String, Object>>> cancelSubscription(
-            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId) {
+            @Parameter(description = "사용자 Auth0 ID") @RequestHeader("X-User-Id") String userId) {
         try {
-            log.info("구독 취소 요청 - userId: {}", userId);
+            // X-User-Id 헤더 정리
+            String actualUserId = HeaderUtils.extractUserId(userId);
+            log.info("구독 취소 요청 - userId: {}", actualUserId);
             
             // 사용자 존재 여부 확인
-            Optional<User> userOptional = userService.getUserByAuth0Id(userId);
+            Optional<User> userOptional = userService.getUserByAuth0Id(actualUserId);
             if (userOptional.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));

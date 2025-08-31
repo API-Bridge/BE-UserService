@@ -5,6 +5,7 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 spec:
+  # ✅ Improvement: HPA가 활성화되면 replicas 키는 Helm에 의해 생략되어야 합니다.
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -19,43 +20,69 @@ spec:
       {{- end }}
       labels:
         {{- include "chart.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "chart.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
-          {{- with .Values.livenessProbe }}
+
+          # ✅ Improvement: values.yaml의 enabled 플래그에 따라 Secret을 조건부로 마운트합니다.
+          envFrom:
+            {{- if .Values.secrets.database.enabled }}
+            - secretRef:
+                name: {{ .Values.secrets.database.name }}
+            {{- end }}
+            {{- if .Values.secrets.auth0.enabled }}
+            - secretRef:
+                name: {{ .Values.secrets.auth0.name }}
+            {{- end }}
+            {{- if .Values.secrets.tosspay.enabled }}
+            - secretRef:
+                name: {{ .Values.secrets.tosspay.name }}
+            {{- end }}
+
+          # ✅ Improvement: range 함수를 사용해 values.yaml의 env 맵을 동적으로 환경 변수로 변환합니다.
+          # 이제 values.yaml에 변수를 추가하기만 하면 자동으로 주입됩니다.
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+
+          # ✅ Improvement: Probe 설정을 values.yaml에서 가져와 더욱 유연하게 만듭니다.
+          # 이제 path, port 등을 values.yaml에서 직접 제어할 수 있습니다.
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
+            httpGet:
+              path: {{ .Values.livenessProbe.httpGet.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.resources }}
+            httpGet:
+              path: {{ .Values.readinessProbe.httpGet.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

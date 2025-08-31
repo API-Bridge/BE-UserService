@@ -59,6 +59,9 @@ public class DevSecurityConfig {
     @Value("${auth0.issuerUri:https://dev-q64r0n0blzhir6y0.us.auth0.com/}")
     private String issuer;
 
+    @Value("${spring.security.oauth2.client.registration.auth0.client-id:}")
+    private String auth0ClientId;
+
     public DevSecurityConfig(@Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfigurationSource) {
         this.corsConfigurationSource = corsConfigurationSource;
     }
@@ -194,7 +197,7 @@ public class DevSecurityConfig {
                     .withJwkSetUri(issuer + ".well-known/jwks.json")
                     .build();
 
-            OAuth2TokenValidator<Jwt> audienceValidator = new DetailedAudienceValidator(audience);
+            OAuth2TokenValidator<Jwt> audienceValidator = new DetailedAudienceValidator(audience, auth0ClientId);
             OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
             OAuth2TokenValidator<Jwt> withAudience = new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator);
 
@@ -248,11 +251,11 @@ public class DevSecurityConfig {
      */
     public static class DetailedAudienceValidator implements OAuth2TokenValidator<Jwt> {
         private final String expectedAudience;
-        // Auth0 Client ID도 유효한 audience로 허용 (하위 호환성)
-        private static final String AUTH0_CLIENT_ID = "gleGDUmC5iSKvbt4IN12t7cAIHfwEYQI";
+        private final String auth0ClientId;
 
-        public DetailedAudienceValidator(String expectedAudience) {
+        public DetailedAudienceValidator(String expectedAudience, String auth0ClientId) {
             this.expectedAudience = expectedAudience;
+            this.auth0ClientId = auth0ClientId;
         }
 
         @Override
@@ -263,12 +266,12 @@ public class DevSecurityConfig {
             log.debug("JWT Issued At: {}", jwt.getIssuedAt());
             log.debug("JWT Expires At: {}", jwt.getExpiresAt());
             log.debug("JWT Audience 목록: {}", jwt.getAudience());
-            log.debug("기대하는 Audience: {} 또는 Client ID: {}", expectedAudience, AUTH0_CLIENT_ID);
+            log.debug("기대하는 Audience: {} 또는 Client ID: {}", expectedAudience, auth0ClientId);
             
-            if (jwt.getAudience() != null) {
+            if (jwt.getAudience() != null && auth0ClientId != null && !auth0ClientId.isEmpty()) {
                 // API Identifier 또는 Client ID를 audience로 허용
-                if (jwt.getAudience().contains(expectedAudience) || jwt.getAudience().contains(AUTH0_CLIENT_ID)) {
-                    String matchedAudience = jwt.getAudience().contains(expectedAudience) ? expectedAudience : AUTH0_CLIENT_ID;
+                if (jwt.getAudience().contains(expectedAudience) || jwt.getAudience().contains(auth0ClientId)) {
+                    String matchedAudience = jwt.getAudience().contains(expectedAudience) ? expectedAudience : auth0ClientId;
                     log.debug("Audience 검증 성공: {} 포함됨", matchedAudience);
                     log.debug("============================");
                     return OAuth2TokenValidatorResult.success();
@@ -277,7 +280,7 @@ public class DevSecurityConfig {
             
             // 개발 환경에서는 audience 검증 실패를 경고로만 처리
             log.warn("=== JWT Audience 검증 실패 ===");
-            log.warn("기대 Audience: {} 또는 Client ID: {}", expectedAudience, AUTH0_CLIENT_ID);
+            log.warn("기대 Audience: {} 또는 Client ID: {}", expectedAudience, auth0ClientId);
             log.warn("실제 JWT Audience: {}", jwt.getAudience());
             log.warn("JWT의 다른 클레임들:");
             jwt.getClaims().forEach((key, value) -> {
@@ -289,7 +292,7 @@ public class DevSecurityConfig {
             log.warn("===========================");
             
             OAuth2Error error = new OAuth2Error("invalid_audience", 
-                "The required audience is missing: " + expectedAudience + " or " + AUTH0_CLIENT_ID, null);
+                "The required audience is missing: " + expectedAudience + " or " + auth0ClientId, null);
             return OAuth2TokenValidatorResult.failure(error); // 인증 실패로 처리
         }
     }

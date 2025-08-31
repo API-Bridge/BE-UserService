@@ -2,6 +2,7 @@ package org.example.Usersvc.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.Usersvc.exception.AWSSecretsManagerException;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -18,14 +19,21 @@ import software.amazon.awssdk.services.secretsmanager.model.*;
  */
 @Slf4j
 @Service
-@Profile({"prod", "default"})
+@Primary
+@Profile({"prod", "trusted-gateway"})
 public class ProdAWSSecretsManagerService implements AWSSecretsManagerService {
 
     private final SecretsManagerClient secretsManagerClient;
 
     public ProdAWSSecretsManagerService() {
+        // .env 파일의 AWS 환경변수 사용
+        String region = System.getenv("AWS_REGION");
+        if (region == null || region.trim().isEmpty()) {
+            region = "ap-southeast-2"; // 기본값
+        }
+        
         this.secretsManagerClient = SecretsManagerClient.builder()
-            .region(software.amazon.awssdk.regions.Region.US_EAST_1)
+            .region(software.amazon.awssdk.regions.Region.of(region))
             .build();
     }
 

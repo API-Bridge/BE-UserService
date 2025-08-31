@@ -2,12 +2,12 @@
 # This is a YAML-formatted file.
 # Declare variables to be substituted into your templates.
 
-replicaCount: 2
+replicaCount: 1
 
 image:
-  repository: userservice
+  repository: 465516136472.dkr.ecr.ap-southeast-2.amazonaws.com/api-bridge/user-svc
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: "1.0.0"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -17,6 +17,9 @@ serviceAccount:
   create: true
   annotations: {}
   name: ""
+
+serviceEndpoints:
+  userServiceUrl: "http://user-service:80"
 
 podAnnotations: {}
 
@@ -33,11 +36,11 @@ securityContext:
 
 service:
   type: ClusterIP
-  port: 8081
+  port: 80
   targetPort: 8081
 
 ingress:
-  enabled: true
+  enabled: false
   className: "nginx"
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -82,38 +85,35 @@ config:
   server:
     port: 8081
 
-# Environment variables (override with your actual values)
+# ------------------------------------------------------------------
+#  ✅ Improvement: 모든 비민감 환경 변수를 'env' 블록 아래로 통합하여 관리를 일원화합니다.
+# ------------------------------------------------------------------
 env:
-  # Database
-  DB_URL: "jdbc:mysql://mysql:3306/userservice"
-  DB_USERNAME: "userservice"
-  DB_PASSWORD: ""  # Set via secret
-  DB_DRIVER: "com.mysql.cj.jdbc.Driver"
-  
-  # Redis
-  REDIS_HOST: "redis"
-  REDIS_PORT: "6379"
-  
-  # Kafka
-  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  # Spring Boot & Server Config
+  SERVER_PORT: "8081"
+  SPRING_PROFILES_ACTIVE: "trusted-gateway"
+
+  # Application Specific
   SERVICE_NAME: "user-svc"
-  
-  # Auth0 (set via secret)
+  BUILD_VERSION: "1.0.0"
+  DDL_AUTO: "validate"
+  DB_DRIVER: "com.mysql.cj.jdbc.Driver"
+
+  # Environment-dependent values
+  DB_URL: "jdbc:mysql://mysql:3306/user_svc_db?useSSL=false&serverTimezone=UTC"
+  REDIS_HOST: "master.your-redis-cluster.ab12cd.apn2.cache.amazonaws.com"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+
+  # Sensitive value placeholders (will be overridden by secrets)
+  DB_USERNAME: ""
+  DB_PASSWORD: ""
   AUTH0_ISSUER_URI: ""
   AUTH0_AUDIENCE: ""
   AUTH0_CLIENT_ID: ""
-  
-  # TossPay (set via secret)
   TOSSPAY_SECRET_KEY: ""
   TOSSPAY_CLIENT_ID: ""
   TOSSPAY_WEBHOOK_SECRET: ""
-  
-  # Eureka
-  EUREKA_SERVER_URL: "http://eureka:8761/eureka/"
-  
-  # Build
-  BUILD_VERSION: "1.0.0"
-  DDL_AUTO: "update"
 
 # External secrets (create these in your cluster)
 secrets:
@@ -127,11 +127,12 @@ secrets:
     enabled: true
     name: userservice-tosspay-secret
 
-# Health checks
+# ✅ Improvement: Probe 설정을 더 명확한 구조로 변경합니다.
+# deployment.yaml에서 이 값들을 직접 참조합니다.
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
-    port: http
+    # port는 deployment.yaml에서 'http'로 고정되므로 여기서 지정할 필요가 없습니다.
   initialDelaySeconds: 60
   periodSeconds: 30
   timeoutSeconds: 5
@@ -140,12 +141,10 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
-    port: http
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 # Monitoring
 serviceMonitor:
   enabled: true

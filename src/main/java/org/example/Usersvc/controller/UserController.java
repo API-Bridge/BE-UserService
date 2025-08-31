@@ -247,20 +247,23 @@ public class UserController {
             description = "사용자가 개인 API 키를 AWS Secrets Manager에 등록합니다. (BYOK - Bring Your Own Key)",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @PostMapping("/users/{userId}/secrets")
+    @PostMapping("/secrets")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<UserSecretsArn>> registerUserSecret(
-            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
+            @Parameter(description = "사용자 Auth0 ID") @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "개인 키 등록 요청 정보") @Valid @RequestBody RegisterSecretRequest request) {
-        log.info("개인 키 등록 요청 - userId: {}, secretName: {}", userId, request.secretName());
+        // X-User-Id 헤더 정리
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        log.info("개인 키 등록 요청 - userId: {}, secretName: {}", actualUserId, request.secretName());
         
         // API 키 등록 시간 측정 시작
         var registrationTimer = customMetrics.startApiKeyRegistrationTimer();
         
         try {
             // 사용자 ID 유효성 검사 (ValidationUtils 사용)
-            ResponseEntity<ApiResponse<Void>> userIdValidationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            ResponseEntity<ApiResponse<Void>> userIdValidationError = ValidationUtils.validateUserIdAndReturnError(actualUserId);
             if (userIdValidationError != null) {
+                assert userIdValidationError.getBody() != null;
                 return ResponseEntity.status(userIdValidationError.getStatusCode())
                         .body(ApiResponse.error(userIdValidationError.getBody().getMessage(), userIdValidationError.getBody().getErrorCode()));
             }
@@ -268,35 +271,37 @@ public class UserController {
             // 입력 데이터 검증 (ValidationUtils 사용)
             ResponseEntity<ApiResponse<Void>> secretNameValidationError = ValidationUtils.validateSecretNameAndReturnError(request.secretName());
             if (secretNameValidationError != null) {
+                assert secretNameValidationError.getBody() != null;
                 return ResponseEntity.status(secretNameValidationError.getStatusCode())
                         .body(ApiResponse.error(secretNameValidationError.getBody().getMessage(), secretNameValidationError.getBody().getErrorCode()));
             }
             
             ResponseEntity<ApiResponse<Void>> secretValueValidationError = ValidationUtils.validateSecretValueAndReturnError(request.secretValue());
             if (secretValueValidationError != null) {
+                assert secretValueValidationError.getBody() != null;
                 return ResponseEntity.status(secretValueValidationError.getStatusCode())
                         .body(ApiResponse.error(secretValueValidationError.getBody().getMessage(), secretValueValidationError.getBody().getErrorCode()));
             }
             
             // 사용자 존재 여부 확인
-            if (!userService.getUserByAuth0Id(userId).isPresent()) {
-                log.warn("키 등록 실패 - 사용자를 찾을 수 없음: {}", userId);
+            if (userService.getUserByAuth0Id(actualUserId).isEmpty()) {
+                log.warn("키 등록 실패 - 사용자를 찾을 수 없음: {}", actualUserId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
             }
             
             // AWS Secrets Manager에 키 저장
             UserSecretsArn registeredArn = userSecretsArnService.storeUserSecret(
-                    userId, request.secretName(), request.secretValue(), request.description());
+                    actualUserId, request.secretName(), request.secretValue(), request.description());
             
             // 메트릭 기록
             customMetrics.incrementApiKeyRegistered();
             customMetrics.recordApiKeyRegistrationTime(registrationTimer);
             
             // 사용자 액션 로깅
-            userActionLogger.logApiKeyRegistration(userId, request.secretName(), true);
+            userActionLogger.logApiKeyRegistration(actualUserId, request.secretName(), true);
             
-            log.info("개인 키 등록 성공 - userId: {}, arnId: {}", userId, registeredArn.getArnId());
+            log.info("개인 키 등록 성공 - userId: {}, arnId: {}", actualUserId, registeredArn.getArnId());
             
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success(registeredArn));
@@ -308,7 +313,7 @@ public class UserController {
             log.warn("키 등록 실패 - 잘못된 요청: {}", e.getMessage());
             
             // 보안 로그
-            securityAuditLogger.logApiKeyRegistrationFailure(userId, request.secretName(), 
+            securityAuditLogger.logApiKeyRegistrationFailure(actualUserId, request.secretName(), 
                 ValidationUtils.getCurrentIpAddress(), "INVALID_REQUEST: " + e.getMessage());
             
             return ResponseEntity.badRequest()
@@ -318,10 +323,10 @@ public class UserController {
             // 실패한 경우에도 시간 측정 종료
             customMetrics.recordApiKeyRegistrationTime(registrationTimer);
             
-            log.error("개인 키 등록 중 오류 발생 - userId: {}", userId, e);
+            log.error("개인 키 등록 중 오류 발생 - userId: {}", actualUserId, e);
             
             // 보안 로그
-            securityAuditLogger.logApiKeyRegistrationFailure(userId, request.secretName(), 
+            securityAuditLogger.logApiKeyRegistrationFailure(actualUserId, request.secretName(), 
                 ValidationUtils.getCurrentIpAddress(), "INTERNAL_ERROR: " + e.getMessage());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -329,64 +334,63 @@ public class UserController {
         }
     }
     
-    // 개인 키 조회 엔드포인트 (AI 서비스용)
+    // 개인 키 랜덤 조회 엔드포인트 (AI 서비스용)
     // AI 서비스가 사용자의 개인 키를 요청할 때 사용하는 엔드포인트입니다.
-    // ARN을 통해 AWS Secrets Manager에서 키를 복호화하여 반환합니다.
+    // 사용자가 등록한 키 중 랜덤하게 선택하여 AWS Secrets Manager에서 키를 복호화하여 반환합니다.
     //
-    // 요청: GET /api/secrets/{userId}/arn?arnId={arnId}
-    // 응답: 200 OK, 복호화된 키 값
+    // 요청: GET /api/secrets/arn
+    // 응답: 200 OK, 랜덤하게 선택된 복호화된 키 값
     @Operation(
-            summary = "개인 키 조회 (AI 서비스용)",
-            description = "AI 서비스가 사용자의 개인 키를 요청할 때 사용합니다. ARN을 통해 복호화된 키 값을 반환합니다.",
+            summary = "개인 키 랜덤 조회 (AI 서비스용)",
+            description = "AI 서비스가 사용자의 개인 키를 요청할 때 사용합니다. 사용자가 등록한 키 중 랜덤하게 선택하여 복호화된 키 값을 반환합니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @GetMapping("/secrets/{userId}/arn")
+    @GetMapping("/secrets/arn")
     // @PreAuthorize("hasRole('SERVICE') or hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserSecretValue(
-            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
-            @Parameter(description = "ARN ID", required = true) @RequestParam @NotBlank(message = "ARN ID는 필수입니다") String arnId) {
-        log.info("개인 키 조회 요청 - userId: {}, arnId: {}", userId, arnId);
+            @Parameter(description = "사용자 Auth0 ID") @RequestHeader("X-User-Id") String userId) {
+        // X-User-Id 헤더 정리
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        log.info("개인 키 랜덤 조회 요청 - userId: {}", actualUserId);
         
         try {
             // 사용자 ID 유효성 검사 (ValidationUtils 사용)
-            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(actualUserId);
             if (validationError != null) {
                 return ResponseEntity.status(validationError.getStatusCode())
                         .body(ApiResponse.error(validationError.getBody().getMessage(), validationError.getBody().getErrorCode()));
             }
             
-            // ARN 정보 조회
-            Optional<UserSecretsArn> arnInfo = userSecretsArnService.getSecretsArnById(arnId);
+            // 사용자가 등록한 모든 키 목록 조회
+            List<UserSecretsArn> userSecrets = userSecretsArnService.getUserSecretsArns(actualUserId);
             
-            if (arnInfo.isEmpty()) {
-                log.warn("ARN을 찾을 수 없음 - arnId: {}", arnId);
+            if (userSecrets.isEmpty()) {
+                log.warn("사용자가 등록한 키가 없음 - userId: {}", actualUserId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.error("ARN_NOT_FOUND", "요청한 ARN을 찾을 수 없습니다."));
+                        .body(ApiResponse.error("NO_SECRETS_FOUND", "등록된 키가 없습니다."));
             }
             
-            // 사용자 권한 확인 (ARN이 해당 사용자의 것인지 확인)
-            if (!arnInfo.get().getUserId().equals(userId)) {
-                log.warn("권한 없는 ARN 접근 시도 - userId: {}, arnOwner: {}", userId, arnInfo.get().getUserId());
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error("ACCESS_DENIED", "해당 ARN에 접근 권한이 없습니다."));
-            }
+            // 랜덤하게 키 선택
+            int randomIndex = (int) (Math.random() * userSecrets.size());
+            UserSecretsArn selectedArn = userSecrets.get(randomIndex);
             
             // AWS Secrets Manager에서 키 값 복호화
-            String secretValue = userSecretsArnService.getSecretValue(arnInfo.get().getArn());
+            String secretValue = userSecretsArnService.getSecretValue(selectedArn.getArn());
             
             // 응답 데이터 구성 (보안상 ARN 정보도 함께 제공)
             Map<String, Object> responseData = Map.of(
-                    "arnId", arnInfo.get().getArnId(),
+                    "arnId", selectedArn.getArnId(),
                     "secretValue", secretValue,
-                    "description", arnInfo.get().getArnDescription() != null ? arnInfo.get().getArnDescription() : ""
+                    "description", selectedArn.getArnDescription() != null ? selectedArn.getArnDescription() : "",
+                    "secretName", selectedArn.getSecretName()
             );
             
-            log.info("개인 키 조회 성공 - userId: {}, arnId: {}", userId, arnId);
+            log.info("개인 키 랜덤 조회 성공 - userId: {}, selectedArnId: {}", actualUserId, selectedArn.getArnId());
             
             return ResponseEntity.ok(ApiResponse.success(responseData));
             
         } catch (Exception e) {
-            log.error("개인 키 조회 중 오류 발생 - userId: {}, arnId: {}", userId, arnId, e);
+            log.error("개인 키 랜덤 조회 중 오류 발생 - userId: {}", actualUserId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("INTERNAL_ERROR", "개인 키 조회에 실패했습니다."));
         }
@@ -403,36 +407,38 @@ public class UserController {
             description = "특정 사용자가 등록한 모든 암호화 키의 목록을 조회합니다. 보안상 실제 키 값은 제외하고 ARN 정보만 반환합니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @GetMapping("/users/{userId}/secrets")
+    @GetMapping("/secrets")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<List<UserSecretsArn>>> getUserSecrets(
-            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId) {
-        log.debug("사용자 키 목록 조회 요청 - userId: {}", userId);
+            @Parameter(description = "사용자 Auth0 ID") @RequestHeader("X-User-Id") String userId) {
+        // X-User-Id 헤더 정리
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        log.debug("사용자 키 목록 조회 요청 - userId: {}", actualUserId);
         
         try {
             // 사용자 ID 유효성 검사 (ValidationUtils 사용)
-            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            ResponseEntity<ApiResponse<Void>> validationError = ValidationUtils.validateUserIdAndReturnError(actualUserId);
             if (validationError != null) {
                 return ResponseEntity.status(validationError.getStatusCode())
                         .body(ApiResponse.error(validationError.getBody().getMessage(), validationError.getBody().getErrorCode()));
             }
             
             // 사용자 존재 여부 확인
-            if (!userService.getUserByAuth0Id(userId).isPresent()) {
-                log.warn("키 목록 조회 실패 - 사용자를 찾을 수 없음: {}", userId);
+            if (!userService.getUserByAuth0Id(actualUserId).isPresent()) {
+                log.warn("키 목록 조회 실패 - 사용자를 찾을 수 없음: {}", actualUserId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
             }
             
             // 사용자의 모든 ARN 조회
-            List<UserSecretsArn> userSecrets = userSecretsArnService.getUserSecretsArns(userId);
+            List<UserSecretsArn> userSecrets = userSecretsArnService.getUserSecretsArns(actualUserId);
             
-            log.debug("사용자 키 목록 조회 성공 - userId: {}, count: {}", userId, userSecrets.size());
+            log.debug("사용자 키 목록 조회 성공 - userId: {}, count: {}", actualUserId, userSecrets.size());
             
             return ResponseEntity.ok(ApiResponse.success(userSecrets));
             
         } catch (Exception e) {
-            log.error("사용자 키 목록 조회 중 오류 발생 - userId: {}", userId, e);
+            log.error("사용자 키 목록 조회 중 오류 발생 - userId: {}", actualUserId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("INTERNAL_ERROR", "키 목록 조회에 실패했습니다."));
         }
@@ -449,24 +455,26 @@ public class UserController {
             description = "사용자가 등록한 개인 키를 AWS Secrets Manager에서 삭제합니다. (BYOK - Bring Your Own Key)",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
-    @DeleteMapping("/users/{userId}/secrets/{arnId}")
+    @DeleteMapping("/secrets/{arnId}")
     // @PreAuthorize("hasRole('USER')") // 권한 검증 일시 비활성화
     public ResponseEntity<ApiResponse<Void>> deleteUserSecret(
-            @Parameter(description = "사용자 Auth0 ID") @PathVariable String userId,
+            @Parameter(description = "사용자 Auth0 ID") @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "삭제할 ARN ID") @PathVariable String arnId) {
-        log.info("개인 키 삭제 요청 - userId: {}, arnId: {}", userId, arnId);
+        // X-User-Id 헤더 정리
+        String actualUserId = HeaderUtils.extractUserId(userId);
+        log.info("개인 키 삭제 요청 - userId: {}, arnId: {}", actualUserId, arnId);
         
         try {
             // 사용자 ID 유효성 검사 (ValidationUtils 사용)
-            ResponseEntity<ApiResponse<Void>> userIdValidationError = ValidationUtils.validateUserIdAndReturnError(userId);
+            ResponseEntity<ApiResponse<Void>> userIdValidationError = ValidationUtils.validateUserIdAndReturnError(actualUserId);
             if (userIdValidationError != null) {
                 return ResponseEntity.status(userIdValidationError.getStatusCode())
                         .body(ApiResponse.error(userIdValidationError.getBody().getMessage(), userIdValidationError.getBody().getErrorCode()));
             }
             
             // 사용자 존재 여부 확인
-            if (!userService.getUserByAuth0Id(userId).isPresent()) {
-                log.warn("키 삭제 실패 - 사용자를 찾을 수 없음: {}", userId);
+            if (!userService.getUserByAuth0Id(actualUserId).isPresent()) {
+                log.warn("키 삭제 실패 - 사용자를 찾을 수 없음: {}", actualUserId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."));
             }
@@ -481,20 +489,20 @@ public class UserController {
             }
             
             // 사용자 권한 확인 (ARN이 해당 사용자의 것인지 확인)
-            if (!arnInfo.get().getUserId().equals(userId)) {
-                log.warn("권한 없는 ARN 삭제 시도 - userId: {}, arnOwner: {}", userId, arnInfo.get().getUserId());
+            if (!arnInfo.get().getUserId().equals(actualUserId)) {
+                log.warn("권한 없는 ARN 삭제 시도 - userId: {}, arnOwner: {}", actualUserId, arnInfo.get().getUserId());
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(ApiResponse.error("ACCESS_DENIED", "해당 ARN에 접근 권한이 없습니다."));
             }
             
             // AWS Secrets Manager에서 키 삭제 및 DB에서 ARN 정보 삭제
-            userSecretsArnService.deleteUserSecret(userId, arnId);
+            userSecretsArnService.deleteUserSecret(actualUserId, arnId);
             
             // 사용자 액션 로깅
-            userActionLogger.logApiKeyDeletion(userId, arnInfo.get().getArnDescription() != null ? 
+            userActionLogger.logApiKeyDeletion(actualUserId, arnInfo.get().getArnDescription() != null ? 
                 arnInfo.get().getArnDescription() : arnId, true);
             
-            log.info("개인 키 삭제 성공 - userId: {}, arnId: {}", userId, arnId);
+            log.info("개인 키 삭제 성공 - userId: {}, arnId: {}", actualUserId, arnId);
             
             return ResponseEntity.ok(ApiResponse.success());
             
@@ -502,17 +510,17 @@ public class UserController {
             log.warn("키 삭제 실패 - 잘못된 요청: {}", e.getMessage());
             
             // 보안 로그
-            securityAuditLogger.logApiKeyDeletionFailure(userId, arnId, 
+            securityAuditLogger.logApiKeyDeletionFailure(actualUserId, arnId, 
                 ValidationUtils.getCurrentIpAddress(), "INVALID_REQUEST: " + e.getMessage());
             
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("INVALID_REQUEST", e.getMessage()));
                     
         } catch (Exception e) {
-            log.error("개인 키 삭제 중 오류 발생 - userId: {}, arnId: {}", userId, arnId, e);
+            log.error("개인 키 삭제 중 오류 발생 - userId: {}, arnId: {}", actualUserId, arnId, e);
             
             // 보안 로그
-            securityAuditLogger.logApiKeyDeletionFailure(userId, arnId, 
+            securityAuditLogger.logApiKeyDeletionFailure(actualUserId, arnId, 
                 ValidationUtils.getCurrentIpAddress(), "INTERNAL_ERROR: " + e.getMessage());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

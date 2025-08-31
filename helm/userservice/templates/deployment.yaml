@@ -78,36 +78,36 @@ spec:
             - name: AUTH0_ISSUER_URI
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.auth0.name }}
+                  name: {{ .Values.env.auth0.name }}
                   key: issuer-uri
             - name: AUTH0_AUDIENCE
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.auth0.name }}
+                  name: {{ .Values.env.auth0.name }}
                   key: audience
             - name: AUTH0_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.auth0.name }}
+                  name: {{ .Values.env.auth0.name }}
                   key: client-id
             {{- end }}
             
             # TossPay configuration
-            {{- if .Values.secrets.tosspay.enabled }}
+            {{- if .Values.env.tosspay.enabled }}
             - name: TOSSPAY_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.tosspay.name }}
+                  name: {{ .Values.env.tosspay.name }}
                   key: secret-key
             - name: TOSSPAY_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.tosspay.name }}
+                  name: {{ .Values.env.tosspay.name }}
                   key: client-id
             - name: TOSSPAY_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.tosspay.name }}
+                  name: {{ .Values.env.tosspay.name }}
                   key: webhook-secret
             {{- end }}
             
