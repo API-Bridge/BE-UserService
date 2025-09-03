@@ -49,49 +49,68 @@ public class UserSecretsArnService {
      * 
      * 사용자가 제공한 암호화 키를 AWS Secrets Manager에 안전하게 저장하고,
      * 반환받은 ARN을 데이터베이스에 저장하는 전체 프로세스를 수행합니다.
+     * secretName은 UUID로 자동 생성되어 중복을 방지합니다.
      * 
      * 처리 순서:
      * 1. 입력 파라미터 유효성 검증
-     * 2. AWS Secrets Manager에 키 저장
-     * 3. 반환받은 ARN으로 UserSecretsArn 엔티티 생성
-     * 4. 데이터베이스에 ARN 정보 저장
-     * 5. 키 저장 성공 이벤트 발행
+     * 2. UUID 기반 secretName 자동 생성
+     * 3. AWS Secrets Manager에 키 저장
+     * 4. 반환받은 ARN으로 UserSecretsArn 엔티티 생성
+     * 5. 데이터베이스에 ARN 정보 저장
+     * 6. 키 저장 성공 이벤트 발행
      * 
      * @param userId 사용자 식별자
-     * @param secretName AWS에서 사용할 시크릿 이름
      * @param secretValue 저장할 암호화 키 값
      * @param description 키에 대한 설명 (선택적)
      * @return 저장된 ARN 정보 엔티티
      * @throws IllegalArgumentException 입력 파라미터가 유효하지 않은 경우
      * @throws AWSSecretsManagerException AWS API 호출 실패 시
      */
-    public UserSecretsArn storeUserSecret(String userId, String secretName, 
-                                         String secretValue, String description) {
-        log.info("사용자 암호화 키 저장 시작 - userId: {}, secretName: {}", userId, secretName);
+    public UserSecretsArn storeUserSecret(String userId, String secretValue, String description) {
+        log.info("사용자 암호화 키 저장 시작 - userId: {}", userId);
         
         // 입력 파라미터 유효성 검증
-        validateStoreSecretParameters(userId, secretName, secretValue);
+        validateStoreSecretParameters(userId, secretValue);
+        
+        // UUID 기반 secretName 자동 생성
+        String secretName = "user-secret-" + UUID.randomUUID();
         
         try {
             // AWS Secrets Manager에 키 저장
             String arn = awsSecretsManagerService.storeSecret(secretName, secretValue, description);
             log.info("AWS Secrets Manager에 키 저장 성공 - ARN: {}", arn);
             
-            // UserSecretsArn 엔티티 생성
-            UserSecretsArn userSecretsArn = UserSecretsArn.builder()
-                    .arnId(UUID.randomUUID().toString())
-                    .userId(userId)
-                    .arn(arn)
-                    .arnDescription(description)
-                    .createdAt(LocalDateTime.now())
-                    .build();
+            // 기존 ARN이 있는지 확인하여 업데이트 또는 새로 생성
+            Optional<UserSecretsArn> existingArn = userSecretsArnRepository.findByUserIdAndArn(userId, arn);
             
-            // 데이터베이스에 ARN 정보 저장
-            UserSecretsArn savedArn = userSecretsArnRepository.save(userSecretsArn);
-            log.info("ARN 정보 데이터베이스 저장 성공 - arnId: {}", savedArn.getArnId());
-            
-            // 키 저장 성공 이벤트 발행
-            publishSecretStoredEvent(savedArn);
+            UserSecretsArn savedArn;
+            if (existingArn.isPresent()) {
+                // 기존 ARN 업데이트
+                UserSecretsArn userSecretsArn = existingArn.get();
+                userSecretsArn.updateDescription(description);
+                savedArn = userSecretsArnRepository.save(userSecretsArn);
+                log.info("기존 ARN 정보 업데이트 성공 - arnId: {}", savedArn.getArnId());
+                
+                // 키 업데이트 이벤트 발행
+                publishSecretUpdatedEvent(savedArn);
+            } else {
+                // 새 UserSecretsArn 엔티티 생성
+                UserSecretsArn userSecretsArn = UserSecretsArn.builder()
+                        .arnId(UUID.randomUUID().toString())
+                        .userId(userId)
+                        .arn(arn)
+                        .secretName(secretName)
+                        .arnDescription(description)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                
+                // 데이터베이스에 ARN 정보 저장
+                savedArn = userSecretsArnRepository.save(userSecretsArn);
+                log.info("새 ARN 정보 데이터베이스 저장 성공 - arnId: {}, secretName: {}", savedArn.getArnId(), secretName);
+                
+                // 키 저장 성공 이벤트 발행
+                publishSecretStoredEvent(savedArn);
+            }
             
             return savedArn;
             
@@ -365,15 +384,11 @@ public class UserSecretsArnService {
      * 키 저장 파라미터 유효성 검증
      * 
      * @param userId 사용자 ID
-     * @param secretName 시크릿 이름
      * @param secretValue 시크릿 값
      */
-    private void validateStoreSecretParameters(String userId, String secretName, String secretValue) {
+    private void validateStoreSecretParameters(String userId, String secretValue) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("사용자 ID는 필수입니다.");
-        }
-        if (secretName == null || secretName.trim().isEmpty()) {
-            throw new IllegalArgumentException("시크릿 이름은 필수입니다.");
         }
         if (secretValue == null || secretValue.trim().isEmpty()) {
             throw new IllegalArgumentException("시크릿 값은 필수입니다.");

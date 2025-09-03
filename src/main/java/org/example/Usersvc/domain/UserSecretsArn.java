@@ -95,6 +95,21 @@ public class UserSecretsArn {
     private String arn;
     
     /**
+     * AWS Secrets Manager Secret Name
+     * 
+     * AWS에서 시크릿을 식별하는 이름입니다.
+     * UUID 기반으로 자동 생성되어 중복을 방지합니다.
+     * 
+     * 특징:
+     * - 시스템에서 자동 생성 (user-secret-{UUID})
+     * - AWS Secrets Manager에서 시크릿 식별에 사용
+     * - 중복 방지를 위한 UUID 기반
+     * - 최대 255자 길이
+     */
+    @Column(name = "secret_name", length = 255, nullable = false)
+    private String secretName;
+    
+    /**
      * ARN 설명 정보
      * 
      * 사용자가 ARN에 대한 설명이나 용도를 기록할 수 있는 필드입니다.

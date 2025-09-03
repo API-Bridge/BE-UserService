@@ -70,6 +70,18 @@ public interface UserSecretsArnRepository extends JpaRepository<UserSecretsArn, 
     Optional<UserSecretsArn> findByArn(String arn);
     
     /**
+     * 사용자 ID와 ARN으로 조회
+     * 
+     * 특정 사용자의 특정 ARN 정보를 조회합니다.
+     * 중복 ARN 등록 시나리오나 권한 검증에 활용됩니다.
+     * 
+     * @param userId 사용자 식별자
+     * @param arn AWS Secrets Manager ARN
+     * @return 해당 조건의 ARN 정보, 없으면 Optional.empty()
+     */
+    Optional<UserSecretsArn> findByUserIdAndArn(String userId, String arn);
+    
+    /**
      * ARN 존재 여부 확인
      * 
      * 특정 ARN이 이미 시스템에 등록되어 있는지 확인합니다.

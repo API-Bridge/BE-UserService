@@ -57,9 +57,9 @@ public class TrustedGatewayConfig {
             // CSRF 비활성화 (내부 서비스 간 통신)
             .csrf(csrf -> csrf.disable())
             
-            // 세션 비활성화 (Stateless)
+            // OAuth2 로그인을 위해 필요시 세션 생성 허용
             .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             
             // 경로별 접근 권한 설정
             .authorizeHttpRequests(authz -> authz
@@ -86,7 +86,15 @@ public class TrustedGatewayConfig {
                 .anyRequest().permitAll()
             )
             
-            // 모든 요청을 허용하므로 필터 추가 불필요
+            // OAuth2 Login 설정 추가 (Auth0 로그인 처리)
+            .oauth2Login(oauth2 -> oauth2
+                .successHandler((request, response, authentication) -> {
+                    response.sendRedirect("/api/auth/login-success");
+                })
+                .failureHandler((request, response, exception) -> {
+                    response.sendRedirect("/api/auth/login-error");
+                })
+            )
             ;
 
         return http.build();

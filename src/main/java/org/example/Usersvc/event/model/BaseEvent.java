@@ -1,5 +1,7 @@
 package org.example.Usersvc.event.model;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,10 @@ import java.util.UUID;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = UserDeletedEvent.class, name = "USER_DELETED")
+})
 public abstract class BaseEvent {
     /** 이벤트 고유 식별자 */
     private String eventId;
@@ -58,5 +64,6 @@ public abstract class BaseEvent {
      * 
      * @return 이벤트의 실제 내용 객체
      */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public abstract Object getPayload();
 }

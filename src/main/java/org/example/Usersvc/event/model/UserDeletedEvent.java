@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 사용자 삭제 이벤트
@@ -69,6 +70,12 @@ public class UserDeletedEvent extends BaseEvent {
 
     @Override
     public Object getPayload() {
-        return this;
+        return Map.of(
+            "auth0Id", this.auth0Id,
+            "deletedAt", this.deletedAt,
+            "deletionReason", this.deletionReason != null ? this.deletionReason : "",
+            "userId", this.userId,
+            "userEmail", this.userEmail
+        );
     }
 }

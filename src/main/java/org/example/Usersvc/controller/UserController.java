@@ -27,6 +27,9 @@ import org.example.Usersvc.repository.PlanRepository;
 import org.example.Usersvc.domain.UserSubscription;
 import org.example.Usersvc.domain.Plan;
 import org.example.Usersvc.domain.PlanName;
+import org.example.Usersvc.event.publisher.EventPublisherService;
+import org.example.Usersvc.event.model.UserDeletedEvent;
+import java.time.LocalDateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -70,6 +73,7 @@ public class UserController {
     private final CustomMetrics customMetrics;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final PlanRepository planRepository;
+    private final EventPublisherService eventPublisher;
 
     // 사용자 생성 엔드포인트
     // Auth0에서 받은 사용자 정보를 기반으로 새로운 사용자를 시스템에 등록합니다.
@@ -254,7 +258,7 @@ public class UserController {
             @Parameter(description = "개인 키 등록 요청 정보") @Valid @RequestBody RegisterSecretRequest request) {
         // X-User-Id 헤더 정리
         String actualUserId = HeaderUtils.extractUserId(userId);
-        log.info("개인 키 등록 요청 - userId: {}, secretName: {}", actualUserId, request.secretName());
+        log.info("개인 키 등록 요청 - userId: {}", actualUserId);
         
         // API 키 등록 시간 측정 시작
         var registrationTimer = customMetrics.startApiKeyRegistrationTimer();
@@ -268,13 +272,7 @@ public class UserController {
                         .body(ApiResponse.error(userIdValidationError.getBody().getMessage(), userIdValidationError.getBody().getErrorCode()));
             }
             
-            // 입력 데이터 검증 (ValidationUtils 사용)
-            ResponseEntity<ApiResponse<Void>> secretNameValidationError = ValidationUtils.validateSecretNameAndReturnError(request.secretName());
-            if (secretNameValidationError != null) {
-                assert secretNameValidationError.getBody() != null;
-                return ResponseEntity.status(secretNameValidationError.getStatusCode())
-                        .body(ApiResponse.error(secretNameValidationError.getBody().getMessage(), secretNameValidationError.getBody().getErrorCode()));
-            }
+            // secretName은 이제 자동 생성되므로 검증 불필요
             
             ResponseEntity<ApiResponse<Void>> secretValueValidationError = ValidationUtils.validateSecretValueAndReturnError(request.secretValue());
             if (secretValueValidationError != null) {
@@ -292,14 +290,14 @@ public class UserController {
             
             // AWS Secrets Manager에 키 저장
             UserSecretsArn registeredArn = userSecretsArnService.storeUserSecret(
-                    actualUserId, request.secretName(), request.secretValue(), request.description());
+                    actualUserId, request.secretValue(), request.description());
             
             // 메트릭 기록
             customMetrics.incrementApiKeyRegistered();
             customMetrics.recordApiKeyRegistrationTime(registrationTimer);
             
             // 사용자 액션 로깅
-            userActionLogger.logApiKeyRegistration(actualUserId, request.secretName(), true);
+            userActionLogger.logApiKeyRegistration(actualUserId, registeredArn.getSecretName(), true);
             
             log.info("개인 키 등록 성공 - userId: {}, arnId: {}", actualUserId, registeredArn.getArnId());
             
@@ -313,7 +311,7 @@ public class UserController {
             log.warn("키 등록 실패 - 잘못된 요청: {}", e.getMessage());
             
             // 보안 로그
-            securityAuditLogger.logApiKeyRegistrationFailure(actualUserId, request.secretName(), 
+            securityAuditLogger.logApiKeyRegistrationFailure(actualUserId, "auto-generated", 
                 ValidationUtils.getCurrentIpAddress(), "INVALID_REQUEST: " + e.getMessage());
             
             return ResponseEntity.badRequest()
@@ -326,7 +324,7 @@ public class UserController {
             log.error("개인 키 등록 중 오류 발생 - userId: {}", actualUserId, e);
             
             // 보안 로그
-            securityAuditLogger.logApiKeyRegistrationFailure(actualUserId, request.secretName(), 
+            securityAuditLogger.logApiKeyRegistrationFailure(actualUserId, "auto-generated", 
                 ValidationUtils.getCurrentIpAddress(), "INTERNAL_ERROR: " + e.getMessage());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -631,38 +629,13 @@ public class UserController {
                     name = "성공 응답 예시",
                     value = """
                     {
-                        "success": true,
-                        "data": {
-                            "userId": "user-001",
-                            "userEmail": "user@example.com",
-                            "createdAt": "2024-01-15T10:00:00",
-                            "planInfo": {
-                                "planName": "FREE",
-                                "planName": "Free Plan",
-                                "isActive": true,
-                                "planPaymentDate": "2024-01-15T10:00:00",
-                                "planUpdateDate": "2024-01-15T10:00:00",
-                                "stripeSubscriptionId": null,
-                                "price": 0.0,
-                                "description": "기본 무료 플랜"
-                            },
-                            "usageLimits": {
-                                "maxCustomApiCount": 5,
-                                "maxSharedApiCount": 3,
-                                "maxDataBundleCount": 10,
-                                "rateLimitPerMinute": 10,
-                                "rateLimitPerHour": 100,
-                                "rateLimitPerDay": 1000
-                            },
-                            "currentUsage": {
-                                "customApiCount": 2,
-                                "sharedApiCount": 1,
-                                "savedApiCount": 3,
-                                "minuteUsage": 5,
-                                "hourUsage": 45,
-                                "dayUsage": 320
-                            }
-                        }
+                        "userId": "auth0|user123456",
+                        "email": "user@example.com",
+                        "name": "홍길동",
+                        "plan": "PRO",
+                        "isActive": true,
+                        "createdAt": "2023-01-01T00:00:00Z",
+                        "updatedAt": "2023-12-01T00:00:00Z"
                     }
                     """
                 )
@@ -670,23 +643,15 @@ public class UserController {
         ),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "404",
-            description = "사용자를 찾을 수 없음",
-            content = @Content(
-                mediaType = "application/json",
-                schema = @Schema(implementation = ApiResponse.class)
-            )
+            description = "사용자를 찾을 수 없음"
         ),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "400",
-            description = "잘못된 요청",
-            content = @Content(
-                mediaType = "application/json",
-                schema = @Schema(implementation = ApiResponse.class)
-            )
+            description = "잘못된 요청"
         )
     })
     @GetMapping("/users/info")
-    public ResponseEntity<ApiResponse<UserInfoResponse>> getUserInfo(
+    public ResponseEntity<UserInfoResponse> getUserInfo(
             @Parameter(
                 description = "조회할 사용자의 고유 식별자",
                 required = true,
@@ -702,27 +667,24 @@ public class UserController {
             // 입력 검증
             if (actualUserId == null || actualUserId.trim().isEmpty()) {
                 log.warn("빈 사용자 ID - userId: {}", actualUserId);
-                return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("사용자 ID는 필수입니다.", "INVALID_USER_ID"));
+                return ResponseEntity.badRequest().build();
             }
             
             // 통합 사용자 정보 조회
             UserInfoResponse userInfo = userService.getUserCompleteInfo(actualUserId);
             
             log.info("통합 사용자 정보 조회 성공 - userId: {}, planName: {}", 
-                    actualUserId, userInfo.getPlanName());
+                    actualUserId, userInfo.getPlan());
             
-            return ResponseEntity.ok(ApiResponse.success(userInfo));
+            return ResponseEntity.ok(userInfo);
             
         } catch (IllegalArgumentException e) {
             log.warn("통합 사용자 정보 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(e.getMessage(), "USER_NOT_FOUND"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
                     
         } catch (Exception e) {
             log.error("통합 사용자 정보 조회 중 예상치 못한 오류 발생 - userId: {}", userId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("사용자 정보 조회에 실패했습니다.", "INTERNAL_ERROR"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
     
@@ -854,15 +816,95 @@ public class UserController {
     // 사용자가 개인 키를 등록할 때 사용하는 요청 객체입니다.
     @Schema(description = "개인 키 등록 요청")
     public record RegisterSecretRequest(
-            @Schema(description = "시크릿 이름", example = "my-openai-key", required = true)
-            @NotBlank(message = "시크릿 이름은 필수입니다")
-            String secretName,
-            
             @Schema(description = "시크릿 값 (API 키)", example = "sk-1234567890abcdef", required = true)
             @NotBlank(message = "시크릿 값은 필수입니다")
             String secretValue,
             
             @Schema(description = "시크릿 설명", example = "OpenAI API 키")
             String description  // 선택적 필드
+    ) {}
+
+
+
+    /**
+     * 테스트용 사용자 삭제 이벤트 발행 엔드포인트
+     * 개발/테스트 환경에서 이벤트 발행을 검증하기 위한 엔드포인트입니다.
+     */
+    @Operation(
+        summary = "테스트용 사용자 삭제 이벤트 발행",
+        description = "개발/테스트 환경에서 사용자 삭제 이벤트 발행을 테스트합니다.",
+        security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "이벤트 발행 성공",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class)
+            )
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "잘못된 요청",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class)
+            )
+        )
+    })
+    @PostMapping("/test/user-deleted-event")
+    public ResponseEntity<ApiResponse<String>> publishTestUserDeletedEvent(
+            @Parameter(description = "삭제 이벤트 테스트 요청")
+            @Valid @RequestBody TestUserDeletedEventRequest request) {
+        
+        log.info("테스트용 사용자 삭제 이벤트 발행 요청 - auth0Id: {}", request.auth0Id());
+        
+        try {
+            // 사용자 삭제 이벤트 생성
+            UserDeletedEvent userDeletedEvent = new UserDeletedEvent(
+                request.userId(),
+                request.auth0Id(),
+                request.userEmail(),
+                LocalDateTime.now(),
+                request.deletionReason()
+            );
+            
+            // 이벤트 발행 - 단순 객체로 전달
+            eventPublisher.publishEvent("user-events", userDeletedEvent);
+            
+            log.info("테스트용 사용자 삭제 이벤트 발행 성공 - auth0Id: {}, eventId: {}", 
+                    request.auth0Id(), userDeletedEvent.getEventId());
+            
+            return ResponseEntity.ok(
+                ApiResponse.success("사용자 삭제 이벤트가 성공적으로 발행되었습니다. EventId: " + userDeletedEvent.getEventId())
+            );
+            
+        } catch (Exception e) {
+            log.error("테스트용 사용자 삭제 이벤트 발행 실패 - auth0Id: {}", request.auth0Id(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("EVENT_PUBLISH_FAILED", "이벤트 발행에 실패했습니다."));
+        }
+    }
+    
+    /**
+     * 테스트용 사용자 삭제 이벤트 요청 DTO
+     */
+    @Schema(description = "테스트용 사용자 삭제 이벤트 요청")
+    public record TestUserDeletedEventRequest(
+            @Schema(description = "삭제된 사용자 ID", example = "user-123", required = true)
+            @NotBlank(message = "사용자 ID는 필수입니다")
+            String userId,
+            
+            @Schema(description = "삭제된 사용자의 Auth0 ID", example = "auth0|123456789", required = true)
+            @NotBlank(message = "Auth0 ID는 필수입니다")
+            String auth0Id,
+            
+            @Schema(description = "삭제된 사용자 이메일", example = "test@example.com", required = true)
+            @NotBlank(message = "사용자 이메일은 필수입니다")
+            String userEmail,
+            
+            @Schema(description = "삭제 사유", example = "테스트 계정 삭제")
+            String deletionReason
     ) {}
 }

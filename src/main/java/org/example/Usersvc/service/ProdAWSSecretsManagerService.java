@@ -53,12 +53,36 @@ public class ProdAWSSecretsManagerService implements AWSSecretsManagerService {
             log.info("Secret stored successfully with ARN: {}", response.arn());
             return response.arn();
             
+        } catch (ResourceExistsException e) {
+            log.warn("Secret already exists, updating existing secret: name={}", secretName);
+            return updateExistingSecret(secretName, secretValue, description);
         } catch (SecretsManagerException e) {
             log.error("Failed to store secret in AWS Secrets Manager: {}", e.getMessage(), e);
             throw new AWSSecretsManagerException("Failed to store secret: " + e.getMessage(), e);
         } catch (Exception e) {
             log.error("Unexpected error while storing secret: {}", e.getMessage(), e);
             throw new AWSSecretsManagerException("Unexpected error: " + e.getMessage(), e);
+        }
+    }
+
+    private String updateExistingSecret(String secretName, String secretValue, String description) throws AWSSecretsManagerException {
+        try {
+            log.info("Updating existing secret in AWS Secrets Manager: name={}", secretName);
+            
+            UpdateSecretRequest request = UpdateSecretRequest.builder()
+                .secretId(secretName)
+                .secretString(secretValue)
+                .description(description != null ? description : "User provided secret")
+                .build();
+
+            UpdateSecretResponse response = secretsManagerClient.updateSecret(request);
+            
+            log.info("Existing secret updated successfully with ARN: {}", response.arn());
+            return response.arn();
+            
+        } catch (SecretsManagerException e) {
+            log.error("Failed to update existing secret: {}", e.getMessage(), e);
+            throw new AWSSecretsManagerException("Failed to update existing secret: " + e.getMessage(), e);
         }
     }
 

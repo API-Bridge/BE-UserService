@@ -464,7 +464,7 @@ public class UserService {
     public UserInfoResponse getUserCompleteInfo(String userId) {
         log.debug("통합 사용자 정보 조회 시작 - userId: {}", userId);
         
-        User user = getUserById(userId)
+        User user = getUserByAuth0Id(userId)
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
         
         Optional<UserSubscription> subscriptionOpt = userSubscriptionRepository.findActiveSubscriptionByUser(user);
@@ -474,12 +474,13 @@ public class UserService {
         CurrentUsage currentUsage = buildCurrentUsage(userId, user);
         
         UserInfoResponse response = UserInfoResponse.builder()
-            .userId(user.getUserId())
-            .userEmail(user.getUserEmail())
+            .userId(user.getAuth0Id())
+            .email(user.getUserEmail())
+            .name("사용자") // User 엔티티에 name 필드가 없어서 기본값 사용
+            .plan(subscriptionOpt.map(sub -> sub.getPlan().getPlanNameString()).orElse("FREE"))
+            .isActive(subscriptionOpt.map(UserSubscription::isActive).orElse(false))
             .createdAt(user.getCreatedAt())
-            .planInfo(planInfo)
-            .usageLimits(usageLimits)
-            .currentUsage(currentUsage)
+            .updatedAt(user.getCreatedAt()) // User 엔티티에 updatedAt 필드가 없어서 createdAt 사용
             .build();
         
         log.debug("통합 사용자 정보 조회 완료 - userId: {}, planName: {}, customApis: {}, sharedApis: {}", 
