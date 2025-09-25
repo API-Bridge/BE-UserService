@@ -47,7 +47,7 @@ import java.util.stream.Stream;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@Profile({"dev", "default"})
+@Profile({"dev", "default", "docker"})
 @org.springframework.core.annotation.Order(1) // 높은 우선순위로 설정
 public class DevSecurityConfig {
 

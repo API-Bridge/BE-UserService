@@ -67,6 +67,6 @@ public class PageController {
      */
     @GetMapping("/")
     public String home() {
-        return "redirect:/payment-test";
+        return "redirect:/login-success";
     }
 }

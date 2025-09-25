@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/BE-UserService.main.iml" filepath="$PROJECT_DIR$/.idea/modules/BE-UserService.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/UserSvc.main.iml" filepath="$PROJECT_DIR$/.idea/modules/UserSvc.main.iml" />
     </modules>
   </component>
 </project>

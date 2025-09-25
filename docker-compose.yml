@@ -1,62 +1,76 @@
-# 로컬 개발환경 전용 - 외부 의존성만 제공
-# 실제 MSA 환경에서는 이런 인프라들이 공유 서비스로 별도 운영됨
 version: '3.8'
 
 services:
-  # 로컬 개발을 위한 최소한의 외부 의존성들services:
-  # mysql:
-  #   image: mysql:8.0
-  #   ports:
-  #     - "3306:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: 1111
-  #     MYSQL_DATABASE: userservice
-  #     MYSQL_USER: root
-  #     MYSQL_PASSWORD: 1111
-  #   volumes:
-  #     - mysql_data:/var/lib/mysql
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  redis:
-    image: redis:7-alpine
+  # User Service Application
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      # Override specific values for Docker environment
+      - SPRING_PROFILES_ACTIVE=trusted-gateway
+      - SPRING_APPLICATION_NAME=user-service
+      - SERVICE_NAME=user-service
+      - DDL_AUTO=update
+      - DB_URL=jdbc:mysql://mysql:3306/user_svc_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true
+      - DB_USERNAME=root
+      - DB_PASSWORD=cell4086
+      # External services (already running containers)
+      - REDIS_HOST=APIBridge-Redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # ELK Stack connection (optional)
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+    # JSON 로그 형식으로 출력 (Filebeat 수집용)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+      - external-services
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: cell4086
+      MYSQL_DATABASE: user_svc_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Kafka는 개발 시에만 로컬에서 실행 (실제로는 공유 서비스)
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-    depends_on:
-      - zookeeper
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+networks:
+  app-network:
+    driver: bridge
+  external-services:
+    external: true
 
 volumes:
   mysql_data:
-  redis_data:
 
 # 사용법:
 # 로컬 개발: docker-compose -f docker-compose.local.yml up -d

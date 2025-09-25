@@ -48,6 +48,9 @@ dependencies {
     // Monitoring & Observability
     implementation 'io.micrometer:micrometer-registry-prometheus'
     
+    // ELK Stack JSON Logging
+    implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
+    
     // Security & OAuth2 (Auth0 JWT 토큰 검증 및 로그인)
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'

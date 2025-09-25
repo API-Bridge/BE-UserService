@@ -1,12 +1,12 @@
 # Multi-stage build for Amazon Corretto 17
-FROM amazoncorretto:17-alpine AS builder
+FROM --platform=$BUILDPLATFORM amazoncorretto:17-alpine AS builder
 
 WORKDIR /app
 
 # Copy gradle wrapper and build files
 COPY gradlew .
 COPY gradle gradle
-COPY build.gradle settings.gradle ./
+COPY build.gradle ./
 
 # Download dependencies
 RUN ./gradlew dependencies --no-daemon
@@ -15,7 +15,7 @@ RUN ./gradlew dependencies --no-daemon
 COPY src src
 RUN ./gradlew bootJar --no-daemon -x test
 
-# Runtime stage
+# Runtime stage  
 FROM amazoncorretto:17-alpine
 
 RUN addgroup -g 1001 -S spring && \
@@ -36,7 +36,7 @@ USER spring:spring
 
 # Health check for container orchestration (K8s, Docker Swarm)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8081/api/health || exit 1
+    CMD curl -f http://localhost:8081/api/v1/health || exit 1
 
 EXPOSE 8081
 

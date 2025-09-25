@@ -4,7 +4,7 @@
 
 spring:
   application:
-    name: USER-SERVICE
+    name: ${SPRING_APPLICATION_NAME:user-service}
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:trusted-gateway}
   config:
@@ -35,8 +35,8 @@ spring:
   # Redis 설정 (개발환경에서는 비활성화)
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: ${REDIS_HOST:6380}
+      port: ${REDIS_PORT:6380}
       timeout: 2000ms
       lettuce:
         pool:
@@ -119,7 +119,7 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      group-id: ${SERVICE_NAME:userservice}-group
+      group-id: ${SERVICE_NAME:user-service}-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -211,6 +211,7 @@ resilience4j:
 
 # 로깅 설정
 logging:
+  config: classpath:logback-spring.xml
   level:
     root: INFO
     org.example.usersvc: DEBUG
@@ -223,9 +224,7 @@ logging:
     org.springframework.kafka: WARN
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    org.hibernate.validator: WARN
 
 # 모니터링 및 관리 설정
 management:
@@ -303,6 +302,33 @@ eureka:
       # 서비스 특성 메타데이터
       service.type: user-management
       service.capabilities: user-crud,profile-management,authentication
+
+---
+# Docker 환경 설정 (ELK 스택과 통합)
+spring:
+  config:
+    activate:
+      on-profile: docker
+  application:
+    name: ${SPRING_APPLICATION_NAME:user-service}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+
+# Elasticsearch 설정 (ELK 연결용)
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:elasticsearch}
+  port: ${ELASTICSEARCH_PORT:9200}
+
+# Docker 환경 로깅 설정 (JSON 형식으로 출력)
+logging:
+  level:
+    org.example.usersvc: INFO
+    org.springframework.security: WARN
+    org.springframework.kafka: WARN
 
 ---
 # 개발 환경 설정
